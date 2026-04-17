@@ -1,0 +1,56 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.sln.docstates
+*.userprefs
+*.suo
+*.user
+*.userosscache
+*.sln.VC.db
+*.VC.db
+
+# Rider
+.idea/
+.idea_modules/
+*.sln.iml
+riderModule.iml
+
+# Database backups
+*.bak
+*.mdf
+*.ldf
+
+# Logs
+Logs/
+*.log
+
+# Local database
+ApartmentManagerDB/
+
+# NuGet
+.nuget/
+*.nupkg
+*.snupkg
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
