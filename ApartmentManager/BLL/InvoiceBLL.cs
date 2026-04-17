@@ -260,6 +260,41 @@ public class InvoiceBLL
     }
 
     /// <summary>
+    /// Delete invoice
+    /// </summary>
+    public static (bool Success, string Message) DeleteInvoice(int invoiceID)
+    {
+        try
+        {
+            if (invoiceID <= 0)
+                return (false, "Invalid invoice ID");
+
+            var invoice = InvoiceDAL.GetInvoiceByID(invoiceID);
+            if (invoice == null)
+                return (false, "Invoice not found");
+
+            // Don't allow deletion of paid invoices for audit purposes
+            if (invoice.PaymentStatus == "Paid")
+                return (false, "Cannot delete paid invoices for audit purposes");
+
+            bool success = InvoiceDAL.DeleteInvoice(invoiceID);
+
+            if (success)
+            {
+                Log.Information("Invoice deleted via BLL: {InvoiceID}", invoiceID);
+                return (true, "Invoice deleted successfully");
+            }
+
+            return (false, "Failed to delete invoice");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error deleting invoice: {InvoiceID}", invoiceID);
+            return (false, $"Error deleting invoice: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Get overdue invoices
     /// </summary>
     public static List<dynamic> GetOverdueInvoices()

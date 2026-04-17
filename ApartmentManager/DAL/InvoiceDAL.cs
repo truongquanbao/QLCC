@@ -176,6 +176,51 @@ public class InvoiceDAL
     }
 
     /// <summary>
+    /// Get unpaid invoices for a specific resident
+    /// </summary>
+    public static List<InvoiceDTO> GetUnpaidInvoicesByResident(int residentID)
+    {
+        var invoices = new List<InvoiceDTO>();
+
+        try
+        {
+            const string query = @"
+                SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.CreatedAt, i.UpdatedAt, i.Note
+                FROM Invoices i
+                INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
+                INNER JOIN Residents r ON a.ApartmentID = r.ApartmentID
+                WHERE r.ResidentID = @ResidentID
+                AND i.PaymentStatus IN ('Unpaid', 'Partial')
+                AND r.Status = 'Active'
+                ORDER BY i.DueDate ASC
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ResidentID", residentID);
+                    connection.Open();
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            invoices.Add(MapInvoiceDTO(reader));
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting unpaid invoices for resident: {ResidentID}", residentID);
+        }
+
+        return invoices;
+    }
+
+    /// <summary>
     /// Get invoices by month and year
     /// </summary>
     public static List<InvoiceDTO> GetInvoicesByMonth(int month, int year)
