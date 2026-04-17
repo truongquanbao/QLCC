@@ -366,3 +366,4 @@ Xây dựng theo yêu cầu chi tiết (29 mục) - Phiên bản 1.0.0
 **Last Updated**: April 17, 2026  
 **Version**: 1.0.0  
 **.NET Target**: 10.0-windows
+# QLCC
