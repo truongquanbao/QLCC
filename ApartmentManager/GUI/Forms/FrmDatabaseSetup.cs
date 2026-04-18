@@ -1,18 +1,22 @@
+﻿using System;
+using System.Windows.Forms;
 using ApartmentManager.Utilities;
 using Microsoft.Data.SqlClient;
 using Serilog;
 
+using System.Drawing;
 namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmDatabaseSetup : Form
 {
     public FrmDatabaseSetup()
     {
-        InitializeComponent();
+        // Designer initialization - not used for this form
+        // InitializeComponent();
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
-        this.Text = "Cấu hình Cơ sở dữ liệu";
+        this.Text = "Cáº¥u hÃ¬nh CÆ¡ sá»Ÿ dá»¯ liá»‡u";
         this.Size = new Size(500, 500);
     }
 
@@ -39,7 +43,7 @@ public partial class FrmDatabaseSetup : Form
         // Title
         var lblTitle = new Label
         {
-            Text = "CẤU HÌNH KẾT NỐI CSDL",
+            Text = "Cáº¤U HÃŒNH Káº¾T Ná»I CSDL",
             Font = new Font("Segoe UI", 14, FontStyle.Bold),
             ForeColor = Color.FromArgb(33, 86, 155),
             Width = controlWidth,
@@ -79,7 +83,7 @@ public partial class FrmDatabaseSetup : Form
         yPos += fieldHeight + spacing;
 
         // Authentication Type
-        var lblAuth = new Label { Text = "Xác thực:", Location = new Point(0, yPos), AutoSize = true };
+        var lblAuth = new Label { Text = "XÃ¡c thá»±c:", Location = new Point(0, yPos), AutoSize = true };
         var cmbAuth = new ComboBox
         {
             Name = "cmbAuth",
@@ -158,7 +162,7 @@ public partial class FrmDatabaseSetup : Form
         // Buttons
         var btnTest = new Button
         {
-            Text = "KỲ GƯỢNG KẾT NỐI",
+            Text = "Ká»² GÆ¯á»¢NG Káº¾T Ná»I",
             Width = 150,
             Height = 40,
             Location = new Point(0, yPos),
@@ -173,7 +177,7 @@ public partial class FrmDatabaseSetup : Form
 
         var btnSave = new Button
         {
-            Text = "LƯU VÀ TIẾP TỤC",
+            Text = "LÆ¯U VÃ€ TIáº¾P Tá»¤C",
             Width = 150,
             Height = 40,
             Location = new Point(160, yPos),
@@ -215,12 +219,12 @@ public partial class FrmDatabaseSetup : Form
 
         if (DatabaseHelper.TestConnection(connectionString))
         {
-            lblStatus.Text = "✓ Kết nối thành công!";
+            lblStatus.Text = "âœ“ Káº¿t ná»‘i thÃ nh cÃ´ng!";
             lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
         }
         else
         {
-            lblStatus.Text = "✗ Kết nối thất bại. Kiểm tra thông tin cấu hình.";
+            lblStatus.Text = "âœ— Káº¿t ná»‘i tháº¥t báº¡i. Kiá»ƒm tra thÃ´ng tin cáº¥u hÃ¬nh.";
             lblStatus.ForeColor = Color.FromArgb(255, 87, 34);
         }
     }
@@ -231,15 +235,15 @@ public partial class FrmDatabaseSetup : Form
 
         if (!DatabaseHelper.TestConnection(connectionString))
         {
-            MessageBox.Show("Không thể kết nối đến database. Vui lòng kiểm tra lại thông tin.", 
-                "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n database. Vui lÃ²ng kiá»ƒm tra láº¡i thÃ´ng tin.", 
+                "Lá»—i", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         // Save to app.config (simplified - in production you'd use ConfigurationManager)
         // For now, just close and proceed
-        MessageBox.Show("Cấu hình đã được lưu. Ứng dụng sẽ khởi động lại.", 
-            "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show("Cáº¥u hÃ¬nh Ä‘Ã£ Ä‘Æ°á»£c lÆ°u. á»¨ng dá»¥ng sáº½ khá»Ÿi Ä‘á»™ng láº¡i.", 
+            "ThÃ´ng bÃ¡o", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
         this.Close();
     }
@@ -270,3 +274,5 @@ public partial class FrmDatabaseSetup : Form
         }
     }
 }
+
+

@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.Utilities;
 using Serilog;
@@ -12,7 +14,7 @@ public class AuditLogDAL
     /// <summary>
     /// Log user action
     /// </summary>
-    public static void LogAction(int? userID, string action, string entityName, int? entityID, 
+    public static void LogAction(int? userID, string action, string entityName, int? entityID = null, 
                                  string? description = null, string? oldValue = null, string? newValue = null)
     {
         try
@@ -168,3 +170,5 @@ public class AuditLogDAL
         }
     }
 }
+
+

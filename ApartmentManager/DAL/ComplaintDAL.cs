@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.Utilities;
 using Serilog;
@@ -404,6 +406,44 @@ public class ComplaintDAL
     }
 
     /// <summary>
+    /// Resolve complaint (mark as resolved)
+    /// </summary>
+    public static bool ResolveComplaint(int complaintID, string resolutionNotes)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Complaints 
+                SET Status = 'Resolved', ResolutionNotes = @ResolutionNotes, UpdatedAt = GETDATE()
+                WHERE ComplaintID = @ComplaintID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ComplaintID", complaintID);
+                    command.Parameters.AddWithValue("@ResolutionNotes", resolutionNotes ?? "");
+                    connection.Open();
+
+                    var affected = command.ExecuteNonQuery();
+                    if (affected > 0)
+                    {
+                        Log.Information("Complaint {ComplaintID} resolved", complaintID);
+                    }
+
+                    return affected > 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error resolving complaint: {ComplaintID}", complaintID);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Map SqlDataReader to complaint object
     /// </summary>
     private static dynamic MapComplaint(SqlDataReader reader)
@@ -427,3 +467,5 @@ public class ComplaintDAL
         };
     }
 }
+
+

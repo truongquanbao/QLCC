@@ -1,3 +1,4 @@
+﻿using System;
 using ApartmentManager.DTO;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
@@ -19,21 +20,21 @@ public class AuthenticationBLL
         {
             // Validate input
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-                return (false, "Tên đăng nhập hoặc mật khẩu không được bỏ trống", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng", null);
 
             // Get user from database
             var user = UserDAL.GetUserByUsername(username);
             if (user == null)
             {
                 Log.Warning("Login failed: user not found - {Username}", username);
-                return (false, "Tên đăng nhập hoặc mật khẩu không chính xác", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c", null);
             }
 
             // Check if account is locked
             if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.Now)
             {
                 var timeLeft = user.LockedUntil.Value - DateTime.Now;
-                var message = $"Tài khoản bị khóa. Vui lòng thử lại sau {(int)timeLeft.TotalMinutes} phút";
+                var message = $"TÃ i khoáº£n bá»‹ khÃ³a. Vui lÃ²ng thá»­ láº¡i sau {(int)timeLeft.TotalMinutes} phÃºt";
                 Log.Warning("Login failed: account locked - {Username}", username);
                 return (false, message, null);
             }
@@ -42,30 +43,30 @@ public class AuthenticationBLL
             if (!user.IsApproved && user.RoleName == "Resident")
             {
                 Log.Warning("Login failed: account not approved - {Username}", username);
-                return (false, "Tài khoản chưa được duyệt. Vui lòng chờ xác minh từ quản lý", null);
+                return (false, "TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c duyá»‡t. Vui lÃ²ng chá» xÃ¡c minh tá»« quáº£n lÃ½", null);
             }
 
             // Check if account is rejected
             if (user.Status == "Rejected")
             {
                 Log.Warning("Login failed: account rejected - {Username}", username);
-                return (false, "Tài khoản bị từ chối. Vui lòng liên hệ quản lý để biết thêm chi tiết", null);
+                return (false, "TÃ i khoáº£n bá»‹ tá»« chá»‘i. Vui lÃ²ng liÃªn há»‡ quáº£n lÃ½ Ä‘á»ƒ biáº¿t thÃªm chi tiáº¿t", null);
             }
 
             // Check if account is inactive
             if (user.Status == "Inactive")
             {
                 Log.Warning("Login failed: account inactive - {Username}", username);
-                return (false, "Tài khoản đã bị vô hiệu hóa", null);
+                return (false, "TÃ i khoáº£n Ä‘Ã£ bá»‹ vÃ´ hiá»‡u hÃ³a", null);
             }
 
             // Verify password
             if (!PasswordHasher.VerifyPassword(password, user.PasswordHash))
             {
                 UserDAL.UpdateLoginAttempt(user.UserID, false);
-                AuditLogDAL.LogLogin(user.UserID, false, "Sai mật khẩu");
+                AuditLogDAL.LogLogin(user.UserID, false, "Sai máº­t kháº©u");
                 Log.Warning("Login failed: wrong password - {Username}", username);
-                return (false, "Tên đăng nhập hoặc mật khẩu không chính xác", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c", null);
             }
 
             // Update login success
@@ -92,12 +93,12 @@ public class AuthenticationBLL
             SessionManager.SetSession(session);
 
             Log.Information("User logged in successfully: {Username} ({RoleName})", username, user.RoleName);
-            return (true, "Đăng nhập thành công", session);
+            return (true, "ÄÄƒng nháº­p thÃ nh cÃ´ng", session);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error during login: {Username}", username);
-            return (false, "Lỗi khi đăng nhập. Vui lòng thử lại", null);
+            return (false, "Lá»—i khi Ä‘Äƒng nháº­p. Vui lÃ²ng thá»­ láº¡i", null);
         }
     }
 
@@ -112,32 +113,32 @@ public class AuthenticationBLL
         {
             // Validate inputs
             if (string.IsNullOrWhiteSpace(username) || !ValidationHelper.IsValidUsername(username))
-                return (false, "Tên đăng nhập không hợp lệ (3-50 ký tự, chỉ chứa chữ, số, dấu gạch dưới)", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡ (3-50 kÃ½ tá»±, chá»‰ chá»©a chá»¯, sá»‘, dáº¥u gáº¡ch dÆ°á»›i)", null);
 
             if (UserDAL.UsernameExists(username))
-                return (false, "Tên đăng nhập đã được sử dụng", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng", null);
 
             if (!ValidationHelper.IsValidEmail(email))
-                return (false, "Email không hợp lệ", null);
+                return (false, "Email khÃ´ng há»£p lá»‡", null);
 
             if (UserDAL.EmailExists(email))
-                return (false, "Email đã được sử dụng", null);
+                return (false, "Email Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng", null);
 
             if (!ValidationHelper.IsValidPhone(phone))
-                return (false, "Số điện thoại không hợp lệ (định dạng: 09xxxxxxxxx)", null);
+                return (false, "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡ (Ä‘á»‹nh dáº¡ng: 09xxxxxxxxx)", null);
 
             if (!ValidationHelper.IsValidCCCD(cccd))
-                return (false, "CCCD/CMND không hợp lệ", null);
+                return (false, "CCCD/CMND khÃ´ng há»£p lá»‡", null);
 
             if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(passwordConfirm))
-                return (false, "Mật khẩu không được bỏ trống", null);
+                return (false, "Máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng", null);
 
             if (password != passwordConfirm)
-                return (false, "Xác nhận mật khẩu không khớp", null);
+                return (false, "XÃ¡c nháº­n máº­t kháº©u khÃ´ng khá»›p", null);
 
             var passwordValidation = PasswordHasher.ValidatePasswordStrength(password);
-            if (!passwordValidation.IsValid)
-                return (false, passwordValidation.Message, null);
+            if (!passwordValidation.isValid)
+                return (false, passwordValidation.message, null);
 
             // Hash password
             var passwordHash = PasswordHasher.HashPassword(password);
@@ -145,15 +146,15 @@ public class AuthenticationBLL
             // Create user account (Resident role = 3, status = Pending)
             var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, roleID: 3, status: "Pending");
 
-            AuditLogDAL.LogAction(userID, "Register", "User", userID, "Đăng ký tài khoản cư dân");
+            AuditLogDAL.LogAction(userID, "Register", "User", userID, "ÄÄƒng kÃ½ tÃ i khoáº£n cÆ° dÃ¢n");
 
             Log.Information("New resident registered: {Username} (ID: {UserID})", username, userID);
-            return (true, "Đăng ký thành công! Tài khoản sẽ được xác minh bởi quản lý", userID);
+            return (true, "ÄÄƒng kÃ½ thÃ nh cÃ´ng! TÃ i khoáº£n sáº½ Ä‘Æ°á»£c xÃ¡c minh bá»Ÿi quáº£n lÃ½", userID);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error during registration: {Username}", username);
-            return (false, "Lỗi khi đăng ký. Vui lòng thử lại", null);
+            return (false, "Lá»—i khi Ä‘Äƒng kÃ½. Vui lÃ²ng thá»­ láº¡i", null);
         }
     }
 
@@ -190,22 +191,22 @@ public class AuthenticationBLL
             // Get current user
             var user = UserDAL.GetUserByID(userID);
             if (user == null)
-                return (false, "Không tìm thấy người dùng");
+                return (false, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng");
 
             // Verify current password
             if (!PasswordHasher.VerifyPassword(currentPassword, user.PasswordHash))
-                return (false, "Mật khẩu hiện tại không chính xác");
+                return (false, "Máº­t kháº©u hiá»‡n táº¡i khÃ´ng chÃ­nh xÃ¡c");
 
             // Validate new password
             if (string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
-                return (false, "Mật khẩu mới không được bỏ trống");
+                return (false, "Máº­t kháº©u má»›i khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng");
 
             if (newPassword != confirmPassword)
-                return (false, "Xác nhận mật khẩu mới không khớp");
+                return (false, "XÃ¡c nháº­n máº­t kháº©u má»›i khÃ´ng khá»›p");
 
             var passwordValidation = PasswordHasher.ValidatePasswordStrength(newPassword);
-            if (!passwordValidation.IsValid)
-                return (false, passwordValidation.Message);
+            if (!passwordValidation.isValid)
+                return (false, passwordValidation.message);
 
             // Update password
             var passwordHash = PasswordHasher.HashPassword(newPassword);
@@ -215,17 +216,17 @@ public class AuthenticationBLL
             {
                 AuditLogDAL.LogAction(userID, "Change_Password", "User", userID);
                 Log.Information("Password changed for user: {UserID}", userID);
-                return (true, "Mật khẩu đã được thay đổi thành công");
+                return (true, "Máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c thay Ä‘á»•i thÃ nh cÃ´ng");
             }
             else
             {
-                return (false, "Lỗi khi thay đổi mật khẩu");
+                return (false, "Lá»—i khi thay Ä‘á»•i máº­t kháº©u");
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error changing password for user: {UserID}", userID);
-            return (false, "Lỗi khi thay đổi mật khẩu. Vui lòng thử lại");
+            return (false, "Lá»—i khi thay Ä‘á»•i máº­t kháº©u. Vui lÃ²ng thá»­ láº¡i");
         }
     }
 
@@ -248,19 +249,19 @@ public class AuthenticationBLL
             }
 
             if (user == null)
-                return (false, "Không tìm thấy tài khoản với email hoặc số điện thoại này");
+                return (false, "KhÃ´ng tÃ¬m tháº¥y tÃ i khoáº£n vá»›i email hoáº·c sá»‘ Ä‘iá»‡n thoáº¡i nÃ y");
 
             // TODO: Send reset email/SMS with reset token
             // For now, just log the request
             AuditLogDAL.LogAction(user.UserID, "Request_Password_Reset", "User", user.UserID);
 
             Log.Information("Password reset requested for user: {UserID}", user.UserID);
-            return (true, "Hướng dẫn đặt lại mật khẩu đã được gửi đến email/SMS của bạn");
+            return (true, "HÆ°á»›ng dáº«n Ä‘áº·t láº¡i máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c gá»­i Ä‘áº¿n email/SMS cá»§a báº¡n");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error requesting password reset");
-            return (false, "Lỗi khi yêu cầu đặt lại mật khẩu");
+            return (false, "Lá»—i khi yÃªu cáº§u Ä‘áº·t láº¡i máº­t kháº©u");
         }
     }
 
@@ -272,14 +273,14 @@ public class AuthenticationBLL
         try
         {
             if (string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
-                return (false, "Mật khẩu không được bỏ trống");
+                return (false, "Máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng");
 
             if (newPassword != confirmPassword)
-                return (false, "Xác nhận mật khẩu không khớp");
+                return (false, "XÃ¡c nháº­n máº­t kháº©u khÃ´ng khá»›p");
 
             var passwordValidation = PasswordHasher.ValidatePasswordStrength(newPassword);
-            if (!passwordValidation.IsValid)
-                return (false, passwordValidation.Message);
+            if (!passwordValidation.isValid)
+                return (false, passwordValidation.message);
 
             var passwordHash = PasswordHasher.HashPassword(newPassword);
             var success = UserDAL.UpdatePasswordHash(userID, passwordHash);
@@ -288,15 +289,17 @@ public class AuthenticationBLL
             {
                 AuditLogDAL.LogAction(userID, "Reset_Password", "User", userID);
                 Log.Information("Password reset for user: {UserID}", userID);
-                return (true, "Mật khẩu đã được đặt lại thành công");
+                return (true, "Máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c Ä‘áº·t láº¡i thÃ nh cÃ´ng");
             }
 
-            return (false, "Lỗi khi đặt lại mật khẩu");
+            return (false, "Lá»—i khi Ä‘áº·t láº¡i máº­t kháº©u");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error resetting password for user: {UserID}", userID);
-            return (false, "Lỗi khi đặt lại mật khẩu");
+            return (false, "Lá»—i khi Ä‘áº·t láº¡i máº­t kháº©u");
         }
     }
 }
+
+

@@ -1,6 +1,10 @@
+﻿using System;
+using System.Windows.Forms;
+using System.Collections.Generic;
 using ApartmentManager.Utilities;
 using Serilog;
 
+using System.Drawing;
 namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmMainDashboard : Form
@@ -10,7 +14,7 @@ public partial class FrmMainDashboard : Form
     public FrmMainDashboard()
     {
         InitializeComponent();
-        this.Text = "Quản Lý Khu Chung Cư - Dashboard";
+        this.Text = "Quáº£n LÃ½ Khu Chung CÆ° - Dashboard";
         this.WindowState = FormWindowState.Maximized;
         this.FormClosing += FrmMainDashboard_FormClosing;
 
@@ -52,7 +56,7 @@ public partial class FrmMainDashboard : Form
 
         var lblRole = new Label
         {
-            Text = $"Chào, {_session.FullName}",
+            Text = $"ChÃ o, {_session.FullName}",
             Font = new Font("Segoe UI", 11, FontStyle.Bold),
             ForeColor = Color.White,
             AutoSize = true,
@@ -61,7 +65,7 @@ public partial class FrmMainDashboard : Form
 
         var lblRoleName = new Label
         {
-            Text = $"Vai trò: {_session.RoleName}",
+            Text = $"Vai trÃ²: {_session.RoleName}",
             Font = new Font("Segoe UI", 9),
             ForeColor = Color.FromArgb(200, 200, 200),
             AutoSize = true,
@@ -70,7 +74,7 @@ public partial class FrmMainDashboard : Form
 
         var lblLogin = new Label
         {
-            Text = $"Đăng nhập: {_session.LoginTime:dd/MM/yyyy HH:mm}",
+            Text = $"ÄÄƒng nháº­p: {_session.LoginTime:dd/MM/yyyy HH:mm}",
             Font = new Font("Segoe UI", 8),
             ForeColor = Color.FromArgb(150, 150, 150),
             AutoSize = true,
@@ -133,7 +137,7 @@ public partial class FrmMainDashboard : Form
 
         var lblWelcome = new Label
         {
-            Text = $"Chào mừng {_session.FullName} đến với Hệ Thống Quản Lý Khu Chung Cư",
+            Text = $"ChÃ o má»«ng {_session.FullName} Ä‘áº¿n vá»›i Há»‡ Thá»‘ng Quáº£n LÃ½ Khu Chung CÆ°",
             Font = new Font("Segoe UI", 14, FontStyle.Bold),
             ForeColor = Color.FromArgb(33, 86, 155),
             AutoSize = true,
@@ -142,7 +146,7 @@ public partial class FrmMainDashboard : Form
 
         var lblVersion = new Label
         {
-            Text = "Phiên bản 1.0.0",
+            Text = "PhiÃªn báº£n 1.0.0",
             Font = new Font("Segoe UI", 9),
             ForeColor = Color.FromArgb(100, 100, 100),
             AutoSize = true,
@@ -164,7 +168,7 @@ public partial class FrmMainDashboard : Form
         var lblStatus = new Label
         {
             Name = "lblStatus",
-            Text = $"Người dùng: {_session.Username} | Vai trò: {_session.RoleName} | Thời gian: {DateTime.Now:dd/MM/yyyy HH:mm:ss}",
+            Text = $"NgÆ°á»i dÃ¹ng: {_session.Username} | Vai trÃ²: {_session.RoleName} | Thá»i gian: {DateTime.Now:dd/MM/yyyy HH:mm:ss}",
             Font = new Font("Segoe UI", 8),
             ForeColor = Color.FromArgb(64, 64, 64),
             Dock = DockStyle.Fill,
@@ -176,7 +180,7 @@ public partial class FrmMainDashboard : Form
         // Logout button
         var btnLogout = new Button
         {
-            Text = "Đăng Xuất",
+            Text = "ÄÄƒng Xuáº¥t",
             Width = 100,
             Height = 25,
             Location = new Point(850, 2),
@@ -200,7 +204,7 @@ public partial class FrmMainDashboard : Form
         // Timer for status update
         var tmrStatus = new System.Windows.Forms.Timer();
         tmrStatus.Interval = 1000;
-        tmrStatus.Tick += (s, e) => lblStatus.Text = $"Người dùng: {_session.Username} | Vai trò: {_session.RoleName} | Thời gian: {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
+        tmrStatus.Tick += (s, e) => lblStatus.Text = $"NgÆ°á»i dÃ¹ng: {_session.Username} | Vai trÃ²: {_session.RoleName} | Thá»i gian: {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
         tmrStatus.Start();
     }
 
@@ -210,48 +214,48 @@ public partial class FrmMainDashboard : Form
         {
             "Super Admin" => new List<MenuItem>
             {
-                new("📊 Dashboard", null),
-                new("👤 Quản Lý Tài Khoản", null),
-                new("🏢 Quản Lý Tòa Nhà", null),
-                new("🏠 Quản Lý Căn Hộ", null),
-                new("👥 Quản Lý Cư Dân", null),
-                new("💰 Quản Lý Hóa Đơn", null),
-                new("📋 Quản Lý Phản Ánh", null),
-                new("📢 Quản Lý Thông Báo", null),
-                new("🚗 Quản Lý Phương Tiện", null),
-                new("👤 Quản Lý Khách", null),
-                new("🔧 Quản Lý Tài Sản", null),
-                new("📈 Báo Cáo", null),
-                new("📜 Log Hệ Thống", null),
-                new("⚙️ Cấu Hình Hệ Thống", null),
-                new("💾 Backup/Restore", null),
-                new("🔑 Thay Đổi Mật Khẩu", null),
+                new("ðŸ“Š Dashboard", null),
+                new("ðŸ‘¤ Quáº£n LÃ½ TÃ i Khoáº£n", null),
+                new("ðŸ¢ Quáº£n LÃ½ TÃ²a NhÃ ", null),
+                new("ðŸ  Quáº£n LÃ½ CÄƒn Há»™", null),
+                new("ðŸ‘¥ Quáº£n LÃ½ CÆ° DÃ¢n", null),
+                new("ðŸ’° Quáº£n LÃ½ HÃ³a ÄÆ¡n", null),
+                new("ðŸ“‹ Quáº£n LÃ½ Pháº£n Ãnh", null),
+                new("ðŸ“¢ Quáº£n LÃ½ ThÃ´ng BÃ¡o", null),
+                new("ðŸš— Quáº£n LÃ½ PhÆ°Æ¡ng Tiá»‡n", null),
+                new("ðŸ‘¤ Quáº£n LÃ½ KhÃ¡ch", null),
+                new("ðŸ”§ Quáº£n LÃ½ TÃ i Sáº£n", null),
+                new("ðŸ“ˆ BÃ¡o CÃ¡o", null),
+                new("ðŸ“œ Log Há»‡ Thá»‘ng", null),
+                new("âš™ï¸ Cáº¥u HÃ¬nh Há»‡ Thá»‘ng", null),
+                new("ðŸ’¾ Backup/Restore", null),
+                new("ðŸ”‘ Thay Äá»•i Máº­t Kháº©u", null),
             },
             "Manager" => new List<MenuItem>
             {
-                new("📊 Dashboard", null),
-                new("🏠 Quản Lý Căn Hộ", null),
-                new("👥 Quản Lý Cư Dân", null),
-                new("💰 Quản Lý Hóa Đơn", null),
-                new("📋 Quản Lý Phản Ánh", null),
-                new("📢 Quản Lý Thông Báo", null),
-                new("🚗 Quản Lý Phương Tiện", null),
-                new("👤 Quản Lý Khách", null),
-                new("🔧 Quản Lý Tài Sản", null),
-                new("📈 Báo Cáo", null),
-                new("🔑 Thay Đổi Mật Khẩu", null),
+                new("ðŸ“Š Dashboard", null),
+                new("ðŸ  Quáº£n LÃ½ CÄƒn Há»™", null),
+                new("ðŸ‘¥ Quáº£n LÃ½ CÆ° DÃ¢n", null),
+                new("ðŸ’° Quáº£n LÃ½ HÃ³a ÄÆ¡n", null),
+                new("ðŸ“‹ Quáº£n LÃ½ Pháº£n Ãnh", null),
+                new("ðŸ“¢ Quáº£n LÃ½ ThÃ´ng BÃ¡o", null),
+                new("ðŸš— Quáº£n LÃ½ PhÆ°Æ¡ng Tiá»‡n", null),
+                new("ðŸ‘¤ Quáº£n LÃ½ KhÃ¡ch", null),
+                new("ðŸ”§ Quáº£n LÃ½ TÃ i Sáº£n", null),
+                new("ðŸ“ˆ BÃ¡o CÃ¡o", null),
+                new("ðŸ”‘ Thay Äá»•i Máº­t Kháº©u", null),
             },
             "Resident" => new List<MenuItem>
             {
-                new("📊 Thông Tin Cá Nhân", null),
-                new("🏠 Thông Tin Căn Hộ", null),
-                new("💰 Hóa Đơn của Tôi", null),
-                new("💳 Lịch Sử Thanh Toán", null),
-                new("📋 Gửi Phản Ánh", null),
-                new("📢 Thông Báo", null),
-                new("🚗 Xe của Tôi", null),
-                new("👤 Khách của Tôi", null),
-                new("🔑 Thay Đổi Mật Khẩu", null),
+                new("ðŸ“Š ThÃ´ng Tin CÃ¡ NhÃ¢n", null),
+                new("ðŸ  ThÃ´ng Tin CÄƒn Há»™", null),
+                new("ðŸ’° HÃ³a ÄÆ¡n cá»§a TÃ´i", null),
+                new("ðŸ’³ Lá»‹ch Sá»­ Thanh ToÃ¡n", null),
+                new("ðŸ“‹ Gá»­i Pháº£n Ãnh", null),
+                new("ðŸ“¢ ThÃ´ng BÃ¡o", null),
+                new("ðŸš— Xe cá»§a TÃ´i", null),
+                new("ðŸ‘¤ KhÃ¡ch cá»§a TÃ´i", null),
+                new("ðŸ”‘ Thay Äá»•i Máº­t Kháº©u", null),
             },
             _ => new List<MenuItem>()
         };
@@ -260,12 +264,12 @@ public partial class FrmMainDashboard : Form
     private void MenuButton_Click(object? sender, EventArgs e)
     {
         // TODO: Implement menu navigation
-        MessageBox.Show("Chức năng này sẽ sớm được cập nhật", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show("Chá»©c nÄƒng nÃ y sáº½ sá»›m Ä‘Æ°á»£c cáº­p nháº­t", "ThÃ´ng bÃ¡o", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void BtnLogout_Click(object? sender, EventArgs e)
     {
-        if (MessageBox.Show("Bạn có chắc chắn muốn đăng xuất?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+        if (MessageBox.Show("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n Ä‘Äƒng xuáº¥t?", "XÃ¡c nháº­n", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
             SessionManager.ClearSession();
             Log.Information("User logged out");
@@ -300,3 +304,5 @@ public partial class FrmMainDashboard : Form
         }
     }
 }
+
+

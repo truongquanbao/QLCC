@@ -1,7 +1,10 @@
+﻿using System;
+using System.Windows.Forms;
 using ApartmentManager.BLL;
 using ApartmentManager.Utilities;
 using Serilog;
 
+using System.Drawing;
 namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmRegister : Form
@@ -12,7 +15,7 @@ public partial class FrmRegister : Form
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
-        this.Text = "Quản Lý Khu Chung Cư - Đăng Ký";
+        this.Text = "Quáº£n LÃ½ Khu Chung CÆ° - ÄÄƒng KÃ½";
         this.Size = new Size(600, 700);
     }
 
@@ -40,7 +43,7 @@ public partial class FrmRegister : Form
         // Title
         var lblTitle = new Label
         {
-            Text = "ĐĂNG KÝ TÀI KHOẢN CƯ DÂN",
+            Text = "ÄÄ‚NG KÃ TÃ€I KHOáº¢N CÆ¯ DÃ‚N",
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             ForeColor = Color.FromArgb(33, 86, 155),
             Width = controlWidth,
@@ -50,7 +53,7 @@ public partial class FrmRegister : Form
         yPos += 50;
 
         // Username
-        pnlMain.Controls.Add(CreateLabel("Tên đăng nhập:", 0, yPos));
+        pnlMain.Controls.Add(CreateLabel("TÃªn Ä‘Äƒng nháº­p:", 0, yPos));
         var txtUsername = new TextBox
         {
             Name = "txtUsername",
@@ -63,7 +66,7 @@ public partial class FrmRegister : Form
         yPos += fieldHeight + spacing;
 
         // Password
-        pnlMain.Controls.Add(CreateLabel("Mật khẩu:", 0, yPos));
+        pnlMain.Controls.Add(CreateLabel("Máº­t kháº©u:", 0, yPos));
         var txtPassword = new TextBox
         {
             Name = "txtPassword",
@@ -77,7 +80,7 @@ public partial class FrmRegister : Form
         yPos += fieldHeight + spacing;
 
         // Confirm Password
-        pnlMain.Controls.Add(CreateLabel("Xác nhận mật khẩu:", 0, yPos));
+        pnlMain.Controls.Add(CreateLabel("XÃ¡c nháº­n máº­t kháº©u:", 0, yPos));
         var txtConfirmPassword = new TextBox
         {
             Name = "txtConfirmPassword",
@@ -91,7 +94,7 @@ public partial class FrmRegister : Form
         yPos += fieldHeight + spacing;
 
         // Full Name
-        pnlMain.Controls.Add(CreateLabel("Họ tên:", 0, yPos));
+        pnlMain.Controls.Add(CreateLabel("Há» tÃªn:", 0, yPos));
         var txtFullName = new TextBox
         {
             Name = "txtFullName",
@@ -117,7 +120,7 @@ public partial class FrmRegister : Form
         yPos += fieldHeight + spacing;
 
         // Phone
-        pnlMain.Controls.Add(CreateLabel("Số điện thoại:", 0, yPos));
+        pnlMain.Controls.Add(CreateLabel("Sá»‘ Ä‘iá»‡n thoáº¡i:", 0, yPos));
         var txtPhone = new TextBox
         {
             Name = "txtPhone",
@@ -167,7 +170,7 @@ public partial class FrmRegister : Form
 
         var btnRegister = new Button
         {
-            Text = "ĐĂNG KÝ",
+            Text = "ÄÄ‚NG KÃ",
             Width = 150,
             Height = 40,
             Location = new Point(0, 0),
@@ -182,7 +185,7 @@ public partial class FrmRegister : Form
 
         var btnCancel = new Button
         {
-            Text = "HỦY BỎ",
+            Text = "Há»¦Y Bá»Ž",
             Width = 150,
             Height = 40,
             Location = new Point(160, 0),
@@ -247,8 +250,8 @@ public partial class FrmRegister : Form
             lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
             
             MessageBox.Show(
-                "Đăng ký thành công! Tài khoản của bạn đang chờ xác minh từ quản lý khu chung cư.",
-                "Thông báo",
+                "ÄÄƒng kÃ½ thÃ nh cÃ´ng! TÃ i khoáº£n cá»§a báº¡n Ä‘ang chá» xÃ¡c minh tá»« quáº£n lÃ½ khu chung cÆ°.",
+                "ThÃ´ng bÃ¡o",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
 
@@ -261,3 +264,5 @@ public partial class FrmRegister : Form
         }
     }
 }
+
+

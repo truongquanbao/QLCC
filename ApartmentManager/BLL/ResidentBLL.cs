@@ -1,3 +1,6 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using ApartmentManager.DAL;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
@@ -39,7 +42,7 @@ public class ResidentBLL
     {
         try
         {
-            return ResidentDAL.GetAllResidents();
+            return ResidentDAL.GetAllResidents().Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -55,7 +58,7 @@ public class ResidentBLL
     {
         try
         {
-            return ResidentDAL.GetResidentsByStatus("Active");
+            return ResidentDAL.GetResidentsByStatus("Active").Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -230,7 +233,7 @@ public class ResidentBLL
             if (apartmentID <= 0)
                 return new List<dynamic>();
 
-            return ResidentDAL.GetResidentsByApartment(apartmentID);
+            return ResidentDAL.GetResidentsByApartment(apartmentID).Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -267,3 +270,5 @@ public class ResidentBLL
         }
     }
 }
+
+

@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
@@ -154,14 +156,14 @@ public class NotificationDAL
     /// <summary>
     /// Create notification
     /// </summary>
-    public static int CreateNotification(int userID, string title, string message, string notificationType)
+    public static int CreateNotification(int userID, string title, string message, string notificationType, string? status = null)
     {
         try
         {
             const string query = @"
-                INSERT INTO Notifications (UserID, Title, Message, NotificationType, IsRead)
-                VALUES (@UserID, @Title, @Message, @NotificationType, 0)
-                SELECT SCOPE_IDENTITY()
+                INSERT INTO Notifications (UserID, Title, Message, NotificationType, IsRead, Status)
+                VALUES (@UserID, @Title, @Message, @NotificationType, 0, @Status);
+                SELECT SCOPE_IDENTITY();
             ";
 
             using (var connection = DatabaseHelper.CreateConnection())
@@ -172,6 +174,7 @@ public class NotificationDAL
                     command.Parameters.AddWithValue("@Title", title);
                     command.Parameters.AddWithValue("@Message", message);
                     command.Parameters.AddWithValue("@NotificationType", notificationType);
+                    command.Parameters.AddWithValue("@Status", status ?? "Draft");
 
                     connection.Open();
                     var result = command.ExecuteScalar();
@@ -358,6 +361,83 @@ public class NotificationDAL
     }
 
     /// <summary>
+    /// Get all notifications
+    /// </summary>
+    public static List<NotificationDTO> GetAllNotifications()
+    {
+        try
+        {
+            const string query = @"
+                SELECT NotificationID, UserID, Title, Message, NotificationType, IsRead, ReadAt, CreatedAt
+                FROM Notifications
+                ORDER BY CreatedAt DESC
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    connection.Open();
+                    var notifications = new List<NotificationDTO>();
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            notifications.Add(MapNotificationDTO(reader));
+                    }
+
+                    return notifications;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting all notifications");
+            return new List<NotificationDTO>();
+        }
+    }
+
+    /// <summary>
+    /// Update notification status
+    /// </summary>
+    public static bool UpdateNotificationStatus(int notificationID, string status, DateTime? sentTime = null)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Notifications 
+                SET IsRead = @IsRead, Status = @Status, SentDate = ISNULL(@SentDate, SentDate)
+                WHERE NotificationID = @NotificationID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@NotificationID", notificationID);
+                    command.Parameters.AddWithValue("@IsRead", status == "Read");
+                    command.Parameters.AddWithValue("@Status", status);
+                    command.Parameters.AddWithValue("@SentDate", sentTime ?? DateTime.Now);
+                    connection.Open();
+
+                    var affected = command.ExecuteNonQuery();
+                    if (affected > 0)
+                    {
+                        Log.Information("Notification {NotificationID} status updated to {Status}", notificationID, status);
+                    }
+
+                    return affected > 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating notification status: {NotificationID}", notificationID);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Map SqlDataReader to NotificationDTO
     /// </summary>
     private static NotificationDTO MapNotificationDTO(SqlDataReader reader)
@@ -375,3 +455,5 @@ public class NotificationDAL
         };
     }
 }
+
+

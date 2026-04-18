@@ -17,7 +17,8 @@ namespace ApartmentManager.GUI
 
         public FrmAdvancedDashboard()
         {
-            InitializeComponent();
+            // Designer initialization - not used for this form
+            // InitializeComponent();
         }
 
         private void FrmAdvancedDashboard_Load(object sender, EventArgs e)
@@ -294,7 +295,6 @@ namespace ApartmentManager.GUI
                 Text = title,
                 Location = new Point(x, y),
                 Size = new Size(width, height),
-                BorderStyle = BorderStyle.FixedSingle,
                 Font = new Font("Arial", 10, FontStyle.Bold)
             };
         }

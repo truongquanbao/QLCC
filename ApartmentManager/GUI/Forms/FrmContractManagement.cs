@@ -1,4 +1,4 @@
-using ApartmentManager.BLL;
+﻿using ApartmentManager.BLL;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
 using Serilog;
@@ -7,11 +7,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 
+using System.Drawing;
 namespace ApartmentManager.GUI.Forms
 {
     public partial class FrmContractManagement : Form
     {
-        private SessionManager _session = SessionManager.Instance;
+        private UserSession? _session = null;
         private const int PADDING = 10;
         private const int CONTROL_HEIGHT = 25;
 
@@ -719,3 +720,4 @@ namespace ApartmentManager.GUI.Forms
         }
     }
 }
+

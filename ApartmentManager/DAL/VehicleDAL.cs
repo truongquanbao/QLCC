@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.Utilities;
 using Serilog;
@@ -362,3 +364,5 @@ public class VehicleDAL
         };
     }
 }
+
+

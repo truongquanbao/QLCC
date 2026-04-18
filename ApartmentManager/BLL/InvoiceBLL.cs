@@ -1,8 +1,11 @@
+﻿using System;
+using System.Collections.Generic;
 using ApartmentManager.DAL;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
 using Serilog;
 
+using System.Linq;
 namespace ApartmentManager.BLL;
 
 /// <summary>
@@ -39,7 +42,7 @@ public class InvoiceBLL
     {
         try
         {
-            return InvoiceDAL.GetUnpaidInvoices();
+            return InvoiceDAL.GetUnpaidInvoices().Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -177,7 +180,7 @@ public class InvoiceBLL
             if (apartmentID <= 0)
                 return new List<dynamic>();
 
-            return InvoiceDAL.GetInvoicesByApartment(apartmentID);
+            return InvoiceDAL.GetInvoicesByApartment(apartmentID).Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -196,7 +199,7 @@ public class InvoiceBLL
             if (month < 1 || month > 12 || year < 2000)
                 return new List<dynamic>();
 
-            return InvoiceDAL.GetInvoicesByMonth(month, year);
+            return InvoiceDAL.GetInvoicesByMonth(month, year).Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -311,3 +314,5 @@ public class InvoiceBLL
         }
     }
 }
+
+

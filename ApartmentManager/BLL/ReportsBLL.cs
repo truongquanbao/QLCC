@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -10,6 +10,7 @@ using iText.Layout;
 using iText.Layout.Element;
 using Serilog;
 
+using System.Drawing;
 namespace ApartmentManager.BLL
 {
     /// <summary>
@@ -45,7 +46,7 @@ namespace ApartmentManager.BLL
                 worksheet.Cell(row, 1).Value = "Apartment ID";
                 worksheet.Cell(row, 2).Value = "Code";
                 worksheet.Cell(row, 3).Value = "Type";
-                worksheet.Cell(row, 4).Value = "Area (m²)";
+                worksheet.Cell(row, 4).Value = "Area (mÂ²)";
                 worksheet.Cell(row, 5).Value = "Status";
 
                 // Apply header formatting
@@ -129,11 +130,11 @@ namespace ApartmentManager.BLL
                 
                 if (residentID.HasValue)
                 {
-                    invoices = InvoiceDAL.GetInvoicesByResident(residentID.Value);
+                    invoices = InvoiceDAL.GetInvoicesByResident(residentID.Value).Cast<dynamic>().ToList();
                 }
                 else
                 {
-                    invoices = InvoiceDAL.GetAllInvoices();
+                    invoices = InvoiceDAL.GetAllInvoices().Cast<dynamic>().ToList();
                 }
 
                 var workbook = new XLWorkbook();
@@ -457,7 +458,7 @@ namespace ApartmentManager.BLL
                     var table = new Table(5, false);
                     table.AddHeaderCell("Apartment Code");
                     table.AddHeaderCell("Type");
-                    table.AddHeaderCell("Area (m²)");
+                    table.AddHeaderCell("Area (mÂ²)");
                     table.AddHeaderCell("Status");
                     table.AddHeaderCell("Max Residents");
 
@@ -583,3 +584,4 @@ namespace ApartmentManager.BLL
         #endregion
     }
 }
+

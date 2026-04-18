@@ -1,8 +1,11 @@
+﻿using System;
+using System.Collections.Generic;
 using ApartmentManager.DTO;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
 using Serilog;
 
+using System.Linq;
 namespace ApartmentManager.BLL;
 
 /// <summary>
@@ -52,25 +55,25 @@ public class UserBLL
         {
             var user = UserDAL.GetUserByID(userID);
             if (user == null)
-                return (false, "Không tìm thấy người dùng");
+                return (false, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng");
 
             if (user.IsApproved)
-                return (false, "Tài khoản đã được duyệt");
+                return (false, "TÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t");
 
             var success = UserDAL.ApproveUser(userID, approvedBy);
             if (success)
             {
-                AuditLogDAL.LogAction(approvedBy, "Approve_User", "User", userID, $"Duyệt tài khoản: {user.Username}");
+                AuditLogDAL.LogAction(approvedBy, "Approve_User", "User", userID, $"Duyá»‡t tÃ i khoáº£n: {user.Username}");
                 Log.Information("User approved: {UserID} by {ApprovedBy}", userID, approvedBy);
-                return (true, "Tài khoản đã được duyệt thành công");
+                return (true, "TÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t thÃ nh cÃ´ng");
             }
 
-            return (false, "Lỗi khi duyệt tài khoản");
+            return (false, "Lá»—i khi duyá»‡t tÃ i khoáº£n");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error approving user: {UserID}", userID);
-            return (false, "Lỗi khi duyệt tài khoản");
+            return (false, "Lá»—i khi duyá»‡t tÃ i khoáº£n");
         }
     }
 
@@ -83,19 +86,19 @@ public class UserBLL
         {
             var user = UserDAL.GetUserByID(userID);
             if (user == null)
-                return (false, "Không tìm thấy người dùng");
+                return (false, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng");
 
             // TODO: Implement rejection logic in DAL
             AuditLogDAL.LogAction(rejectedBy, "Reject_User", "User", userID, 
-                $"Từ chối tài khoản: {user.Username}. Lý do: {reason}");
+                $"Tá»« chá»‘i tÃ i khoáº£n: {user.Username}. LÃ½ do: {reason}");
 
             Log.Information("User rejected: {UserID} by {RejectedBy}", userID, rejectedBy);
-            return (true, "Tài khoản đã bị từ chối");
+            return (true, "TÃ i khoáº£n Ä‘Ã£ bá»‹ tá»« chá»‘i");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error rejecting user: {UserID}", userID);
-            return (false, "Lỗi khi từ chối tài khoản");
+            return (false, "Lá»—i khi tá»« chá»‘i tÃ i khoáº£n");
         }
     }
 
@@ -109,34 +112,34 @@ public class UserBLL
         {
             // Validate inputs
             if (string.IsNullOrWhiteSpace(username) || !ValidationHelper.IsValidUsername(username))
-                return (false, "Tên đăng nhập không hợp lệ", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡", null);
 
             if (UserDAL.UsernameExists(username))
-                return (false, "Tên đăng nhập đã được sử dụng", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng", null);
 
             if (!ValidationHelper.IsValidEmail(email))
-                return (false, "Email không hợp lệ", null);
+                return (false, "Email khÃ´ng há»£p lá»‡", null);
 
             if (UserDAL.EmailExists(email))
-                return (false, "Email đã được sử dụng", null);
+                return (false, "Email Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng", null);
 
             if (!ValidationHelper.IsValidPhone(phone))
-                return (false, "Số điện thoại không hợp lệ", null);
+                return (false, "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡", null);
 
             // Create user with Manager role (2), Active status
             var passwordHash = PasswordHasher.HashPassword(tempPassword);
             var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, roleID: 2, status: "Active");
 
             AuditLogDAL.LogAction(SessionManager.GetCurrentUserID(), "Create_Manager", "User", userID, 
-                $"Tạo tài khoản quản lý: {username}");
+                $"Táº¡o tÃ i khoáº£n quáº£n lÃ½: {username}");
 
             Log.Information("Manager account created: {Username} (ID: {UserID})", username, userID);
-            return (true, "Tài khoản quản lý đã được tạo thành công", userID);
+            return (true, "TÃ i khoáº£n quáº£n lÃ½ Ä‘Ã£ Ä‘Æ°á»£c táº¡o thÃ nh cÃ´ng", userID);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error creating manager account: {Username}", username);
-            return (false, "Lỗi khi tạo tài khoản quản lý", null);
+            return (false, "Lá»—i khi táº¡o tÃ i khoáº£n quáº£n lÃ½", null);
         }
     }
 
@@ -157,15 +160,15 @@ public class UserBLL
         {
             // TODO: Implement lock logic in DAL
             AuditLogDAL.LogAction(lockedBy, "Lock_Account", "User", userID, 
-                $"Khóa tài khoản. Lý do: {reason}");
+                $"KhÃ³a tÃ i khoáº£n. LÃ½ do: {reason}");
 
             Log.Information("User account locked: {UserID} by {LockedBy}", userID, lockedBy);
-            return (true, "Tài khoản đã bị khóa");
+            return (true, "TÃ i khoáº£n Ä‘Ã£ bá»‹ khÃ³a");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error locking user account: {UserID}", userID);
-            return (false, "Lỗi khi khóa tài khoản");
+            return (false, "Lá»—i khi khÃ³a tÃ i khoáº£n");
         }
     }
 
@@ -178,15 +181,15 @@ public class UserBLL
         {
             // TODO: Implement unlock logic in DAL
             AuditLogDAL.LogAction(unlockedBy, "Unlock_Account", "User", userID, 
-                $"Mở khóa tài khoản. Lý do: {reason}");
+                $"Má»Ÿ khÃ³a tÃ i khoáº£n. LÃ½ do: {reason}");
 
             Log.Information("User account unlocked: {UserID} by {UnlockedBy}", userID, unlockedBy);
-            return (true, "Tài khoản đã được mở khóa");
+            return (true, "TÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c má»Ÿ khÃ³a");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error unlocking user account: {UserID}", userID);
-            return (false, "Lỗi khi mở khóa tài khoản");
+            return (false, "Lá»—i khi má»Ÿ khÃ³a tÃ i khoáº£n");
         }
     }
 
@@ -199,3 +202,5 @@ public class UserBLL
         return pending.Take(limit).ToList();
     }
 }
+
+

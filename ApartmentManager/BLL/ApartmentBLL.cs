@@ -1,7 +1,10 @@
+﻿using System;
+using System.Collections.Generic;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
 using Serilog;
 
+using System.Linq;
 namespace ApartmentManager.BLL;
 
 /// <summary>
@@ -38,7 +41,7 @@ public class ApartmentBLL
     {
         try
         {
-            return ApartmentDAL.GetAllApartments();
+            return ApartmentDAL.GetAllApartments().Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -67,7 +70,7 @@ public class ApartmentBLL
                 return new List<dynamic>();
             }
 
-            return ApartmentDAL.GetApartmentsByStatus(status);
+            return ApartmentDAL.GetApartmentsByStatus(status).Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {
@@ -98,7 +101,7 @@ public class ApartmentBLL
                 return (false, "Area must be greater than 0", 0);
 
             if (area > 1000)
-                return (false, "Area cannot exceed 1000 m²", 0);
+                return (false, "Area cannot exceed 1000 mÂ²", 0);
 
             if (string.IsNullOrWhiteSpace(apartmentType))
                 return (false, "Apartment type is required", 0);
@@ -140,7 +143,7 @@ public class ApartmentBLL
                 return (false, "Apartment code must be less than 20 characters");
 
             if (area <= 0 || area > 1000)
-                return (false, "Area must be between 0 and 1000 m²");
+                return (false, "Area must be between 0 and 1000 mÂ²");
 
             if (string.IsNullOrWhiteSpace(apartmentType))
                 return (false, "Apartment type is required");
@@ -284,3 +287,5 @@ public class ApartmentBLL
         }
     }
 }
+
+

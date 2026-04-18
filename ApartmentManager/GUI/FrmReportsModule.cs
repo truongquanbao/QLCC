@@ -18,7 +18,8 @@ namespace ApartmentManager.GUI
 
         public FrmReportsModule()
         {
-            InitializeComponent();
+            // Designer initialization - not used for this form
+            // InitializeComponent();
         }
 
         private void FrmReportsModule_Load(object sender, EventArgs e)

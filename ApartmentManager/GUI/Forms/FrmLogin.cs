@@ -1,7 +1,10 @@
+﻿using System;
+using System.Windows.Forms;
 using ApartmentManager.BLL;
 using ApartmentManager.Utilities;
 using Serilog;
 
+using System.Drawing;
 namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmLogin : Form
@@ -13,7 +16,7 @@ public partial class FrmLogin : Form
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
         this.MinimizeBox = true;
-        this.Text = "Quản Lý Khu Chung Cư - Đăng Nhập";
+        this.Text = "Quáº£n LÃ½ Khu Chung CÆ° - ÄÄƒng Nháº­p";
         this.Size = new Size(500, 400);
     }
 
@@ -26,7 +29,7 @@ public partial class FrmLogin : Form
 
     private void ConfigureUI()
     {
-        // Panel chính
+        // Panel chÃ­nh
         var pnlMain = new Panel
         {
             Dock = DockStyle.Fill,
@@ -34,7 +37,7 @@ public partial class FrmLogin : Form
             Padding = new Padding(40)
         };
 
-        // Panel tiêu đề
+        // Panel tiÃªu Ä‘á»
         var pnlHeader = new Panel
         {
             Height = 60,
@@ -45,7 +48,7 @@ public partial class FrmLogin : Form
 
         var lblTitle = new Label
         {
-            Text = "ĐĂNG NHẬP HỆ THỐNG",
+            Text = "ÄÄ‚NG NHáº¬P Há»† THá»NG",
             Font = new Font("Segoe UI", 18, FontStyle.Bold),
             ForeColor = Color.FromArgb(33, 86, 155),
             AutoSize = false,
@@ -58,7 +61,7 @@ public partial class FrmLogin : Form
         // Username
         var lblUsername = new Label
         {
-            Text = "Tên đăng nhập:",
+            Text = "TÃªn Ä‘Äƒng nháº­p:",
             Font = new Font("Segoe UI", 10),
             ForeColor = Color.FromArgb(64, 64, 64),
             AutoSize = true,
@@ -79,7 +82,7 @@ public partial class FrmLogin : Form
         // Password
         var lblPassword = new Label
         {
-            Text = "Mật khẩu:",
+            Text = "Máº­t kháº©u:",
             Font = new Font("Segoe UI", 10),
             ForeColor = Color.FromArgb(64, 64, 64),
             AutoSize = true,
@@ -102,7 +105,7 @@ public partial class FrmLogin : Form
         var chkRemember = new CheckBox
         {
             Name = "chkRemember",
-            Text = "Nhớ đăng nhập",
+            Text = "Nhá»› Ä‘Äƒng nháº­p",
             Font = new Font("Segoe UI", 9),
             Location = new Point(0, 240),
             AutoSize = true
@@ -112,7 +115,7 @@ public partial class FrmLogin : Form
         var btnLogin = new Button
         {
             Name = "btnLogin",
-            Text = "ĐĂNG NHẬP",
+            Text = "ÄÄ‚NG NHáº¬P",
             Width = 400,
             Height = 45,
             Font = new Font("Segoe UI", 11, FontStyle.Bold),
@@ -129,7 +132,7 @@ public partial class FrmLogin : Form
         var linkForgotPassword = new LinkLabel
         {
             Name = "linkForgotPassword",
-            Text = "Quên mật khẩu?",
+            Text = "QuÃªn máº­t kháº©u?",
             Width = 400,
             Height = 30,
             Font = new Font("Segoe UI", 9),
@@ -142,7 +145,7 @@ public partial class FrmLogin : Form
         var linkRegister = new LinkLabel
         {
             Name = "linkRegister",
-            Text = "Chưa có tài khoản? Đăng ký ngay",
+            Text = "ChÆ°a cÃ³ tÃ i khoáº£n? ÄÄƒng kÃ½ ngay",
             Width = 400,
             Height = 30,
             Font = new Font("Segoe UI", 9),
@@ -192,7 +195,7 @@ public partial class FrmLogin : Form
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
-            lblStatus.Text = "Vui lòng nhập tên đăng nhập và mật khẩu";
+            lblStatus.Text = "Vui lÃ²ng nháº­p tÃªn Ä‘Äƒng nháº­p vÃ  máº­t kháº©u";
             lblStatus.ForeColor = Color.FromArgb(255, 87, 34);
             return;
         }
@@ -228,7 +231,7 @@ public partial class FrmLogin : Form
     private void LinkForgotPassword_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
     {
         // TODO: Open forgot password form
-        MessageBox.Show("Tính năng đặt lại mật khẩu sẽ được cập nhật sớm", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show("TÃ­nh nÄƒng Ä‘áº·t láº¡i máº­t kháº©u sáº½ Ä‘Æ°á»£c cáº­p nháº­t sá»›m", "ThÃ´ng bÃ¡o", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void LinkRegister_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
@@ -295,3 +298,5 @@ public partial class FrmLogin : Form
         dashboardForm.Show();
     }
 }
+
+

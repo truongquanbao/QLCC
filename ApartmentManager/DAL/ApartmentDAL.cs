@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
@@ -526,3 +528,5 @@ public class ApartmentDAL
         };
     }
 }
+
+

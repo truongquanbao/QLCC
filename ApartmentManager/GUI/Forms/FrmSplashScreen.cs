@@ -1,9 +1,11 @@
-using ApartmentManager.Utilities;
+﻿using ApartmentManager.Utilities;
 using Serilog;
 using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+using System.Drawing;
+using System.Configuration;
 namespace ApartmentManager.GUI.Forms
 {
     public partial class FrmSplashScreen : Form
@@ -51,7 +53,7 @@ namespace ApartmentManager.GUI.Forms
             // Subtitle
             Label lblSubtitle = new Label
             {
-                Text = "Quản Lý Khu Chung Cư",
+                Text = "Quáº£n LÃ½ Khu Chung CÆ°",
                 Font = new System.Drawing.Font("Arial", 12, System.Drawing.FontStyle.Italic),
                 ForeColor = System.Drawing.Color.LightGray,
                 Left = 50,
@@ -178,3 +180,4 @@ namespace ApartmentManager.GUI.Forms
         }
     }
 }
+

@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
@@ -529,6 +531,89 @@ public class InvoiceDAL
     }
 
     /// <summary>
+    /// Get all invoices
+    /// </summary>
+    public static List<InvoiceDTO> GetAllInvoices()
+    {
+        try
+        {
+            const string query = @"
+                SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.CreatedAt, i.UpdatedAt, i.Note
+                FROM Invoices i
+                INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
+                ORDER BY i.CreatedAt DESC
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    connection.Open();
+                    var invoices = new List<InvoiceDTO>();
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            invoices.Add(MapInvoiceDTO(reader));
+                    }
+
+                    return invoices;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting all invoices");
+            return new List<InvoiceDTO>();
+        }
+    }
+
+    /// <summary>
+    /// Get invoices by resident
+    /// </summary>
+    public static List<InvoiceDTO> GetInvoicesByResident(int residentID)
+    {
+        try
+        {
+            const string query = @"
+                SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.CreatedAt, i.UpdatedAt, i.Note
+                FROM Invoices i
+                INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
+                INNER JOIN Residents r ON a.ApartmentID = r.ApartmentID
+                WHERE r.ResidentID = @ResidentID
+                ORDER BY i.CreatedAt DESC
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ResidentID", residentID);
+                    connection.Open();
+                    var invoices = new List<InvoiceDTO>();
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            invoices.Add(MapInvoiceDTO(reader));
+                    }
+
+                    return invoices;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting invoices by resident: {ResidentID}", residentID);
+            return new List<InvoiceDTO>();
+        }
+    }
+
+    /// <summary>
     /// Map SqlDataReader to InvoiceDTO
     /// </summary>
     private static InvoiceDTO MapInvoiceDTO(SqlDataReader reader)
@@ -550,3 +635,5 @@ public class InvoiceDAL
         };
     }
 }
+
+
