@@ -6,10 +6,13 @@ using System.Windows.Forms;
 
 namespace ApartmentManager
 {
-    static class Program
+    internal static class Program
     {
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
         [STAThread]
-        static void Main()
+        internal static void Main()
         {
             try
             {
@@ -39,7 +42,8 @@ namespace ApartmentManager
                 if (session == null)
                 {
                     FrmLogin loginForm = new FrmLogin();
-                    if (Application.Run(loginForm) != DialogResult.OK)
+                    Application.Run(loginForm);
+                    if (loginForm.DialogResult != DialogResult.OK)
                     {
                         Log.Information("User closed login form");
                         return;
