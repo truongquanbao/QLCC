@@ -305,7 +305,7 @@ public class InvoiceBLL
         try
         {
             var unpaidInvoices = InvoiceDAL.GetUnpaidInvoices();
-            return unpaidInvoices.Where(i => i.DueDate < DateTime.Now.Date).ToList();
+            return unpaidInvoices.Where(i => i.DueDate < DateTime.Now.Date).Cast<dynamic>().ToList();
         }
         catch (Exception ex)
         {

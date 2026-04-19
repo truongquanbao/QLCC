@@ -71,6 +71,9 @@ namespace ApartmentManager.BLL
                     visitorName,
                     phone ?? "",
                     email ?? "",
+                    "",
+                    purpose,
+                    DateTime.Now,
                     visitorType);
 
                 if (visitorID > 0)
@@ -154,7 +157,7 @@ namespace ApartmentManager.BLL
 
                 // Validate visitor type
                 var validTypes = new[] { "Guest", "Delivery", "Service", "Family", "Other" };
-                if (!validTypes.Contains(visitorType))
+                if (!validTypes.ToList().Contains(visitorType))
                     return (false, "Invalid visitor type.", 0);
 
                 // Register visitor
@@ -163,6 +166,9 @@ namespace ApartmentManager.BLL
                     visitorName,
                     phone ?? "",
                     email ?? "",
+                    "",
+                    "",
+                    DateTime.Now,
                     visitorType);
 
                 if (visitorID > 0)

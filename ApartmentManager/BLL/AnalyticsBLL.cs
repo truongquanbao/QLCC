@@ -146,7 +146,7 @@ namespace ApartmentManager.BLL
                     .Join(residents,
                         d => d.ResidentID,
                         r => r.ResidentID,
-                        (d, r) => (d.ResidentID, r.FullName, d.OutstandingAmount))
+                        (d, r) => (d.ResidentID ?? 0, r.FullName, d.OutstandingAmount))
                     .ToList();
 
                 Log.Information("Top {TopCount} debtors identified", topCount);
@@ -255,7 +255,7 @@ namespace ApartmentManager.BLL
                     reminders.Add((schedule.Key, schedule.Value.desc, dueDate, schedule.Value.priority));
                 }
 
-                var urgentReminders = reminders.OrderBy(r => r.DueDate).ToList();
+                var urgentReminders = reminders.OrderBy(r => r.Item3).ToList();
                 Log.Information("Generated {Count} maintenance reminders", urgentReminders.Count);
                 return urgentReminders;
             }

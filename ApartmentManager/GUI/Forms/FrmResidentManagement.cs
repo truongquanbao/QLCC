@@ -367,9 +367,9 @@ public class FrmResidentManagement : Form
             List<dynamic> residents;
 
             if (cmbFilterStatus.SelectedIndex == 0)
-                residents = ResidentDAL.GetAllResidents();
+                residents = ResidentDAL.GetAllResidents().Cast<dynamic>().ToList();
             else
-                residents = ResidentDAL.GetResidentsByStatus(cmbFilterStatus.SelectedItem.ToString());
+                residents = ResidentDAL.GetResidentsByStatus(cmbFilterStatus.SelectedItem.ToString()).Cast<dynamic>().ToList();
 
             dgvResidents.DataSource = residents.Cast<dynamic>().ToList();
             lblStatusBar.Text = $"Loaded {residents.Count} residents";
@@ -417,8 +417,8 @@ public class FrmResidentManagement : Form
                 txtPhone.Text = resident.Phone;
                 txtEmail.Text = resident.Email;
                 txtCCCD.Text = resident.CCCD;
-                dtpDOB.Value = resident.DOB;
-                dtpStartDate.Value = resident.StartDate;
+                dtpDOB.Value = resident.DOB ?? DateTime.Now;
+                dtpStartDate.Value = resident.StartDate ?? DateTime.Now;
 
                 // Set apartment
                 var aptItem = cmbApartment.Items.Cast<dynamic>().FirstOrDefault(a => a.Value == resident.ApartmentID);

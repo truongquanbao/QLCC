@@ -11,7 +11,7 @@ public partial class FrmLogin : Form
 {
     public FrmLogin()
     {
-        InitializeComponent();
+        // InitializeComponent();
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
@@ -23,7 +23,7 @@ public partial class FrmLogin : Form
     private void FrmLogin_Load(object sender, EventArgs e)
     {
         ConfigureUI();
-        ConfigurationHelper.Initialize();
+        // ConfigurationHelper.Initialize();
         LoadRememberedUsername();
     }
 

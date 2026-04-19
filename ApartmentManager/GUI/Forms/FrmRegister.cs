@@ -11,7 +11,7 @@ public partial class FrmRegister : Form
 {
     public FrmRegister()
     {
-        InitializeComponent();
+        // InitializeComponent();
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;

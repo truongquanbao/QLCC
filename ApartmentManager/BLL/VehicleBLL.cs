@@ -3,6 +3,7 @@ using ApartmentManager.Utilities;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ApartmentManager.BLL;
 
@@ -40,7 +41,7 @@ public class VehicleBLL
                 return (false, "Vehicle type is required.", 0);
 
             var validTypes = new[] { "Car", "Motorcycle", "Truck", "Bus", "Bicycle", "Scooter", "Other" };
-            if (!validTypes.Contains(vehicleType))
+            if (!validTypes.ToList().Contains(vehicleType))
                 return (false, "Invalid vehicle type.", 0);
 
             if (string.IsNullOrWhiteSpace(brand))
@@ -71,12 +72,10 @@ public class VehicleBLL
             // Create vehicle
             var vehicleID = VehicleDAL.CreateVehicle(
                 residentID,
-                licensePlate,
                 vehicleType,
-                brand,
-                model,
-                yearMade,
+                licensePlate,
                 color,
+                brand,
                 note
             );
 
@@ -130,7 +129,7 @@ public class VehicleBLL
                 return (false, $"Year made must be between 1980 and {DateTime.Now.Year}.");
 
             var validTypes = new[] { "Car", "Motorcycle", "Truck", "Bus", "Bicycle", "Scooter", "Other" };
-            if (!validTypes.Contains(vehicleType))
+            if (!validTypes.ToList().Contains(vehicleType))
                 return (false, "Invalid vehicle type.");
 
             // Get existing vehicle
@@ -146,12 +145,9 @@ public class VehicleBLL
             // Update vehicle
             var success = VehicleDAL.UpdateVehicle(
                 vehicleID,
-                licensePlate,
                 vehicleType,
-                brand,
-                model,
-                yearMade,
                 color,
+                brand,
                 note
             );
 

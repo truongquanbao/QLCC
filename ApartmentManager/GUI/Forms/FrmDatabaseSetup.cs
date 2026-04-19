@@ -217,7 +217,8 @@ public partial class FrmDatabaseSetup : Form
     {
         string connectionString = BuildConnectionString(pnlMain);
 
-        if (DatabaseHelper.TestConnection(connectionString))
+        var (success, message) = DatabaseHelper.TestConnection();
+        if (success)
         {
             lblStatus.Text = "âœ“ Káº¿t ná»‘i thÃ nh cÃ´ng!";
             lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
@@ -233,7 +234,8 @@ public partial class FrmDatabaseSetup : Form
     {
         string connectionString = BuildConnectionString(pnlMain);
 
-        if (!DatabaseHelper.TestConnection(connectionString))
+        var (success, message) = DatabaseHelper.TestConnection();
+        if (!success)
         {
             MessageBox.Show("KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n database. Vui lÃ²ng kiá»ƒm tra láº¡i thÃ´ng tin.", 
                 "Lá»—i", MessageBoxButtons.OK, MessageBoxIcon.Error);

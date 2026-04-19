@@ -411,7 +411,7 @@ public class FrmInvoiceManagement : Form
         try
         {
             var unpaidInvoices = InvoiceDAL.GetUnpaidInvoices();
-            decimal totalDebt = unpaidInvoices.Sum(i => (i.TotalAmount ?? 0) - (i.PaidAmount ?? 0));
+            decimal totalDebt = unpaidInvoices.Sum(i => (i.TotalAmount ?? 0m) - (i.PaidAmount ?? 0m));
             int overdueCount = unpaidInvoices.Count(i => i.DueDate < DateTime.Now);
 
             lblDebtInfo.Text = $"Total Debt: {totalDebt:N0} VND | Overdue Invoices: {overdueCount}";
@@ -433,9 +433,9 @@ public class FrmInvoiceManagement : Form
             {
                 nudMonth.Value = invoice.Month;
                 nudYear.Value = invoice.Year;
-                dtpDueDate.Value = invoice.DueDate;
-                txtTotalAmount.Text = invoice.TotalAmount?.ToString("N0") ?? "0";
-                txtPaidAmount.Text = invoice.PaidAmount?.ToString("N0") ?? "0";
+                dtpDueDate.Value = invoice.DueDate ?? DateTime.Now;
+                txtTotalAmount.Text = invoice.TotalAmount.ToString("N0");
+                txtPaidAmount.Text = invoice.PaidAmount.ToString("N0");
                 txtNote.Text = invoice.Note ?? "";
 
                 var aptItem = cmbApartment.Items.Cast<dynamic>().FirstOrDefault(a => a.Value == invoice.ApartmentID);

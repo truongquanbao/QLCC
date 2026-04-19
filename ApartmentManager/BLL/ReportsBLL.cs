@@ -196,15 +196,15 @@ namespace ApartmentManager.BLL
 
                 row++;
                 worksheet.Cell(row, 1).Value = "Total Amount:";
-                worksheet.Cell(row, 2).Value = totalAmount;
+                worksheet.Cell(row, 2).Value = (double)totalAmount;
 
                 row++;
                 worksheet.Cell(row, 1).Value = "Paid Amount:";
-                worksheet.Cell(row, 2).Value = paidAmount;
+                worksheet.Cell(row, 2).Value = (double)paidAmount;
 
                 row++;
                 worksheet.Cell(row, 1).Value = "Outstanding Amount:";
-                worksheet.Cell(row, 2).Value = totalAmount - paidAmount;
+                worksheet.Cell(row, 2).Value = (double)(totalAmount - paidAmount);
 
                 row++;
                 decimal collectionRate = totalAmount > 0 ? (paidAmount * 100) / totalAmount : 0;

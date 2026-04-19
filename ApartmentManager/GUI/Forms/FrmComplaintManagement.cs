@@ -401,7 +401,7 @@ public class FrmComplaintManagement : Form
         try
         {
             var users = UserDAL.GetAllUsers();
-            _staffList = users.Where(u => u.IsActive).ToList();
+            _staffList = users.Where(u => u.IsActive).Cast<dynamic>().ToList();
             cmbAssignedTo.Items.Clear();
             cmbAssignedTo.Items.Add(new { Text = "Unassigned", Value = 0 });
 

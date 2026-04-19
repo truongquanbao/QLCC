@@ -3,6 +3,7 @@ using ApartmentManager.Utilities;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ApartmentManager.BLL;
 
@@ -39,7 +40,7 @@ public class ComplaintBLL
                 return (false, "Description must be between 20 and 2000 characters.", 0);
 
             var validPriorities = new[] { "Low", "Medium", "High", "Critical" };
-            if (!validPriorities.Contains(priority))
+            if (!validPriorities.ToList().Contains(priority))
                 return (false, "Invalid priority level.", 0);
 
             // Check if resident exists
@@ -50,12 +51,11 @@ public class ComplaintBLL
             // Create complaint
             var complaintID = ComplaintDAL.CreateComplaint(
                 residentID,
+                resident.ApartmentID,
                 title,
                 description,
-                priority,
-                "New",
-                null,
-                DateTime.Now
+                "General",
+                priority
             );
 
             if (complaintID > 0)
@@ -94,7 +94,7 @@ public class ComplaintBLL
                 return (false, "Invalid description.");
 
             var validPriorities = new[] { "Low", "Medium", "High", "Critical" };
-            if (!validPriorities.Contains(priority))
+            if (!validPriorities.ToList().Contains(priority))
                 return (false, "Invalid priority level.");
 
             var complaint = ComplaintDAL.GetComplaintByID(complaintID);
@@ -105,7 +105,7 @@ public class ComplaintBLL
             if (complaint.Status == "Resolved" || complaint.Status == "Closed")
                 return (false, "Cannot update resolved or closed complaints.");
 
-            var success = ComplaintDAL.UpdateComplaint(complaintID, title, description, priority);
+            var success = ComplaintDAL.UpdateComplaint(complaintID, title, description, "General", priority);
 
             if (success)
             {
@@ -144,7 +144,7 @@ public class ComplaintBLL
                     return (false, "Selected staff member not found.");
             }
 
-            var success = ComplaintDAL.AssignComplaint(complaintID, assignedToUserID, "Assigned");
+            var success = ComplaintDAL.AssignComplaint(complaintID, assignedToUserID ?? 0);
 
             if (success)
             {
@@ -178,7 +178,7 @@ public class ComplaintBLL
             if (complaint.Status == "Closed")
                 return (false, "Cannot resolve a closed complaint.");
 
-            var success = ComplaintDAL.ResolveComplaint(complaintID, "Resolved", resolutionNote, DateTime.Now);
+            var success = ComplaintDAL.ResolveComplaint(complaintID, resolutionNote);
 
             if (success)
             {

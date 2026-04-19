@@ -68,11 +68,9 @@ namespace ApartmentManager.BLL
                     residentID,
                     startDate,
                     endDate,
-                    contractType,
-                    termsAndConditions,
-                    autoRenewal,
-                    renewalNotes,
-                    "Active");
+                    0m,
+                    0m,
+                    termsAndConditions);
 
                 if (contractID > 0)
                 {
@@ -131,10 +129,9 @@ namespace ApartmentManager.BLL
                     contractID,
                     startDate,
                     endDate,
-                    contractType,
-                    termsAndConditions,
-                    autoRenewal,
-                    renewalNotes);
+                    0m,
+                    0m,
+                    termsAndConditions);
 
                 if (updated)
                 {
@@ -180,9 +177,8 @@ namespace ApartmentManager.BLL
                     contractID,
                     contract.StartDate,
                     newEndDate,
-                    contract.ContractType,
-                    contract.TermsAndConditions,
-                    contract.AutoRenewal,
+                    0m,
+                    0m,
                     $"Renewed on {DateTime.Now:yyyy-MM-dd}");
 
                 if (updated)

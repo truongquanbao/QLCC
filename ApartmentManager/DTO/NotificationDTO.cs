@@ -9,6 +9,7 @@ public class NotificationDTO
 {
     public int NotificationID { get; set; }
     public int UserID { get; set; }
+    public int ResidentID { get; set; }
     public string? Title { get; set; }
     public string? Subject { get; set; }
     public string? Description { get; set; }

@@ -13,7 +13,7 @@ public partial class FrmMainDashboard : Form
 
     public FrmMainDashboard()
     {
-        InitializeComponent();
+        // InitializeComponent();
         this.Text = "Quáº£n LÃ½ Khu Chung CÆ° - Dashboard";
         this.WindowState = FormWindowState.Maximized;
         this.FormClosing += FrmMainDashboard_FormClosing;

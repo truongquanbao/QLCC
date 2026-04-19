@@ -113,7 +113,7 @@ public class FrmRecordPayment : Form
 
         txtAmount.Location = new Point(SPACING + LABEL_WIDTH + SPACING, SPACING);
         txtAmount.Size = new Size(CONTROL_WIDTH, 25);
-        txtAmount.Placeholder = "0";
+        // txtAmount.Placeholder = "0";  // Placeholder not supported in Windows Forms TextBox
         pnl.Controls.Add(txtAmount);
 
         var lblCurrency = new Label { Text = "VND", Location = new Point(SPACING + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 2, SPACING), Size = new Size(40, 20) };
@@ -168,8 +168,8 @@ public class FrmRecordPayment : Form
             var invoice = InvoiceDAL.GetInvoiceByID(_invoiceID);
             if (invoice != null)
             {
-                _totalAmount = invoice.TotalAmount ?? 0;
-                _paidAmount = invoice.PaidAmount ?? 0;
+                _totalAmount = invoice.TotalAmount;
+                _paidAmount = invoice.PaidAmount;
 
                 lblTotalAmount.Text = $"Total Amount: {_totalAmount:N0} VND";
                 lblPaidSoFar.Text = $"Paid So Far: {_paidAmount:N0} VND";
