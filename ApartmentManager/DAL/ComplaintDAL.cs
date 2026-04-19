@@ -460,7 +460,7 @@ public class ComplaintDAL
             Category = reader.GetString(7),
             Priority = reader.GetString(8),
             Status = reader.GetString(9),
-            AssignedToUserID = reader.IsDBNull(10) ? null : reader.GetInt32(10),
+            AssignedToUserID = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
             AssignedTo = reader.GetString(11),
             CreatedAt = reader.GetDateTime(12),
             UpdatedAt = reader.GetDateTime(13)

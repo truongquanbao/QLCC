@@ -27,7 +27,7 @@ public class AuthenticationBLL
             if (user == null)
             {
                 Log.Warning("Login failed: user not found - {Username}", username);
-                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº´t kháº©u khÃ´ng chÃ­nh xÃ¡c", null);
             }
 
             // Check if account is locked
@@ -66,7 +66,7 @@ public class AuthenticationBLL
                 UserDAL.UpdateLoginAttempt(user.UserID, false);
                 AuditLogDAL.LogLogin(user.UserID, false, "Sai máº­t kháº©u");
                 Log.Warning("Login failed: wrong password - {Username}", username);
-                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c", null);
+                return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº´t kháº©u khÃ´ng chÃ­nh xÃ¡c", null);
             }
 
             // Update login success
@@ -167,7 +167,7 @@ public class AuthenticationBLL
         {
             if (SessionManager.IsLoggedIn())
             {
-                var userID = SessionManager.GetCurrentUserID();
+                var userID = SessionManager.GetCurrentUserID() ?? 0;
                 AuditLogDAL.LogLogout(userID);
                 Log.Information("User logged out: {UserID}", userID);
             }
@@ -226,7 +226,7 @@ public class AuthenticationBLL
         catch (Exception ex)
         {
             Log.Error(ex, "Error changing password for user: {UserID}", userID);
-            return (false, "Lá»—i khi thay Ä‘á»•i máº­t kháº©u. Vui lÃ²ng thá»­ láº¡i");
+            return (false, "Lá»—i khi thay Ä‘á»•i máº´t kháº©u. Vui lÃ²ng thá»­ láº¡i");
         }
     }
 
@@ -261,7 +261,7 @@ public class AuthenticationBLL
         catch (Exception ex)
         {
             Log.Error(ex, "Error requesting password reset");
-            return (false, "Lá»—i khi yÃªu cáº§u Ä‘áº·t láº¡i máº­t kháº©u");
+            return (false, "Lá»—i khi yÃªu cáº§u Ä‘áº·t láº¡i máº´t kháº©u");
         }
     }
 
@@ -273,10 +273,10 @@ public class AuthenticationBLL
         try
         {
             if (string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
-                return (false, "Máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng");
+                return (false, "Máº´t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng");
 
             if (newPassword != confirmPassword)
-                return (false, "XÃ¡c nháº­n máº­t kháº©u khÃ´ng khá»›p");
+                return (false, "XÃ¡c nháº­n máº´t kháº©u khÃ´ng khá»›p");
 
             var passwordValidation = PasswordHasher.ValidatePasswordStrength(newPassword);
             if (!passwordValidation.isValid)
@@ -289,15 +289,15 @@ public class AuthenticationBLL
             {
                 AuditLogDAL.LogAction(userID, "Reset_Password", "User", userID);
                 Log.Information("Password reset for user: {UserID}", userID);
-                return (true, "Máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c Ä‘áº·t láº¡i thÃ nh cÃ´ng");
+                return (true, "Máº´t kháº©u Ä‘Ã£ Ä‘Æ°á»£c Ä‘áº·t láº¡i thÃ nh cÃ´ng");
             }
 
-            return (false, "Lá»—i khi Ä‘áº·t láº¡i máº­t kháº©u");
+            return (false, "Lá»—i khi Ä‘áº·t láº¡i máº´t kháº©u");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error resetting password for user: {UserID}", userID);
-            return (false, "Lá»—i khi Ä‘áº·t láº¡i máº­t kháº©u");
+            return (false, "Lá»—i khi Ä‘áº·t láº¡i máº´t kháº©u");
         }
     }
 }

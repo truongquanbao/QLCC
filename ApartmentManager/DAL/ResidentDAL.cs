@@ -530,7 +530,7 @@ public class ResidentDAL
         return new ResidentDTO
         {
             ResidentID = reader.GetInt32(0),
-            UserID = reader.IsDBNull(1) ? null : reader.GetInt32(1),
+            UserID = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
             Username = reader.IsDBNull(2) ? null : reader.GetString(2),
             FullName = reader.GetString(3),
             Phone = reader.GetString(4),

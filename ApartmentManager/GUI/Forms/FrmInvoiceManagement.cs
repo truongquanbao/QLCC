@@ -411,7 +411,7 @@ public class FrmInvoiceManagement : Form
         try
         {
             var unpaidInvoices = InvoiceDAL.GetUnpaidInvoices();
-            decimal totalDebt = unpaidInvoices.Sum(i => (i.TotalAmount ?? 0m) - (i.PaidAmount ?? 0m));
+            decimal totalDebt = unpaidInvoices.Sum(i => i.TotalAmount - i.PaidAmount);
             int overdueCount = unpaidInvoices.Count(i => i.DueDate < DateTime.Now);
 
             lblDebtInfo.Text = $"Total Debt: {totalDebt:N0} VND | Overdue Invoices: {overdueCount}";
