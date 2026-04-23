@@ -14,7 +14,7 @@ public class AuditLogDAL
     /// <summary>
     /// Log user action
     /// </summary>
-    public static void LogAction(int? userID, string action, string entityName, int? entityID = null, 
+    public static bool LogAction(int? userID, string action, string entityName, int? entityID = null, 
                                  string? description = null, string? oldValue = null, string? newValue = null)
     {
         try
@@ -45,6 +45,7 @@ public class AuditLogDAL
                     command.ExecuteNonQuery();
 
                     Log.Debug("Audit log recorded: {Action} on {EntityName} (ID: {EntityID})", action, entityName, entityID);
+                    return true;
                 }
             }
         }
@@ -52,6 +53,8 @@ public class AuditLogDAL
         {
             Log.Error(ex, "Error logging audit action");
         }
+
+        return false;
     }
 
     /// <summary>

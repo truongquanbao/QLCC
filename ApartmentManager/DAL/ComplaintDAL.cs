@@ -269,6 +269,22 @@ public class ComplaintDAL
     }
 
     /// <summary>
+    /// Backward-compatible complaint creation overload.
+    /// </summary>
+    public static int CreateComplaint(int residentID, string title, string description, string priority)
+    {
+        var resident = ResidentDAL.GetResidentByID(residentID);
+        if (resident == null || resident.ApartmentID <= 0)
+            return 0;
+
+        int complaintID = CreateComplaint(residentID, resident.ApartmentID, title, description, "General", priority);
+        if (complaintID > 0)
+            UpdateComplaintStatus(complaintID, "New");
+
+        return complaintID;
+    }
+
+    /// <summary>
     /// Update complaint
     /// </summary>
     public static bool UpdateComplaint(int complaintID, string title, string description, string category, string priority)
@@ -304,6 +320,16 @@ public class ComplaintDAL
             Log.Error(ex, "Error updating complaint: {ComplaintID}", complaintID);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Backward-compatible complaint update overload that preserves the existing category.
+    /// </summary>
+    public static bool UpdateComplaint(int complaintID, string title, string description, string priority)
+    {
+        var complaint = GetComplaintByID(complaintID);
+        string category = complaint != null ? complaint.Category : "General";
+        return UpdateComplaint(complaintID, title, description, category, priority);
     }
 
     /// <summary>

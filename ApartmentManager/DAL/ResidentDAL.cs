@@ -356,6 +356,24 @@ public class ResidentDAL
     }
 
     /// <summary>
+    /// Backward-compatible resident creation overload.
+    /// </summary>
+    public static int CreateResident(int apartmentID, string fullName, string dobString, string cccd,
+                                     string phone, string email, string status)
+    {
+        DateTime dob = DateTime.TryParse(dobString, out var parsedDob)
+            ? parsedDob
+            : DateTime.Now.AddYears(-18);
+
+        int residentID = CreateResident(null, fullName, phone, email, cccd, dob, apartmentID, "Owner", DateTime.Now, null);
+
+        if (residentID > 0 && !string.IsNullOrWhiteSpace(status))
+            UpdateResidentStatus(residentID, status);
+
+        return residentID;
+    }
+
+    /// <summary>
     /// Update resident
     /// </summary>
     public static bool UpdateResident(int residentID, string fullName, string phone, string email,
@@ -435,6 +453,14 @@ public class ResidentDAL
             Log.Error(ex, "Error updating resident status: {ResidentID}", residentID);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Backward-compatible move-out helper.
+    /// </summary>
+    public static bool MoveOutResident(int residentID, DateTime moveOutDate)
+    {
+        return UpdateResidentStatus(residentID, "Moved Out", moveOutDate);
     }
 
     /// <summary>

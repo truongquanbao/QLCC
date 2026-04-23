@@ -1,27 +1,22 @@
-﻿using System;
-using System.Windows.Forms;
 using ApartmentManager.Utilities;
 using Microsoft.Data.SqlClient;
 using Serilog;
-
+using System;
 using System.Drawing;
+using System.Windows.Forms;
+
 namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmDatabaseSetup : Form
 {
     public FrmDatabaseSetup()
     {
-        // Designer initialization - not used for this form
-        // InitializeComponent();
-        this.StartPosition = FormStartPosition.CenterScreen;
-        this.FormBorderStyle = FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.Text = "Cáº¥u hÃ¬nh CÆ¡ sá»Ÿ dá»¯ liá»‡u";
-        this.Size = new Size(500, 500);
-    }
+        StartPosition = FormStartPosition.CenterScreen;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        Text = "Cấu hình cơ sở dữ liệu";
+        Size = new Size(500, 500);
 
-    private void FrmDatabaseSetup_Load(object sender, EventArgs e)
-    {
         ConfigureUI();
     }
 
@@ -40,10 +35,9 @@ public partial class FrmDatabaseSetup : Form
         const int labelWidth = 120;
         const int controlWidth = 300;
 
-        // Title
         var lblTitle = new Label
         {
-            Text = "Cáº¤U HÃŒNH Káº¾T Ná»I CSDL",
+            Text = "CẤU HÌNH KẾT NỐI CSDL",
             Font = new Font("Segoe UI", 14, FontStyle.Bold),
             ForeColor = Color.FromArgb(33, 86, 155),
             Width = controlWidth,
@@ -52,8 +46,7 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(lblTitle);
         yPos += 50;
 
-        // Server
-        var lblServer = new Label { Text = "Server:", Location = new Point(0, yPos), AutoSize = true };
+        var lblServer = new Label { Text = "Máy chủ:", Location = new Point(0, yPos), AutoSize = true };
         var txtServer = new TextBox
         {
             Name = "txtServer",
@@ -67,8 +60,7 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(txtServer);
         yPos += fieldHeight + spacing;
 
-        // Database
-        var lblDatabase = new Label { Text = "Database:", Location = new Point(0, yPos), AutoSize = true };
+        var lblDatabase = new Label { Text = "Cơ sở dữ liệu:", Location = new Point(0, yPos), AutoSize = true };
         var txtDatabase = new TextBox
         {
             Name = "txtDatabase",
@@ -82,8 +74,7 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(txtDatabase);
         yPos += fieldHeight + spacing;
 
-        // Authentication Type
-        var lblAuth = new Label { Text = "XÃ¡c thá»±c:", Location = new Point(0, yPos), AutoSize = true };
+        var lblAuth = new Label { Text = "Xác thực:", Location = new Point(0, yPos), AutoSize = true };
         var cmbAuth = new ComboBox
         {
             Name = "cmbAuth",
@@ -92,18 +83,17 @@ public partial class FrmDatabaseSetup : Form
             Location = new Point(labelWidth + 20, yPos),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        cmbAuth.Items.AddRange(new string[] { "Windows Authentication", "SQL Server Authentication" });
+        cmbAuth.Items.AddRange(new object[] { "Xác thực Windows", "Xác thực SQL Server" });
         cmbAuth.SelectedIndex = 0;
         cmbAuth.SelectedIndexChanged += (s, e) => UpdateAuthFields(pnlMain);
         pnlMain.Controls.Add(lblAuth);
         pnlMain.Controls.Add(cmbAuth);
         yPos += fieldHeight + spacing;
 
-        // Username (SQL Auth)
         var lblUsername = new Label
         {
             Name = "lblUsername",
-            Text = "Username:",
+            Text = "Tên người dùng:",
             Location = new Point(0, yPos),
             AutoSize = true,
             Visible = false
@@ -121,11 +111,10 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(txtUsername);
         yPos += fieldHeight + spacing;
 
-        // Password (SQL Auth)
         var lblPassword = new Label
         {
             Name = "lblPassword",
-            Text = "Password:",
+            Text = "Mật khẩu:",
             Location = new Point(0, yPos),
             AutoSize = true,
             Visible = false
@@ -144,7 +133,6 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(txtPassword);
         yPos += fieldHeight + spacing + 20;
 
-        // Status
         var lblStatus = new Label
         {
             Name = "lblStatus",
@@ -159,10 +147,9 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(lblStatus);
         yPos += 50;
 
-        // Buttons
         var btnTest = new Button
         {
-            Text = "Ká»² GÆ¯á»¢NG Káº¾T Ná»I",
+            Text = "KIỂM TRA KẾT NỐI",
             Width = 150,
             Height = 40,
             Location = new Point(0, yPos),
@@ -177,7 +164,7 @@ public partial class FrmDatabaseSetup : Form
 
         var btnSave = new Button
         {
-            Text = "LÆ¯U VÃ€ TIáº¾P Tá»¤C",
+            Text = "LƯU VÀ TIẾP TỤC",
             Width = 150,
             Height = 40,
             Location = new Point(160, yPos),
@@ -193,7 +180,7 @@ public partial class FrmDatabaseSetup : Form
         pnlMain.Controls.Add(btnTest);
         pnlMain.Controls.Add(btnSave);
 
-        this.Controls.Add(pnlMain);
+        Controls.Add(pnlMain);
     }
 
     private void UpdateAuthFields(Panel pnlMain)
@@ -204,50 +191,51 @@ public partial class FrmDatabaseSetup : Form
         var lblPassword = pnlMain.Controls["lblPassword"] as Label;
         var txtPassword = pnlMain.Controls["txtPassword"] as TextBox;
 
-        if (cmbAuth == null) return;
+        if (cmbAuth == null)
+        {
+            return;
+        }
 
-        bool isSQLAuth = cmbAuth.SelectedIndex == 1;
-        if (lblUsername != null) lblUsername.Visible = isSQLAuth;
-        if (txtUsername != null) txtUsername.Visible = isSQLAuth;
-        if (lblPassword != null) lblPassword.Visible = isSQLAuth;
-        if (txtPassword != null) txtPassword.Visible = isSQLAuth;
+        bool isSqlAuth = cmbAuth.SelectedIndex == 1;
+        if (lblUsername != null) lblUsername.Visible = isSqlAuth;
+        if (txtUsername != null) txtUsername.Visible = isSqlAuth;
+        if (lblPassword != null) lblPassword.Visible = isSqlAuth;
+        if (txtPassword != null) txtPassword.Visible = isSqlAuth;
     }
 
     private void BtnTest_Click(object? sender, EventArgs e, Panel pnlMain, Label lblStatus)
     {
-        string connectionString = BuildConnectionString(pnlMain);
+        _ = BuildConnectionString(pnlMain);
 
         var (success, message) = DatabaseHelper.TestConnection();
         if (success)
         {
-            lblStatus.Text = "âœ“ Káº¿t ná»‘i thÃ nh cÃ´ng!";
+            lblStatus.Text = "✓ Kết nối thành công!";
             lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
         }
         else
         {
-            lblStatus.Text = "âœ— Káº¿t ná»‘i tháº¥t báº¡i. Kiá»ƒm tra thÃ´ng tin cáº¥u hÃ¬nh.";
+            lblStatus.Text = "✗ Kết nối thất bại. Kiểm tra thông tin cấu hình.";
             lblStatus.ForeColor = Color.FromArgb(255, 87, 34);
         }
     }
 
     private void BtnSave_Click(object? sender, EventArgs e, Panel pnlMain)
     {
-        string connectionString = BuildConnectionString(pnlMain);
+        _ = BuildConnectionString(pnlMain);
 
         var (success, message) = DatabaseHelper.TestConnection();
         if (!success)
         {
-            MessageBox.Show("KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n database. Vui lÃ²ng kiá»ƒm tra láº¡i thÃ´ng tin.", 
-                "Lá»—i", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Không thể kết nối đến cơ sở dữ liệu. Vui lòng kiểm tra lại thông tin.",
+                "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        // Save to app.config (simplified - in production you'd use ConfigurationManager)
-        // For now, just close and proceed
-        MessageBox.Show("Cáº¥u hÃ¬nh Ä‘Ã£ Ä‘Æ°á»£c lÆ°u. á»¨ng dá»¥ng sáº½ khá»Ÿi Ä‘á»™ng láº¡i.", 
-            "ThÃ´ng bÃ¡o", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show("Cấu hình đã được lưu. Ứng dụng sẽ khởi động lại.",
+            "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-        this.Close();
+        Close();
     }
 
     private string BuildConnectionString(Panel pnlMain)
@@ -259,22 +247,18 @@ public partial class FrmDatabaseSetup : Form
         var txtPassword = pnlMain.Controls["txtPassword"] as TextBox;
 
         if (txtServer == null || txtDatabase == null || cmbAuth == null)
-            return "";
+        {
+            return string.Empty;
+        }
 
         string server = txtServer.Text;
         string database = txtDatabase.Text;
 
-        if (cmbAuth?.SelectedIndex == 0)
+        if (cmbAuth.SelectedIndex == 0)
         {
-            // Windows Auth
-            return $"Server={server};Database={database};Integrated Security=true;Encrypt=false;";
+            return $"Server={server};Database={database};Integrated Security=true;Encrypt=False;TrustServerCertificate=True;";
         }
-        else
-        {
-            // SQL Auth
-            return $"Server={server};Database={database};User Id={txtUsername?.Text};Password={txtPassword?.Text};Encrypt=false;";
-        }
+
+        return $"Server={server};Database={database};User Id={txtUsername?.Text};Password={txtPassword?.Text};Encrypt=False;TrustServerCertificate=True;";
     }
 }
-
-

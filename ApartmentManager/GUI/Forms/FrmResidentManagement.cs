@@ -66,7 +66,7 @@ public class FrmResidentManagement : Form
     {
         if (SessionManager.GetSession() == null || !SessionManager.HasPermission("ManageResidents"))
         {
-            MessageBox.Show("You do not have permission to access this form.", "Access Denied",
+            MessageBox.Show("Bạn không có quyền truy cập màn hình này.", "Từ chối truy cập",
                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
             this.Close();
             return;
@@ -79,7 +79,7 @@ public class FrmResidentManagement : Form
 
     private void InitializeComponent()
     {
-        this.Text = "Resident Management";
+        this.Text = "Quản lý cư dân";
         this.Size = new Size(1200, 850);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
@@ -107,23 +107,28 @@ public class FrmResidentManagement : Form
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        var lblStatus = new Label { Text = "Status:", Location = new Point(SPACING, SPACING), Size = new Size(80, 20) };
+        var lblStatus = new Label { Text = "Trạng thái:", Location = new Point(SPACING, SPACING), Size = new Size(80, 20) };
         pnl.Controls.Add(lblStatus);
 
         cmbFilterStatus.Location = new Point(SPACING + 90, SPACING);
         cmbFilterStatus.Size = new Size(150, 25);
-        cmbFilterStatus.Items.AddRange(new string[] { "All", "Active", "Inactive" });
+        cmbFilterStatus.Items.AddRange(new object[]
+        {
+            new UiComboItem("Tất cả", "All"),
+            new UiComboItem("Đang hoạt động", "Active"),
+            new UiComboItem("Ngừng hoạt động", "Inactive")
+        });
         cmbFilterStatus.SelectedIndex = 0;
         pnl.Controls.Add(cmbFilterStatus);
 
-        var lblSearch = new Label { Text = "Name:", Location = new Point(SPACING + 260, SPACING), Size = new Size(50, 20) };
+        var lblSearch = new Label { Text = "Tên:", Location = new Point(SPACING + 260, SPACING), Size = new Size(50, 20) };
         pnl.Controls.Add(lblSearch);
 
         txtSearchName.Location = new Point(SPACING + 320, SPACING);
         txtSearchName.Size = new Size(200, 25);
         pnl.Controls.Add(txtSearchName);
 
-        btnSearch.Text = "Search";
+        btnSearch.Text = "Tìm kiếm";
         btnSearch.Location = new Point(SPACING + 530, SPACING);
         btnSearch.Size = new Size(80, 30);
         btnSearch.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -131,7 +136,7 @@ public class FrmResidentManagement : Form
         btnSearch.Click += BtnSearch_Click;
         pnl.Controls.Add(btnSearch);
 
-        btnShowAll.Text = "Show All";
+        btnShowAll.Text = "Hiển thị tất cả";
         btnShowAll.Location = new Point(SPACING + 620, SPACING);
         btnShowAll.Size = new Size(80, 30);
         btnShowAll.BackColor = Color.Gray;
@@ -156,7 +161,7 @@ public class FrmResidentManagement : Form
         int x = SPACING;
 
         // Row 1
-        lblFullName.Text = "Full Name:";
+        lblFullName.Text = "Họ tên:";
         lblFullName.Location = new Point(x, y);
         lblFullName.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblFullName);
@@ -165,7 +170,7 @@ public class FrmResidentManagement : Form
         txtFullName.Size = new Size(CONTROL_WIDTH, 25);
         pnl.Controls.Add(txtFullName);
 
-        lblPhone.Text = "Phone:";
+        lblPhone.Text = "Số điện thoại:";
         lblPhone.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y);
         lblPhone.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblPhone);
@@ -194,7 +199,7 @@ public class FrmResidentManagement : Form
         pnl.Controls.Add(txtCCCD);
 
         // Row 3
-        lblDOB.Text = "Date of Birth:";
+        lblDOB.Text = "Ngày sinh:";
         lblDOB.Location = new Point(x, y + 70);
         lblDOB.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblDOB);
@@ -204,7 +209,7 @@ public class FrmResidentManagement : Form
         dtpDOB.Format = DateTimePickerFormat.Short;
         pnl.Controls.Add(dtpDOB);
 
-        lblApartment.Text = "Apartment:";
+        lblApartment.Text = "Căn hộ:";
         lblApartment.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y + 70);
         lblApartment.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblApartment);
@@ -215,18 +220,25 @@ public class FrmResidentManagement : Form
         pnl.Controls.Add(cmbApartment);
 
         // Row 4
-        lblRelationship.Text = "Relationship:";
+        lblRelationship.Text = "Quan hệ:";
         lblRelationship.Location = new Point(x, y + 105);
         lblRelationship.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblRelationship);
 
         cmbRelationship.Location = new Point(x + LABEL_WIDTH + SPACING, y + 105);
         cmbRelationship.Size = new Size(CONTROL_WIDTH, 25);
-        cmbRelationship.Items.AddRange(new string[] { "Owner", "Family", "Friend", "Tenant", "Other" });
+        cmbRelationship.Items.AddRange(new object[]
+        {
+            new UiComboItem("Chủ hộ", "Owner"),
+            new UiComboItem("Người thân", "Family"),
+            new UiComboItem("Bạn bè", "Friend"),
+            new UiComboItem("Người thuê", "Tenant"),
+            new UiComboItem("Khác", "Other")
+        });
         cmbRelationship.DropDownStyle = ComboBoxStyle.DropDownList;
         pnl.Controls.Add(cmbRelationship);
 
-        lblStartDate.Text = "Start Date:";
+        lblStartDate.Text = "Ngày vào:";
         lblStartDate.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y + 105);
         lblStartDate.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblStartDate);
@@ -261,12 +273,12 @@ public class FrmResidentManagement : Form
         dgvResidents.CellClick += DgvResidents_CellClick;
 
         dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ID", DataPropertyName = "ResidentID", Width = 50, Visible = false });
-        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Name", DataPropertyName = "FullName", Width = 150 });
-        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Phone", DataPropertyName = "Phone", Width = 120 });
+        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Họ tên", DataPropertyName = "FullName", Width = 150 });
+        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Điện thoại", DataPropertyName = "Phone", Width = 120 });
         dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Email", DataPropertyName = "Email", Width = 150 });
         dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "CCCD", DataPropertyName = "CCCD", Width = 120 });
-        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Apartment", DataPropertyName = "ApartmentCode", Width = 100 });
-        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Status", DataPropertyName = "Status", Width = 100 });
+        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Căn hộ", DataPropertyName = "ApartmentCode", Width = 100 });
+        dgvResidents.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Trạng thái", DataPropertyName = "Status", Width = 100 });
 
         pnl.Controls.Add(dgvResidents);
         return pnl;
@@ -285,7 +297,7 @@ public class FrmResidentManagement : Form
         int x = SPACING;
         int y = SPACING;
 
-        btnCreate.Text = "Create";
+        btnCreate.Text = "Thêm";
         btnCreate.Location = new Point(x, y);
         btnCreate.Size = new Size(100, 30);
         btnCreate.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -293,7 +305,7 @@ public class FrmResidentManagement : Form
         btnCreate.Click += BtnCreate_Click;
         pnl.Controls.Add(btnCreate);
 
-        btnEdit.Text = "Edit";
+        btnEdit.Text = "Sửa";
         btnEdit.Location = new Point(x + 110, y);
         btnEdit.Size = new Size(100, 30);
         btnEdit.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -301,7 +313,7 @@ public class FrmResidentManagement : Form
         btnEdit.Click += BtnEdit_Click;
         pnl.Controls.Add(btnEdit);
 
-        btnDelete.Text = "Delete";
+        btnDelete.Text = "Xóa";
         btnDelete.Location = new Point(x + 220, y);
         btnDelete.Size = new Size(100, 30);
         btnDelete.BackColor = Color.FromArgb(0xC00000);
@@ -309,7 +321,7 @@ public class FrmResidentManagement : Form
         btnDelete.Click += BtnDelete_Click;
         pnl.Controls.Add(btnDelete);
 
-        btnMoveOut.Text = "Move Out";
+        btnMoveOut.Text = "Rời đi";
         btnMoveOut.Location = new Point(x + 330, y);
         btnMoveOut.Size = new Size(100, 30);
         btnMoveOut.BackColor = Color.FromArgb(255, 140, 0);
@@ -317,7 +329,7 @@ public class FrmResidentManagement : Form
         btnMoveOut.Click += BtnMoveOut_Click;
         pnl.Controls.Add(btnMoveOut);
 
-        btnStatistics.Text = "Statistics";
+        btnStatistics.Text = "Thống kê";
         btnStatistics.Location = new Point(x + 440, y);
         btnStatistics.Size = new Size(100, 30);
         btnStatistics.BackColor = Color.FromArgb(0, 100, 0);
@@ -325,7 +337,7 @@ public class FrmResidentManagement : Form
         btnStatistics.Click += BtnStatistics_Click;
         pnl.Controls.Add(btnStatistics);
 
-        btnClose.Text = "Close";
+        btnClose.Text = "Đóng";
         btnClose.Location = new Point(pnl.ClientSize.Width - 110, y);
         btnClose.Size = new Size(100, 30);
         btnClose.BackColor = Color.Gray;
@@ -346,13 +358,13 @@ public class FrmResidentManagement : Form
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        lblStatusBar.Text = "Ready";
+        lblStatusBar.Text = "Sẵn sàng";
         lblStatusBar.Location = new Point(SPACING, SPACING);
         lblStatusBar.Size = new Size(400, 20);
         lblStatusBar.ForeColor = Color.Green;
         pnl.Controls.Add(lblStatusBar);
 
-        lblResidentInfo.Text = "Total Residents: 0";
+        lblResidentInfo.Text = "Tổng cư dân: 0";
         lblResidentInfo.Location = new Point(SPACING, SPACING + 25);
         lblResidentInfo.Size = new Size(400, 20);
         pnl.Controls.Add(lblResidentInfo);
@@ -369,17 +381,17 @@ public class FrmResidentManagement : Form
             if (cmbFilterStatus.SelectedIndex == 0)
                 residents = ResidentDAL.GetAllResidents().Cast<dynamic>().ToList();
             else
-                residents = ResidentDAL.GetResidentsByStatus(cmbFilterStatus.SelectedItem.ToString()).Cast<dynamic>().ToList();
+                residents = ResidentDAL.GetResidentsByStatus(ComboBoxHelper.GetSelectedValueString(cmbFilterStatus)).Cast<dynamic>().ToList();
 
             dgvResidents.DataSource = residents.Cast<dynamic>().ToList();
-            lblStatusBar.Text = $"Loaded {residents.Count} residents";
-            lblResidentInfo.Text = $"Total Residents: {residents.Count}";
+            lblStatusBar.Text = $"Đã tải {residents.Count} cư dân";
+            lblResidentInfo.Text = $"Tổng cư dân: {residents.Count}";
 
             LoadApartments();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading residents: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải cư dân: {ex.Message}", "Lỗi");
         }
     }
 
@@ -392,7 +404,7 @@ public class FrmResidentManagement : Form
 
             foreach (var apt in apartments)
             {
-                cmbApartment.Items.Add(new { Text = apt.ApartmentCode, Value = apt.ApartmentID });
+                cmbApartment.Items.Add(new UiComboItem(apt.ApartmentCode, apt.ApartmentID));
             }
 
             cmbApartment.DisplayMember = "Text";
@@ -400,7 +412,7 @@ public class FrmResidentManagement : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading apartments: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải căn hộ: {ex.Message}", "Lỗi");
         }
     }
 
@@ -425,10 +437,10 @@ public class FrmResidentManagement : Form
                 if (aptItem != null)
                     cmbApartment.SelectedItem = aptItem;
 
-                cmbRelationship.SelectedItem = resident.RelationshipWithOwner;
+                cmbRelationship.SelectValue(resident.RelationshipWithOwner);
                 txtNote.Text = resident.Note ?? "";
 
-                lblStatusBar.Text = $"Selected: {resident.FullName}";
+                lblStatusBar.Text = $"Đã chọn: {resident.FullName}";
             }
         }
     }
@@ -437,7 +449,7 @@ public class FrmResidentManagement : Form
     {
         if (cmbApartment.SelectedItem == null)
         {
-            MessageBox.Show("Please select an apartment.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn căn hộ.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -453,14 +465,14 @@ public class FrmResidentManagement : Form
                 txtCCCD.Text,
                 dtpDOB.Value,
                 apartmentID,
-                cmbRelationship.SelectedItem?.ToString() ?? "Other",
+                ComboBoxHelper.GetSelectedValueString(cmbRelationship),
                 dtpStartDate.Value,
                 txtNote.Text
             );
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                      $"Created resident {txtFullName.Text}", "FrmResidentManagement");
                 ClearForm();
@@ -468,12 +480,12 @@ public class FrmResidentManagement : Form
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error creating resident: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tạo cư dân: {ex.Message}", "Lỗi");
         }
     }
 
@@ -481,7 +493,7 @@ public class FrmResidentManagement : Form
     {
         if (_selectedResidentID == 0)
         {
-            MessageBox.Show("Please select a resident.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn cư dân.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -492,13 +504,13 @@ public class FrmResidentManagement : Form
                 txtFullName.Text,
                 txtPhone.Text,
                 txtEmail.Text,
-                cmbRelationship.SelectedItem?.ToString() ?? "Other",
+                ComboBoxHelper.GetSelectedValueString(cmbRelationship),
                 txtNote.Text
             );
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                      $"Updated resident {txtFullName.Text}", "FrmResidentManagement");
                 LoadData();
@@ -506,12 +518,12 @@ public class FrmResidentManagement : Form
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error updating resident: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi cập nhật cư dân: {ex.Message}", "Lỗi");
         }
     }
 
@@ -519,11 +531,11 @@ public class FrmResidentManagement : Form
     {
         if (_selectedResidentID == 0)
         {
-            MessageBox.Show("Please select a resident.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn cư dân.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        if (MessageBox.Show("Are you sure you want to delete this resident?", "Confirm",
+        if (MessageBox.Show("Bạn có chắc muốn xóa cư dân này không?", "Xác nhận",
             MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
 
@@ -533,7 +545,7 @@ public class FrmResidentManagement : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                      $"Deleted resident {txtFullName.Text}", "FrmResidentManagement");
                 LoadData();
@@ -541,12 +553,12 @@ public class FrmResidentManagement : Form
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error deleting resident: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi xóa cư dân: {ex.Message}", "Lỗi");
         }
     }
 
@@ -554,7 +566,7 @@ public class FrmResidentManagement : Form
     {
         if (_selectedResidentID == 0)
         {
-            MessageBox.Show("Please select a resident.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn cư dân.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -565,7 +577,7 @@ public class FrmResidentManagement : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                      $"Moved out resident {txtFullName.Text}", "FrmResidentManagement");
                 LoadData();
@@ -573,12 +585,12 @@ public class FrmResidentManagement : Form
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error moving out resident: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi đánh dấu rời đi: {ex.Message}", "Lỗi");
         }
     }
 
@@ -592,11 +604,11 @@ public class FrmResidentManagement : Form
                 .ToList();
 
             dgvResidents.DataSource = filtered.Cast<dynamic>().ToList();
-            lblStatusBar.Text = $"Found {filtered.Count} residents matching '{txtSearchName.Text}'";
+            lblStatusBar.Text = $"Tìm thấy {filtered.Count} cư dân phù hợp với '{txtSearchName.Text}'";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error searching: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tìm kiếm: {ex.Message}", "Lỗi");
         }
     }
 
@@ -607,17 +619,17 @@ public class FrmResidentManagement : Form
             var stats = ResidentBLL.GetResidentStatistics();
             if (stats != null)
             {
-                string message = $"Total Residents: {stats.TotalResidents}\n" +
-                               $"Active: {stats.ActiveResidents}\n" +
-                               $"Inactive: {stats.InactiveResidents}\n" +
-                               $"Avg per Apartment: {stats.AveragePerApartment}";
+                string message = $"Tổng cư dân: {stats.TotalResidents}\n" +
+                               $"Đang hoạt động: {stats.ActiveResidents}\n" +
+                               $"Ngừng hoạt động: {stats.InactiveResidents}\n" +
+                               $"Trung bình mỗi căn hộ: {stats.AveragePerApartment}";
 
-                MessageBox.Show(message, "Resident Statistics", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(message, "Thống kê cư dân", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error getting statistics: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi lấy thống kê: {ex.Message}", "Lỗi");
         }
     }
 

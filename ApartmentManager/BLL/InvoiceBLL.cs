@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using ApartmentManager.DAL;
 using ApartmentManager.DTO;
@@ -52,6 +52,45 @@ public class InvoiceBLL
     }
 
     /// <summary>
+    /// Get all invoices.
+    /// </summary>
+    public static List<InvoiceDTO> GetAllInvoices()
+    {
+        try
+        {
+            return InvoiceDAL.GetAllInvoices();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error getting all invoices");
+            return new List<InvoiceDTO>();
+        }
+    }
+
+    /// <summary>
+    /// Get unpaid invoices for a resident.
+    /// </summary>
+    public static List<InvoiceDTO> GetUnpaidInvoicesByResident(int residentID)
+    {
+        try
+        {
+            if (residentID <= 0)
+                return new List<InvoiceDTO>();
+
+            return InvoiceDAL.GetInvoicesByResident(residentID)
+                .Where(i => string.Equals(i.PaymentStatus, "Unpaid", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(i.PaymentStatus, "Partial", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(i.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error getting unpaid invoices for resident: {ResidentID}", residentID);
+            return new List<InvoiceDTO>();
+        }
+    }
+
+    /// <summary>
     /// Create invoice with validation
     /// </summary>
     public static (bool Success, string Message, int InvoiceID) CreateInvoice(
@@ -87,6 +126,34 @@ public class InvoiceBLL
         catch (Exception ex)
         {
             Log.Error(ex, "BLL Error creating invoice");
+            return (false, $"Error creating invoice: {ex.Message}", 0);
+        }
+    }
+
+    /// <summary>
+    /// Backward-compatible invoice creation overload used by older tests.
+    /// </summary>
+    public static (bool Success, string Message, int InvoiceID) CreateInvoice(
+        int residentID, DateTime invoiceDate, decimal totalAmount, string monthName, int year, string? note = null)
+    {
+        try
+        {
+            if (residentID <= 0)
+                return (false, "Invalid resident ID", 0);
+
+            var resident = ResidentDAL.GetResidentByID(residentID);
+            if (resident == null || resident.ApartmentID <= 0)
+                return (false, "Resident not found", 0);
+            int invoiceID = InvoiceDAL.CreateInvoice(residentID, invoiceDate, totalAmount, monthName, year, note);
+
+            if (invoiceID > 0)
+                return (true, "Invoice created successfully", invoiceID);
+
+            return (false, "Failed to create invoice", 0);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error creating invoice (compatibility overload)");
             return (false, $"Error creating invoice: {ex.Message}", 0);
         }
     }
@@ -171,6 +238,14 @@ public class InvoiceBLL
     }
 
     /// <summary>
+    /// Backward-compatible payment recording overload.
+    /// </summary>
+    public static (bool Success, string Message) RecordPayment(int invoiceID, decimal amountPaid, DateTime paymentDate, string paymentMethod)
+    {
+        return RecordPayment(invoiceID, amountPaid);
+    }
+
+    /// <summary>
     /// Get invoices by apartment
     /// </summary>
     public static List<dynamic> GetInvoicesByApartment(int apartmentID)
@@ -228,6 +303,41 @@ public class InvoiceBLL
     }
 
     /// <summary>
+    /// Get invoice statistics in the legacy test-friendly shape.
+    /// </summary>
+    public static dynamic GetInvoiceStatistics()
+    {
+        try
+        {
+            var invoices = InvoiceDAL.GetAllInvoices();
+
+            int totalInvoices = invoices.Count;
+            int paidInvoices = invoices.Count(i => string.Equals(i.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase));
+            int unpaidInvoices = invoices.Count(i =>
+                string.Equals(i.PaymentStatus, "Unpaid", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(i.PaymentStatus, "Partial", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(i.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase));
+
+            decimal collectionRate = totalInvoices > 0
+                ? (decimal)((paidInvoices * 100) / totalInvoices)
+                : 0m;
+
+            return new
+            {
+                TotalInvoices = totalInvoices,
+                PaidInvoices = paidInvoices,
+                UnpaidInvoices = unpaidInvoices,
+                CollectionRate = collectionRate
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error getting invoice statistics");
+            return new { TotalInvoices = 0, PaidInvoices = 0, UnpaidInvoices = 0, CollectionRate = 0m };
+        }
+    }
+
+    /// <summary>
     /// Get financial statistics
     /// </summary>
     public static dynamic GetFinancialStatistics()
@@ -244,7 +354,7 @@ public class InvoiceBLL
             {
                 TotalInvoices = allInvoices.Count + paidInvoices.Count,
                 PaidInvoices = paidInvoices.Count,
-                UnpaidInvoices = allInvoices.Count(i => i.PaymentStatus == "Unpaid"),
+                UnpaidInvoices = allInvoices.Count(i => i.PaymentStatus == "Unpaid" || i.PaymentStatus == "Pending"),
                 PartialPayments = allInvoices.Count(i => i.PaymentStatus == "Partial"),
                 TotalOutstanding = totalOutstanding.ToString("F2"),
                 TotalCollected = totalCollected.ToString("F2"),

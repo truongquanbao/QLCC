@@ -92,6 +92,32 @@ namespace ApartmentManager.BLL
         }
 
         /// <summary>
+        /// Backward-compatible check-in overload that resolves apartment from resident.
+        /// </summary>
+        public static (bool Success, string Message, int VisitorID) CheckInVisitor(
+            int residentID,
+            string visitorName,
+            string phone,
+            string email,
+            string visitorType,
+            string purpose)
+        {
+            try
+            {
+                var resident = ResidentDAL.GetResidentByID(residentID);
+                if (resident == null)
+                    return (false, "Selected resident does not exist.", 0);
+
+                return CheckInVisitor(resident.ApartmentID, residentID, visitorName, phone, email, visitorType, purpose);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error checking in visitor (compatibility overload)");
+                return (false, $"Error: {ex.Message}", 0);
+            }
+        }
+
+        /// <summary>
         /// Check-out a visitor
         /// </summary>
         public static (bool Success, string Message) CheckOutVisitor(int visitorID, DateTime checkOutTime)
@@ -105,8 +131,7 @@ namespace ApartmentManager.BLL
                 if (visitor.CheckOutTime != null)
                     return (false, "Visitor has already checked out.");
 
-                // Update check-out time (would need to add this to VisitorDAL)
-                bool updated = VisitorDAL.ApproveVisitor(visitorID, 0);
+                bool updated = VisitorDAL.RecordDeparture(visitorID, checkOutTime);
 
                 if (updated)
                 {
@@ -121,6 +146,14 @@ namespace ApartmentManager.BLL
                 Log.Error(ex, "Error checking out visitor");
                 return (false, $"Error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Backward-compatible checkout overload that uses the current time.
+        /// </summary>
+        public static (bool Success, string Message) CheckOutVisitor(int visitorID)
+        {
+            return CheckOutVisitor(visitorID, DateTime.Now);
         }
 
         /// <summary>

@@ -12,7 +12,7 @@ namespace ApartmentManager
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        internal static void Main()
+        static void Main()
         {
             try
             {
@@ -41,13 +41,15 @@ namespace ApartmentManager
                 UserSession session = SessionManager.GetSession();
                 if (session == null)
                 {
-                    FrmLogin loginForm = new FrmLogin();
-                    Application.Run(loginForm);
-                    if (loginForm.DialogResult != DialogResult.OK)
+                    using (var loginForm = new FrmLogin())
                     {
-                        Log.Information("User closed login form");
-                        return;
+                        if (loginForm.ShowDialog() != DialogResult.OK)
+                        {
+                            Log.Information("User closed login form");
+                            return;
+                        }
                     }
+
                     session = SessionManager.GetSession();
                     if (session == null)
                     {

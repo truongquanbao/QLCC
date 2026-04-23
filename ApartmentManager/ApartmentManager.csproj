@@ -25,9 +25,4 @@
     <PackageReference Include="itext7" Version="7.2.0" />
   </ItemGroup>
 
-  <!-- Resources -->
-  <ItemGroup>
-    <EmbeddedResource Include="**/*.resx" />
-  </ItemGroup>
-
 </Project>

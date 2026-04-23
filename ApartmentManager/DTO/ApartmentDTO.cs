@@ -16,7 +16,7 @@ public class ApartmentDTO
     public string? BlockName { get; set; }
     public int? BuildingID { get; set; }
     public string? BuildingName { get; set; }
-    public double Area { get; set; }
+    public decimal Area { get; set; }
     public string? ApartmentType { get; set; }
     public string? Status { get; set; }
     public int MaxResidents { get; set; }

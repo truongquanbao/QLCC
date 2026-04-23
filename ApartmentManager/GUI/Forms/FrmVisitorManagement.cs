@@ -1,31 +1,50 @@
-﻿using ApartmentManager.BLL;
+using ApartmentManager.BLL;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
 using Serilog;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-
 using System.Drawing;
+
 namespace ApartmentManager.GUI.Forms
 {
     public partial class FrmVisitorManagement : Form
     {
-        private UserSession? _session = null;
+        private readonly UserSession? _session = SessionManager.GetSession();
         private const int PADDING = 10;
-        private const int CONTROL_HEIGHT = 25;
 
-        // UI Controls
-        private Panel _filterPanel, _detailsPanel, _gridPanel, _buttonPanel, _statusPanel;
-        private DataGridView _dgvVisitors;
-        private ComboBox _cboApartment, _cboResident, _cboVisitorType, _cboStatus;
-        private DateTimePicker _dtpCheckInDate;
-        private TextBox _txtVisitorName, _txtPhone, _txtEmail, _txtPurpose, _txtCheckInTime, _txtCheckOutTime;
-        private Label _lblTodayVisitors, _lblCheckInCount, _lblCheckOutCount;
+        private Panel _filterPanel = null!;
+        private Panel _detailsPanel = null!;
+        private Panel _gridPanel = null!;
+        private Panel _buttonPanel = null!;
+        private Panel _statusPanel = null!;
+
+        private readonly DataGridView _dgvVisitors = new DataGridView();
+        private readonly ComboBox _cboApartment = new ComboBox();
+        private readonly ComboBox _cboResident = new ComboBox();
+        private readonly ComboBox _cboVisitorType = new ComboBox();
+        private readonly ComboBox _cboStatus = new ComboBox();
+        private readonly DateTimePicker _dtpCheckInDate = new DateTimePicker();
+        private readonly TextBox _txtVisitorName = new TextBox();
+        private readonly TextBox _txtPhone = new TextBox();
+        private readonly TextBox _txtEmail = new TextBox();
+        private readonly TextBox _txtPurpose = new TextBox();
+        private readonly TextBox _txtCheckInTime = new TextBox();
+        private readonly TextBox _txtCheckOutTime = new TextBox();
+        private readonly Label _lblTodayVisitors = new Label();
+        private readonly Label _lblCheckInCount = new Label();
+        private readonly Label _lblCheckOutCount = new Label();
 
         public FrmVisitorManagement()
         {
+            if (_session == null || !_session.HasPermission("ManageVisitors"))
+            {
+                MessageBox.Show("Bạn không có quyền truy cập màn hình này.", "Từ chối truy cập");
+                Close();
+                return;
+            }
+
             InitializeForm();
         }
 
@@ -36,195 +55,212 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeForm()
         {
-            // Permission Check
-            if (!_session.HasPermission("ManageVisitors"))
-            {
-                MessageBox.Show("You do not have permission to access visitor management.", "Access Denied");
-                this.Close();
-                return;
-            }
+            Text = "Quản lý khách ra vào";
+            Size = new Size(1200, 700);
+            StartPosition = FormStartPosition.CenterScreen;
+            BackColor = Color.White;
 
-            this.Text = "Visitor Management";
-            this.Size = new System.Drawing.Size(1200, 700);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = System.Drawing.Color.White;
+            Controls.Add(CreateFilterPanel());
+            Controls.Add(CreateDetailsPanel());
+            Controls.Add(CreateGridPanel());
+            Controls.Add(CreateButtonPanel());
+            Controls.Add(CreateStatusPanel());
 
-            CreateFilterPanel();
-            CreateDetailsPanel();
-            CreateGridPanel();
-            CreateButtonPanel();
-            CreateStatusPanel();
-
-            this.Load += (s, e) => LoadData();
+            Load += (s, e) => LoadData();
         }
 
-        private void CreateFilterPanel()
+        private Panel CreateFilterPanel()
         {
-            _filterPanel = new Panel { Dock = DockStyle.Top, Height = 110, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.LightGray };
-            this.Controls.Add(_filterPanel);
-
+            _filterPanel = new Panel { Dock = DockStyle.Top, Height = 110, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.LightGray };
             int y = PADDING;
 
-            // Row 1: Apartment and Resident
-            Label lblApartment = new Label { Text = "Apartment:", Left = PADDING, Top = y, Width = 100 };
-            _cboApartment = new ComboBox { Left = 120, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+            _filterPanel.Controls.Add(new Label { Text = "Căn hộ:", Left = PADDING, Top = y, Width = 100 });
+            _cboApartment.Location = new Point(120, y);
+            _cboApartment.Size = new Size(150, 25);
+            _cboApartment.DropDownStyle = ComboBoxStyle.DropDownList;
             _cboApartment.SelectedIndexChanged += (s, e) => LoadResidents();
-            _filterPanel.Controls.Add(lblApartment);
             _filterPanel.Controls.Add(_cboApartment);
 
-            Label lblResident = new Label { Text = "Resident:", Left = 290, Top = y, Width = 100 };
-            _cboResident = new ComboBox { Left = 410, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+            _filterPanel.Controls.Add(new Label { Text = "Cư dân:", Left = 290, Top = y, Width = 100 });
+            _cboResident.Location = new Point(410, y);
+            _cboResident.Size = new Size(150, 25);
+            _cboResident.DropDownStyle = ComboBoxStyle.DropDownList;
             _cboResident.SelectedIndexChanged += (s, e) => LoadVisitors();
-            _filterPanel.Controls.Add(lblResident);
             _filterPanel.Controls.Add(_cboResident);
 
-            Label lblVisitorType = new Label { Text = "Visitor Type:", Left = 580, Top = y, Width = 100 };
-            _cboVisitorType = new ComboBox { Left = 700, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboVisitorType.Items.AddRange(new object[] { "All", "Guest", "Delivery", "Service", "Family", "Other" });
+            _filterPanel.Controls.Add(new Label { Text = "Loại khách:", Left = 580, Top = y, Width = 100 });
+            _cboVisitorType.Location = new Point(700, y);
+            _cboVisitorType.Size = new Size(150, 25);
+            _cboVisitorType.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cboVisitorType.Items.AddRange(new object[]
+            {
+                new UiComboItem("Tất cả", "All"),
+                new UiComboItem("Khách", "Guest"),
+                new UiComboItem("Giao hàng", "Delivery"),
+                new UiComboItem("Dịch vụ", "Service"),
+                new UiComboItem("Người thân", "Family"),
+                new UiComboItem("Khác", "Other")
+            });
             _cboVisitorType.SelectedIndex = 0;
             _cboVisitorType.SelectedIndexChanged += (s, e) => LoadVisitors();
-            _filterPanel.Controls.Add(lblVisitorType);
             _filterPanel.Controls.Add(_cboVisitorType);
 
-            Label lblStatus = new Label { Text = "Status:", Left = 870, Top = y, Width = 100 };
-            _cboStatus = new ComboBox { Left = 970, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboStatus.Items.AddRange(new object[] { "All", "Checked In", "Checked Out", "Pending" });
+            _filterPanel.Controls.Add(new Label { Text = "Trạng thái:", Left = 870, Top = y, Width = 100 });
+            _cboStatus.Location = new Point(970, y);
+            _cboStatus.Size = new Size(150, 25);
+            _cboStatus.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cboStatus.Items.AddRange(new object[]
+            {
+                new UiComboItem("Tất cả", "All"),
+                new UiComboItem("Đang vào", "CheckedIn"),
+                new UiComboItem("Đã rời", "CheckedOut"),
+                new UiComboItem("Chờ xử lý", "Pending")
+            });
             _cboStatus.SelectedIndex = 0;
             _cboStatus.SelectedIndexChanged += (s, e) => LoadVisitors();
-            _filterPanel.Controls.Add(lblStatus);
             _filterPanel.Controls.Add(_cboStatus);
 
             y += 40;
 
-            // Row 2: Date and visitor details
-            Label lblCheckInDate = new Label { Text = "Check-In Date:", Left = PADDING, Top = y, Width = 100 };
-            _dtpCheckInDate = new DateTimePicker { Left = 120, Top = y, Width = 150 };
+            _filterPanel.Controls.Add(new Label { Text = "Ngày check-in:", Left = PADDING, Top = y, Width = 100 });
+            _dtpCheckInDate.Location = new Point(120, y);
+            _dtpCheckInDate.Width = 150;
             _dtpCheckInDate.ValueChanged += (s, e) => LoadVisitors();
-            _filterPanel.Controls.Add(lblCheckInDate);
             _filterPanel.Controls.Add(_dtpCheckInDate);
 
-            Label lblVisitorName = new Label { Text = "Visitor Name:", Left = 290, Top = y, Width = 100 };
-            _txtVisitorName = new TextBox { Left = 410, Top = y, Width = 150 };
-            _filterPanel.Controls.Add(lblVisitorName);
+            _filterPanel.Controls.Add(new Label { Text = "Tên khách:", Left = 290, Top = y, Width = 100 });
+            _txtVisitorName.Location = new Point(410, y);
+            _txtVisitorName.Width = 150;
             _filterPanel.Controls.Add(_txtVisitorName);
 
-            Label lblPhone = new Label { Text = "Phone:", Left = 580, Top = y, Width = 100 };
-            _txtPhone = new TextBox { Left = 700, Top = y, Width = 150 };
-            _filterPanel.Controls.Add(lblPhone);
+            _filterPanel.Controls.Add(new Label { Text = "Số điện thoại:", Left = 580, Top = y, Width = 100 });
+            _txtPhone.Location = new Point(700, y);
+            _txtPhone.Width = 150;
             _filterPanel.Controls.Add(_txtPhone);
 
-            Button btnSearch = new Button { Text = "Search", Left = 870, Top = y, Width = 80, Height = 25 };
+            var btnSearch = new Button { Text = "Tìm kiếm", Left = 870, Top = y, Width = 80, Height = 25 };
             btnSearch.Click += (s, e) => LoadVisitors();
             _filterPanel.Controls.Add(btnSearch);
 
             y += 35;
 
-            Label lblEmail = new Label { Text = "Email:", Left = PADDING, Top = y, Width = 100 };
-            _txtEmail = new TextBox { Left = 120, Top = y, Width = 150 };
-            _filterPanel.Controls.Add(lblEmail);
+            _filterPanel.Controls.Add(new Label { Text = "Email:", Left = PADDING, Top = y, Width = 100 });
+            _txtEmail.Location = new Point(120, y);
+            _txtEmail.Width = 150;
             _filterPanel.Controls.Add(_txtEmail);
 
-            Label lblPurpose = new Label { Text = "Purpose:", Left = 290, Top = y, Width = 100 };
-            _txtPurpose = new TextBox { Left = 410, Top = y, Width = 150, Multiline = true, Height = 35 };
-            _filterPanel.Controls.Add(lblPurpose);
+            _filterPanel.Controls.Add(new Label { Text = "Mục đích:", Left = 290, Top = y, Width = 100 });
+            _txtPurpose.Location = new Point(410, y);
+            _txtPurpose.Size = new Size(150, 35);
+            _txtPurpose.Multiline = true;
             _filterPanel.Controls.Add(_txtPurpose);
+
+            return _filterPanel;
         }
 
-        private void CreateDetailsPanel()
+        private Panel CreateDetailsPanel()
         {
-            _detailsPanel = new Panel { Dock = DockStyle.Top, Height = 80, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.LightGray };
-            this.Controls.Add(_detailsPanel);
-
+            _detailsPanel = new Panel { Dock = DockStyle.Top, Height = 80, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.LightGray };
             int y = PADDING;
 
-            Label lblCheckInTime = new Label { Text = "Check-In Time:", Left = PADDING, Top = y, Width = 100 };
-            _txtCheckInTime = new TextBox { Left = 120, Top = y, Width = 150, ReadOnly = true };
-            _detailsPanel.Controls.Add(lblCheckInTime);
+            _detailsPanel.Controls.Add(new Label { Text = "Giờ check-in:", Left = PADDING, Top = y, Width = 100 });
+            _txtCheckInTime.Location = new Point(120, y);
+            _txtCheckInTime.Width = 150;
+            _txtCheckInTime.ReadOnly = true;
             _detailsPanel.Controls.Add(_txtCheckInTime);
 
-            Label lblCheckOutTime = new Label { Text = "Check-Out Time:", Left = 290, Top = y, Width = 100 };
-            _txtCheckOutTime = new TextBox { Left = 410, Top = y, Width = 150, ReadOnly = true };
-            _detailsPanel.Controls.Add(lblCheckOutTime);
+            _detailsPanel.Controls.Add(new Label { Text = "Giờ check-out:", Left = 290, Top = y, Width = 100 });
+            _txtCheckOutTime.Location = new Point(410, y);
+            _txtCheckOutTime.Width = 150;
+            _txtCheckOutTime.ReadOnly = true;
             _detailsPanel.Controls.Add(_txtCheckOutTime);
 
             y += 35;
+            _detailsPanel.Controls.Add(new Label { Text = "Trạng thái sẽ cập nhật sau khi check-in/check-out", Left = PADDING, Top = y, Width = 400 });
 
-            Label lblNote = new Label { Text = "Status will update after check-in/check-out", Left = PADDING, Top = y, Width = 400 };
-            _detailsPanel.Controls.Add(lblNote);
+            return _detailsPanel;
         }
 
-        private void CreateGridPanel()
+        private Panel CreateGridPanel()
         {
             _gridPanel = new Panel { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
-            this.Controls.Add(_gridPanel);
 
-            _dgvVisitors = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoGenerateColumns = false,
-                BackgroundColor = System.Drawing.Color.White
-            };
+            _dgvVisitors.Dock = DockStyle.Fill;
+            _dgvVisitors.ReadOnly = true;
+            _dgvVisitors.AllowUserToAddRows = false;
+            _dgvVisitors.AllowUserToDeleteRows = false;
+            _dgvVisitors.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            _dgvVisitors.AutoGenerateColumns = false;
+            _dgvVisitors.BackgroundColor = Color.White;
 
             _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "VisitorID", HeaderText = "ID", DataPropertyName = "VisitorID", Width = 50 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "Apartment", HeaderText = "Apartment", DataPropertyName = "ApartmentCode", Width = 100 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "Resident", HeaderText = "Resident", DataPropertyName = "ResidentName", Width = 120 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "VisitorName", HeaderText = "Visitor Name", DataPropertyName = "VisitorName", Width = 120 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "VisitorType", HeaderText = "Type", DataPropertyName = "VisitorType", Width = 80 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "CheckInTime", HeaderText = "Check-In", DataPropertyName = "CheckInTime", Width = 120 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "CheckOutTime", HeaderText = "Check-Out", DataPropertyName = "CheckOutTime", Width = 120 });
-            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Status", DataPropertyName = "Status", Width = 100 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "Apartment", HeaderText = "Căn hộ", DataPropertyName = "ApartmentCode", Width = 100 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "Resident", HeaderText = "Cư dân", DataPropertyName = "ResidentName", Width = 120 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "VisitorName", HeaderText = "Tên khách", DataPropertyName = "VisitorName", Width = 120 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "VisitorType", HeaderText = "Loại", DataPropertyName = "VisitorType", Width = 80 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "CheckInTime", HeaderText = "Check-in", DataPropertyName = "CheckInTime", Width = 120 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "CheckOutTime", HeaderText = "Check-out", DataPropertyName = "CheckOutTime", Width = 120 });
+            _dgvVisitors.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Trạng thái", DataPropertyName = "Status", Width = 100 });
 
             _dgvVisitors.CellClick += DgvVisitors_CellClick;
             _gridPanel.Controls.Add(_dgvVisitors);
+            return _gridPanel;
         }
 
-        private void CreateButtonPanel()
+        private Panel CreateButtonPanel()
         {
-            _buttonPanel = new Panel { Dock = DockStyle.Bottom, Height = 50, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.LightGray };
-            this.Controls.Add(_buttonPanel);
+            _buttonPanel = new Panel { Dock = DockStyle.Bottom, Height = 50, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.LightGray };
 
-            Button btnCheckIn = new Button { Text = "Check-In", Left = PADDING, Top = 10, Width = 80, Height = 30 };
+            var btnCheckIn = new Button { Text = "Check-in", Left = PADDING, Top = 10, Width = 80, Height = 30 };
             btnCheckIn.Click += BtnCheckIn_Click;
             _buttonPanel.Controls.Add(btnCheckIn);
 
-            Button btnCheckOut = new Button { Text = "Check-Out", Left = 100, Top = 10, Width = 80, Height = 30 };
+            var btnCheckOut = new Button { Text = "Check-out", Left = 100, Top = 10, Width = 80, Height = 30 };
             btnCheckOut.Click += BtnCheckOut_Click;
             _buttonPanel.Controls.Add(btnCheckOut);
 
-            Button btnRegisterNew = new Button { Text = "Register New", Left = 180, Top = 10, Width = 80, Height = 30 };
+            var btnRegisterNew = new Button { Text = "Đăng ký mới", Left = 180, Top = 10, Width = 100, Height = 30 };
             btnRegisterNew.Click += BtnRegisterNew_Click;
             _buttonPanel.Controls.Add(btnRegisterNew);
 
-            Button btnDelete = new Button { Text = "Delete", Left = 260, Top = 10, Width = 80, Height = 30 };
+            var btnDelete = new Button { Text = "Xóa", Left = 290, Top = 10, Width = 80, Height = 30 };
             btnDelete.Click += BtnDelete_Click;
             _buttonPanel.Controls.Add(btnDelete);
 
-            Button btnStatistics = new Button { Text = "Statistics", Left = 340, Top = 10, Width = 80, Height = 30 };
+            var btnStatistics = new Button { Text = "Thống kê", Left = 380, Top = 10, Width = 80, Height = 30 };
             btnStatistics.Click += BtnStatistics_Click;
             _buttonPanel.Controls.Add(btnStatistics);
 
-            Button btnRefresh = new Button { Text = "Refresh", Left = 420, Top = 10, Width = 80, Height = 30 };
+            var btnRefresh = new Button { Text = "Làm mới", Left = 470, Top = 10, Width = 80, Height = 30 };
             btnRefresh.Click += (s, e) => LoadVisitors();
             _buttonPanel.Controls.Add(btnRefresh);
+
+            return _buttonPanel;
         }
 
-        private void CreateStatusPanel()
+        private Panel CreateStatusPanel()
         {
-            _statusPanel = new Panel { Dock = DockStyle.Bottom, Height = 40, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.Gainsboro };
-            this.Controls.Add(_statusPanel);
+            _statusPanel = new Panel { Dock = DockStyle.Bottom, Height = 40, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.Gainsboro };
 
-            _lblTodayVisitors = new Label { Text = "Today's Visitors: 0", Left = PADDING, Top = 10, Width = 150 };
+            _lblTodayVisitors.Text = "Khách hôm nay: 0";
+            _lblTodayVisitors.Left = PADDING;
+            _lblTodayVisitors.Top = 10;
+            _lblTodayVisitors.Width = 150;
             _statusPanel.Controls.Add(_lblTodayVisitors);
 
-            _lblCheckInCount = new Label { Text = "Checked In: 0", Left = 170, Top = 10, Width = 120 };
+            _lblCheckInCount.Text = "Đang vào: 0";
+            _lblCheckInCount.Left = 170;
+            _lblCheckInCount.Top = 10;
+            _lblCheckInCount.Width = 120;
             _statusPanel.Controls.Add(_lblCheckInCount);
 
-            _lblCheckOutCount = new Label { Text = "Checked Out: 0", Left = 310, Top = 10, Width = 120 };
+            _lblCheckOutCount.Text = "Đã rời: 0";
+            _lblCheckOutCount.Left = 310;
+            _lblCheckOutCount.Top = 10;
+            _lblCheckOutCount.Width = 120;
             _statusPanel.Controls.Add(_lblCheckOutCount);
+
+            return _statusPanel;
         }
 
         private void LoadData()
@@ -238,7 +274,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading visitor data");
-                MessageBox.Show($"Error loading data: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi khi tải dữ liệu: {ex.Message}", "Lỗi");
             }
         }
 
@@ -247,16 +283,13 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 _cboApartment.Items.Clear();
-                _cboApartment.Items.Add(new { ApartmentID = 0, DisplayText = "All Apartments" });
+                _cboApartment.AddOption("Tất cả căn hộ", 0);
 
-                var apartments = ApartmentDAL.GetAllApartments();
-                foreach (var apt in apartments)
+                foreach (var apartment in ApartmentDAL.GetAllApartments())
                 {
-                    _cboApartment.Items.Add(apt);
+                    _cboApartment.AddOption(apartment.ApartmentCode ?? $"Căn hộ {apartment.ApartmentID}", apartment.ApartmentID);
                 }
 
-                _cboApartment.ValueMember = "ApartmentID";
-                _cboApartment.DisplayMember = "DisplayText";
                 _cboApartment.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -270,28 +303,18 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 _cboResident.Items.Clear();
-                _cboResident.Items.Add(new { ResidentID = 0, DisplayText = "All Residents" });
+                _cboResident.AddOption("Tất cả cư dân", 0);
 
-                if (_cboApartment.SelectedItem != null && ((dynamic)_cboApartment.SelectedItem).ApartmentID != 0)
+                int apartmentID = _cboApartment.GetSelectedValueInt();
+                var residents = apartmentID != 0
+                    ? ResidentDAL.GetResidentsByApartment(apartmentID)
+                    : ResidentDAL.GetAllResidents();
+
+                foreach (var resident in residents)
                 {
-                    int apartmentID = ((dynamic)_cboApartment.SelectedItem).ApartmentID;
-                    var residents = ResidentDAL.GetResidentsByApartment(apartmentID);
-                    foreach (var resident in residents)
-                    {
-                        _cboResident.Items.Add(resident);
-                    }
-                }
-                else
-                {
-                    var residents = ResidentDAL.GetAllResidents();
-                    foreach (var resident in residents)
-                    {
-                        _cboResident.Items.Add(resident);
-                    }
+                    _cboResident.AddOption(resident.FullName ?? $"Cư dân {resident.ResidentID}", resident.ResidentID);
                 }
 
-                _cboResident.ValueMember = "ResidentID";
-                _cboResident.DisplayMember = "DisplayText";
                 _cboResident.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -306,63 +329,60 @@ namespace ApartmentManager.GUI.Forms
             {
                 var visitors = VisitorDAL.GetAllVisitors();
 
-                // Apply apartment filter
-                if (_cboApartment.SelectedItem != null && ((dynamic)_cboApartment.SelectedItem).ApartmentID != 0)
+                int apartmentID = _cboApartment.GetSelectedValueInt();
+                if (apartmentID != 0)
                 {
-                    int apartmentID = ((dynamic)_cboApartment.SelectedItem).ApartmentID;
                     visitors = visitors.Where(v => v.ApartmentID == apartmentID).ToList();
                 }
 
-                // Apply resident filter
-                if (_cboResident.SelectedItem != null && ((dynamic)_cboResident.SelectedItem).ResidentID != 0)
+                int residentID = _cboResident.GetSelectedValueInt();
+                if (residentID != 0)
                 {
-                    int residentID = ((dynamic)_cboResident.SelectedItem).ResidentID;
                     visitors = visitors.Where(v => v.ResidentID == residentID).ToList();
                 }
 
-                // Apply visitor type filter
-                if (!_cboVisitorType.SelectedItem.ToString().Equals("All"))
+                string visitorType = _cboVisitorType.GetSelectedValueString();
+                if (!string.Equals(visitorType, "All", StringComparison.OrdinalIgnoreCase))
                 {
-                    string visitorType = _cboVisitorType.SelectedItem.ToString();
                     visitors = visitors.Where(v => v.VisitorType == visitorType).ToList();
                 }
 
-                // Apply status filter
-                if (!_cboStatus.SelectedItem.ToString().Equals("All"))
+                string status = _cboStatus.GetSelectedValueString();
+                if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
                 {
-                    string status = _cboStatus.SelectedItem.ToString();
-                    visitors = visitors.Where(v => 
-                    {
-                        if (status == "Checked In" && v.CheckOutTime == null)
-                            return true;
-                        if (status == "Checked Out" && v.CheckOutTime != null)
-                            return true;
-                        return false;
-                    }).ToList();
+                    visitors = visitors.Where(v =>
+                        status == "CheckedIn" ? v.CheckOutTime == null :
+                        status == "CheckedOut" ? v.CheckOutTime != null :
+                        v.Status == "Pending").ToList();
                 }
 
-                // Apply date filter
                 visitors = visitors.Where(v => v.CheckInTime.Date == _dtpCheckInDate.Value.Date).ToList();
 
-                // Apply search filters
                 if (!string.IsNullOrWhiteSpace(_txtVisitorName.Text))
+                {
                     visitors = visitors.Where(v => v.VisitorName.Contains(_txtVisitorName.Text)).ToList();
+                }
 
                 if (!string.IsNullOrWhiteSpace(_txtPhone.Text))
+                {
                     visitors = visitors.Where(v => v.Phone != null && v.Phone.Contains(_txtPhone.Text)).ToList();
+                }
 
                 _dgvVisitors.DataSource = visitors.Cast<dynamic>().ToList();
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading visitors");
-                MessageBox.Show($"Error loading visitors: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi khi tải khách ra vào: {ex.Message}", "Lỗi");
             }
         }
 
         private void DgvVisitors_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0) return;
+            if (e.RowIndex < 0)
+            {
+                return;
+            }
 
             try
             {
@@ -372,12 +392,12 @@ namespace ApartmentManager.GUI.Forms
 
                 if (visitor != null)
                 {
-                    _txtCheckInTime.Text = visitor.CheckInTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "";
-                    _txtCheckOutTime.Text = visitor.CheckOutTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "";
-                    _txtVisitorName.Text = visitor.VisitorName ?? "";
-                    _txtPhone.Text = visitor.Phone ?? "";
-                    _txtEmail.Text = visitor.Email ?? "";
-                    _txtPurpose.Text = visitor.Purpose ?? "";
+                    _txtCheckInTime.Text = visitor.CheckInTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? string.Empty;
+                    _txtCheckOutTime.Text = visitor.CheckOutTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? string.Empty;
+                    _txtVisitorName.Text = visitor.VisitorName ?? string.Empty;
+                    _txtPhone.Text = visitor.Phone ?? string.Empty;
+                    _txtEmail.Text = visitor.Email ?? string.Empty;
+                    _txtPurpose.Text = visitor.Purpose ?? string.Empty;
                 }
             }
             catch (Exception ex)
@@ -390,43 +410,35 @@ namespace ApartmentManager.GUI.Forms
         {
             try
             {
-                if (_cboResident.SelectedItem == null || ((dynamic)_cboResident.SelectedItem).ResidentID == 0)
+                if (_cboResident.GetSelectedValueInt() == 0)
                 {
-                    MessageBox.Show("Please select a resident.", "Information");
+                    MessageBox.Show("Vui lòng chọn cư dân.", "Thông báo");
                     return;
                 }
 
-                FrmVisitorDialog dialog = new FrmVisitorDialog(null, ((dynamic)_cboResident.SelectedItem).ResidentID, ((dynamic)_cboApartment.SelectedItem).ApartmentID);
+                var dialog = new FrmVisitorDialog(null, _cboResident.GetSelectedValueInt(), _cboApartment.GetSelectedValueInt());
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
                     var (visitorName, phone, email, visitorType, purpose) = dialog.GetVisitorData();
-
-                    var result = VisitorBLL.CheckInVisitor(
-                        ((dynamic)_cboApartment.SelectedItem).ApartmentID,
-                        ((dynamic)_cboResident.SelectedItem).ResidentID,
-                        visitorName,
-                        phone,
-                        email,
-                        visitorType,
-                        purpose);
+                    var result = VisitorBLL.CheckInVisitor(_cboApartment.GetSelectedValueInt(), _cboResident.GetSelectedValueInt(), visitorName, phone, email, visitorType, purpose);
 
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
-                        AuditLogDAL.LogAction(_session.CurrentUser.UserID, "CheckInVisitor", $"Visitor {visitorName} checked in");
+                        MessageBox.Show(result.Message, "Thành công");
+                        AuditLogDAL.LogAction(_session!.UserID, "CheckInVisitor", $"Visitor {visitorName} checked in");
                         LoadVisitors();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error checking in visitor");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -436,7 +448,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvVisitors.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a visitor to check out.", "Information");
+                    MessageBox.Show("Vui lòng chọn khách cần check-out.", "Thông báo");
                     return;
                 }
 
@@ -445,7 +457,7 @@ namespace ApartmentManager.GUI.Forms
 
                 if (visitor == null || visitor.CheckOutTime != null)
                 {
-                    MessageBox.Show("Visitor has already checked out.", "Information");
+                    MessageBox.Show("Khách đã check-out rồi.", "Thông báo");
                     return;
                 }
 
@@ -453,20 +465,20 @@ namespace ApartmentManager.GUI.Forms
 
                 if (result.Success)
                 {
-                    MessageBox.Show(result.Message, "Success");
-                    AuditLogDAL.LogAction(_session.CurrentUser.UserID, "CheckOutVisitor", $"Visitor {visitorID} checked out");
+                    MessageBox.Show(result.Message, "Thành công");
+                    AuditLogDAL.LogAction(_session!.UserID, "CheckOutVisitor", $"Visitor {visitorID} checked out");
                     LoadVisitors();
                     UpdateStatistics();
                 }
                 else
                 {
-                    MessageBox.Show(result.Message, "Error");
+                    MessageBox.Show(result.Message, "Lỗi");
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error checking out visitor");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -474,41 +486,35 @@ namespace ApartmentManager.GUI.Forms
         {
             try
             {
-                if (_cboResident.SelectedItem == null || ((dynamic)_cboResident.SelectedItem).ResidentID == 0)
+                if (_cboResident.GetSelectedValueInt() == 0)
                 {
-                    MessageBox.Show("Please select a resident.", "Information");
+                    MessageBox.Show("Vui lòng chọn cư dân.", "Thông báo");
                     return;
                 }
 
-                FrmVisitorDialog dialog = new FrmVisitorDialog(null, ((dynamic)_cboResident.SelectedItem).ResidentID, ((dynamic)_cboApartment.SelectedItem).ApartmentID);
+                var dialog = new FrmVisitorDialog(null, _cboResident.GetSelectedValueInt(), _cboApartment.GetSelectedValueInt());
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
                     var (visitorName, phone, email, visitorType, purpose) = dialog.GetVisitorData();
-
-                    var result = VisitorBLL.RegisterVisitor(
-                        ((dynamic)_cboResident.SelectedItem).ResidentID,
-                        visitorName,
-                        phone,
-                        email,
-                        visitorType);
+                    var result = VisitorBLL.RegisterVisitor(_cboResident.GetSelectedValueInt(), visitorName, phone, email, visitorType);
 
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
-                        AuditLogDAL.LogAction(_session.CurrentUser.UserID, "RegisterVisitor", $"Visitor {visitorName} registered");
+                        MessageBox.Show(result.Message, "Thành công");
+                        AuditLogDAL.LogAction(_session!.UserID, "RegisterVisitor", $"Visitor {visitorName} registered");
                         LoadVisitors();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error registering visitor");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -518,33 +524,32 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvVisitors.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a visitor to delete.", "Information");
+                    MessageBox.Show("Vui lòng chọn khách cần xóa.", "Thông báo");
                     return;
                 }
 
                 int visitorID = Convert.ToInt32(_dgvVisitors.SelectedRows[0].Cells["VisitorID"].Value);
 
-                if (MessageBox.Show("Are you sure you want to delete this visitor record?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show("Bạn có chắc muốn xóa bản ghi khách này không?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
                     var result = VisitorBLL.DeleteVisitor(visitorID);
-
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
-                        AuditLogDAL.LogAction(_session.CurrentUser.UserID, "DeleteVisitor", $"Visitor {visitorID} deleted");
+                        MessageBox.Show(result.Message, "Thành công");
+                        AuditLogDAL.LogAction(_session!.UserID, "DeleteVisitor", $"Visitor {visitorID} deleted");
                         LoadVisitors();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error deleting visitor");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -554,21 +559,21 @@ namespace ApartmentManager.GUI.Forms
             {
                 var stats = VisitorBLL.GetVisitorStatistics();
                 MessageBox.Show(
-                    $"Total Visitors: {stats.TotalVisitors}\n" +
-                    $"Today's Visitors: {stats.TodayVisitors}\n" +
-                    $"Currently Checked In: {stats.CheckedInCount}\n" +
-                    $"Checked Out Today: {stats.CheckedOutCount}\n" +
-                    $"Guest: {stats.GuestCount}\n" +
-                    $"Delivery: {stats.DeliveryCount}\n" +
-                    $"Service: {stats.ServiceCount}\n" +
-                    $"Family: {stats.FamilyCount}\n" +
-                    $"Other: {stats.OtherCount}",
-                    "Visitor Statistics");
+                    $"Tổng khách: {stats.TotalVisitors}\n" +
+                    $"Khách hôm nay: {stats.TodayVisitors}\n" +
+                    $"Đang vào: {stats.CheckedInCount}\n" +
+                    $"Đã rời hôm nay: {stats.CheckedOutCount}\n" +
+                    $"Khách: {stats.GuestCount}\n" +
+                    $"Giao hàng: {stats.DeliveryCount}\n" +
+                    $"Dịch vụ: {stats.ServiceCount}\n" +
+                    $"Người thân: {stats.FamilyCount}\n" +
+                    $"Khác: {stats.OtherCount}",
+                    "Thống kê khách ra vào");
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error retrieving statistics");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -577,9 +582,9 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 var stats = VisitorBLL.GetVisitorStatistics();
-                _lblTodayVisitors.Text = $"Today's Visitors: {stats.TodayVisitors}";
-                _lblCheckInCount.Text = $"Checked In: {stats.CheckedInCount}";
-                _lblCheckOutCount.Text = $"Checked Out: {stats.CheckedOutCount}";
+                _lblTodayVisitors.Text = $"Khách hôm nay: {stats.TodayVisitors}";
+                _lblCheckInCount.Text = $"Đang vào: {stats.CheckedInCount}";
+                _lblCheckOutCount.Text = $"Đã rời: {stats.CheckedOutCount}";
             }
             catch (Exception ex)
             {
@@ -590,11 +595,14 @@ namespace ApartmentManager.GUI.Forms
 
     public partial class FrmVisitorDialog : Form
     {
-        private dynamic _visitor;
-        private int _residentID;
-        private int _apartmentID;
-        private ComboBox _cboVisitorType;
-        private TextBox _txtVisitorName, _txtPhone, _txtEmail, _txtPurpose;
+        private readonly dynamic _visitor;
+        private readonly int _residentID;
+        private readonly int _apartmentID;
+        private readonly ComboBox _cboVisitorType = new ComboBox();
+        private readonly TextBox _txtVisitorName = new TextBox();
+        private readonly TextBox _txtPhone = new TextBox();
+        private readonly TextBox _txtEmail = new TextBox();
+        private readonly TextBox _txtPurpose = new TextBox();
 
         public FrmVisitorDialog(dynamic visitor, int residentID, int apartmentID)
         {
@@ -606,64 +614,68 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeDialog()
         {
-            this.Text = _visitor == null ? "Check-In Visitor" : "Update Visitor";
-            this.Size = new System.Drawing.Size(450, 350);
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
+            Text = _visitor == null ? "Check-in khách" : "Cập nhật khách";
+            Size = new Size(450, 350);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
 
             int y = 10;
 
-            Label lblVisitorName = new Label { Text = "Visitor Name:", Left = 10, Top = y, Width = 100 };
-            _txtVisitorName = new TextBox { Left = 120, Top = y, Width = 300 };
-            this.Controls.Add(lblVisitorName);
-            this.Controls.Add(_txtVisitorName);
+            Controls.Add(new Label { Text = "Tên khách:", Left = 10, Top = y, Width = 100 });
+            _txtVisitorName.Location = new Point(120, y);
+            _txtVisitorName.Width = 300;
+            Controls.Add(_txtVisitorName);
 
             y += 35;
-
-            Label lblPhone = new Label { Text = "Phone:", Left = 10, Top = y, Width = 100 };
-            _txtPhone = new TextBox { Left = 120, Top = y, Width = 300 };
-            this.Controls.Add(lblPhone);
-            this.Controls.Add(_txtPhone);
-
-            y += 35;
-
-            Label lblEmail = new Label { Text = "Email:", Left = 10, Top = y, Width = 100 };
-            _txtEmail = new TextBox { Left = 120, Top = y, Width = 300 };
-            this.Controls.Add(lblEmail);
-            this.Controls.Add(_txtEmail);
+            Controls.Add(new Label { Text = "Số điện thoại:", Left = 10, Top = y, Width = 100 });
+            _txtPhone.Location = new Point(120, y);
+            _txtPhone.Width = 300;
+            Controls.Add(_txtPhone);
 
             y += 35;
+            Controls.Add(new Label { Text = "Email:", Left = 10, Top = y, Width = 100 });
+            _txtEmail.Location = new Point(120, y);
+            _txtEmail.Width = 300;
+            Controls.Add(_txtEmail);
 
-            Label lblVisitorType = new Label { Text = "Visitor Type:", Left = 10, Top = y, Width = 100 };
-            _cboVisitorType = new ComboBox { Left = 120, Top = y, Width = 300, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboVisitorType.Items.AddRange(new object[] { "Guest", "Delivery", "Service", "Family", "Other" });
+            y += 35;
+            Controls.Add(new Label { Text = "Loại khách:", Left = 10, Top = y, Width = 100 });
+            _cboVisitorType.Location = new Point(120, y);
+            _cboVisitorType.Width = 300;
+            _cboVisitorType.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cboVisitorType.Items.AddRange(new object[]
+            {
+                new UiComboItem("Khách", "Guest"),
+                new UiComboItem("Giao hàng", "Delivery"),
+                new UiComboItem("Dịch vụ", "Service"),
+                new UiComboItem("Người thân", "Family"),
+                new UiComboItem("Khác", "Other")
+            });
             _cboVisitorType.SelectedIndex = 0;
-            this.Controls.Add(lblVisitorType);
-            this.Controls.Add(_cboVisitorType);
+            Controls.Add(_cboVisitorType);
 
             y += 35;
-
-            Label lblPurpose = new Label { Text = "Purpose:", Left = 10, Top = y, Width = 100 };
-            _txtPurpose = new TextBox { Left = 120, Top = y, Width = 300, Height = 50, Multiline = true };
-            this.Controls.Add(lblPurpose);
-            this.Controls.Add(_txtPurpose);
+            Controls.Add(new Label { Text = "Mục đích:", Left = 10, Top = y, Width = 100 });
+            _txtPurpose.Location = new Point(120, y);
+            _txtPurpose.Size = new Size(300, 50);
+            _txtPurpose.Multiline = true;
+            Controls.Add(_txtPurpose);
 
             y += 60;
-
-            Button btnOK = new Button { Text = "OK", Left = 230, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.OK };
-            Button btnCancel = new Button { Text = "Cancel", Left = 340, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
-            this.Controls.Add(btnOK);
-            this.Controls.Add(btnCancel);
+            var btnOK = new Button { Text = "Đồng ý", Left = 230, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.OK };
+            var btnCancel = new Button { Text = "Hủy", Left = 340, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+            Controls.Add(btnOK);
+            Controls.Add(btnCancel);
 
             if (_visitor != null)
             {
-                _txtVisitorName.Text = _visitor.VisitorName ?? "";
-                _txtPhone.Text = _visitor.Phone ?? "";
-                _txtEmail.Text = _visitor.Email ?? "";
-                _cboVisitorType.SelectedItem = _visitor.VisitorType ?? "Guest";
-                _txtPurpose.Text = _visitor.Purpose ?? "";
+                _txtVisitorName.Text = _visitor.VisitorName ?? string.Empty;
+                _txtPhone.Text = _visitor.Phone ?? string.Empty;
+                _txtEmail.Text = _visitor.Email ?? string.Empty;
+                ComboBoxHelper.SelectValue(_cboVisitorType, _visitor.VisitorType ?? "Guest");
+                _txtPurpose.Text = _visitor.Purpose ?? string.Empty;
             }
         }
 
@@ -673,10 +685,9 @@ namespace ApartmentManager.GUI.Forms
                 _txtVisitorName.Text,
                 _txtPhone.Text,
                 _txtEmail.Text,
-                _cboVisitorType.SelectedItem.ToString(),
+                _cboVisitorType.GetSelectedValueString(),
                 _txtPurpose.Text
             );
         }
     }
 }
-

@@ -1,4 +1,4 @@
-﻿using ApartmentManager.BLL;
+using ApartmentManager.BLL;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
 using Serilog;
@@ -36,14 +36,16 @@ namespace ApartmentManager.GUI.Forms
         private void InitializeForm()
         {
             // Permission Check
-            if (!_session.HasPermission("ManageNotifications"))
+            _session = SessionManager.GetSession();
+
+            if (_session == null || !_session.HasPermission("ManageNotifications"))
             {
-                MessageBox.Show("You do not have permission to access notification management.", "Access Denied");
+                MessageBox.Show("Bạn không có quyền truy cập màn hình này.", "Từ chối truy cập");
                 this.Close();
                 return;
             }
 
-            this.Text = "Notification Management";
+            this.Text = "Quản lý thông báo";
             this.Size = new System.Drawing.Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = System.Drawing.Color.White;
@@ -65,29 +67,43 @@ namespace ApartmentManager.GUI.Forms
             int y = PADDING;
 
             // Row 1: Filter controls
-            Label lblApartment = new Label { Text = "Apartment:", Left = PADDING, Top = y, Width = 100 };
+            Label lblApartment = new Label { Text = "Căn hộ:", Left = PADDING, Top = y, Width = 100 };
             _cboApartment = new ComboBox { Left = 120, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
             _cboApartment.SelectedIndexChanged += (s, e) => LoadResidents();
             _filterPanel.Controls.Add(lblApartment);
             _filterPanel.Controls.Add(_cboApartment);
 
-            Label lblResident = new Label { Text = "Recipient:", Left = 290, Top = y, Width = 100 };
+            Label lblResident = new Label { Text = "Người nhận:", Left = 290, Top = y, Width = 100 };
             _cboResident = new ComboBox { Left = 410, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
             _cboResident.SelectedIndexChanged += (s, e) => LoadNotifications();
             _filterPanel.Controls.Add(lblResident);
             _filterPanel.Controls.Add(_cboResident);
 
-            Label lblNotificationType = new Label { Text = "Type:", Left = 580, Top = y, Width = 100 };
+            Label lblNotificationType = new Label { Text = "Loại:", Left = 580, Top = y, Width = 100 };
             _cboNotificationType = new ComboBox { Left = 700, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboNotificationType.Items.AddRange(new object[] { "All", "Announcement", "Maintenance", "Payment", "Warning", "Other" });
+            _cboNotificationType.Items.AddRange(new object[]
+            {
+                new UiComboItem("Tất cả", "All"),
+                new UiComboItem("Thông báo chung", "Announcement"),
+                new UiComboItem("Bảo trì", "Maintenance"),
+                new UiComboItem("Thanh toán", "Payment"),
+                new UiComboItem("Cảnh báo", "Warning"),
+                new UiComboItem("Khác", "Other")
+            });
             _cboNotificationType.SelectedIndex = 0;
             _cboNotificationType.SelectedIndexChanged += (s, e) => LoadNotifications();
             _filterPanel.Controls.Add(lblNotificationType);
             _filterPanel.Controls.Add(_cboNotificationType);
 
-            Label lblStatus = new Label { Text = "Status:", Left = 870, Top = y, Width = 100 };
+            Label lblStatus = new Label { Text = "Trạng thái:", Left = 870, Top = y, Width = 100 };
             _cboStatus = new ComboBox { Left = 970, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboStatus.Items.AddRange(new object[] { "All", "Draft", "Sent", "Failed" });
+            _cboStatus.Items.AddRange(new object[]
+            {
+                new UiComboItem("Tất cả", "All"),
+                new UiComboItem("Nháp", "Draft"),
+                new UiComboItem("Đã gửi", "Sent"),
+                new UiComboItem("Thất bại", "Failed")
+            });
             _cboStatus.SelectedIndex = 0;
             _cboStatus.SelectedIndexChanged += (s, e) => LoadNotifications();
             _filterPanel.Controls.Add(lblStatus);
@@ -96,23 +112,23 @@ namespace ApartmentManager.GUI.Forms
             y += 40;
 
             // Row 2: Subject and date info
-            Label lblSubject = new Label { Text = "Subject:", Left = PADDING, Top = y, Width = 100 };
+            Label lblSubject = new Label { Text = "Tiêu đề:", Left = PADDING, Top = y, Width = 100 };
             _txtSubject = new TextBox { Left = 120, Top = y, Width = 300 };
             _filterPanel.Controls.Add(lblSubject);
             _filterPanel.Controls.Add(_txtSubject);
 
-            Label lblSentDate = new Label { Text = "Sent Date:", Left = 440, Top = y, Width = 100 };
+            Label lblSentDate = new Label { Text = "Ngày gửi:", Left = 440, Top = y, Width = 100 };
             _txtSentDate = new TextBox { Left = 560, Top = y, Width = 150, ReadOnly = true };
             _filterPanel.Controls.Add(lblSentDate);
             _filterPanel.Controls.Add(_txtSentDate);
 
-            Button btnSearch = new Button { Text = "Search", Left = 730, Top = y, Width = 80, Height = 25 };
+            Button btnSearch = new Button { Text = "Tìm kiếm", Left = 730, Top = y, Width = 80, Height = 25 };
             btnSearch.Click += (s, e) => LoadNotifications();
             _filterPanel.Controls.Add(btnSearch);
 
             y += 35;
 
-            Label lblNote = new Label { Text = "Select notification to view details", Left = PADDING, Top = y, Width = 400 };
+            Label lblNote = new Label { Text = "Chọn thông báo để xem chi tiết", Left = PADDING, Top = y, Width = 400 };
             _filterPanel.Controls.Add(lblNote);
         }
 
@@ -123,7 +139,7 @@ namespace ApartmentManager.GUI.Forms
 
             int y = PADDING;
 
-            Label lblBody = new Label { Text = "Message Body:", Left = PADDING, Top = y, Width = 100 };
+            Label lblBody = new Label { Text = "Nội dung:", Left = PADDING, Top = y, Width = 100 };
             _txtBody = new TextBox { Left = 120, Top = y, Width = 1050, Height = 100, Multiline = true, ReadOnly = true };
             _detailsPanel.Controls.Add(lblBody);
             _detailsPanel.Controls.Add(_txtBody);
@@ -146,12 +162,12 @@ namespace ApartmentManager.GUI.Forms
             };
 
             _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "NotificationID", HeaderText = "ID", DataPropertyName = "NotificationID", Width = 50 });
-            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "NotificationType", HeaderText = "Type", DataPropertyName = "NotificationType", Width = 100 });
-            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "Recipient", HeaderText = "Recipient", DataPropertyName = "RecipientName", Width = 120 });
-            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "Subject", HeaderText = "Subject", DataPropertyName = "Subject", Width = 250 });
-            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "CreatedDate", HeaderText = "Created", DataPropertyName = "CreatedDate", Width = 120 });
-            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "SentDate", HeaderText = "Sent", DataPropertyName = "SentDate", Width = 120 });
-            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Status", DataPropertyName = "Status", Width = 80 });
+            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "NotificationType", HeaderText = "Loại", DataPropertyName = "NotificationType", Width = 100 });
+            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "Recipient", HeaderText = "Người nhận", DataPropertyName = "RecipientName", Width = 120 });
+            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "Subject", HeaderText = "Tiêu đề", DataPropertyName = "Subject", Width = 250 });
+            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "CreatedDate", HeaderText = "Ngày tạo", DataPropertyName = "CreatedDate", Width = 120 });
+            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "SentDate", HeaderText = "Ngày gửi", DataPropertyName = "SentDate", Width = 120 });
+            _dgvNotifications.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Trạng thái", DataPropertyName = "Status", Width = 80 });
 
             _dgvNotifications.CellClick += DgvNotifications_CellClick;
             _gridPanel.Controls.Add(_dgvNotifications);
@@ -162,27 +178,27 @@ namespace ApartmentManager.GUI.Forms
             _buttonPanel = new Panel { Dock = DockStyle.Bottom, Height = 50, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.LightGray };
             this.Controls.Add(_buttonPanel);
 
-            Button btnCreate = new Button { Text = "Create", Left = PADDING, Top = 10, Width = 80, Height = 30 };
+            Button btnCreate = new Button { Text = "Thêm", Left = PADDING, Top = 10, Width = 80, Height = 30 };
             btnCreate.Click += BtnCreate_Click;
             _buttonPanel.Controls.Add(btnCreate);
 
-            Button btnSend = new Button { Text = "Send", Left = 100, Top = 10, Width = 80, Height = 30 };
+            Button btnSend = new Button { Text = "Gửi", Left = 100, Top = 10, Width = 80, Height = 30 };
             btnSend.Click += BtnSend_Click;
             _buttonPanel.Controls.Add(btnSend);
 
-            Button btnResend = new Button { Text = "Resend", Left = 180, Top = 10, Width = 80, Height = 30 };
+            Button btnResend = new Button { Text = "Gửi lại", Left = 180, Top = 10, Width = 80, Height = 30 };
             btnResend.Click += BtnResend_Click;
             _buttonPanel.Controls.Add(btnResend);
 
-            Button btnDelete = new Button { Text = "Delete", Left = 260, Top = 10, Width = 80, Height = 30 };
+            Button btnDelete = new Button { Text = "Xóa", Left = 260, Top = 10, Width = 80, Height = 30 };
             btnDelete.Click += BtnDelete_Click;
             _buttonPanel.Controls.Add(btnDelete);
 
-            Button btnStatistics = new Button { Text = "Statistics", Left = 340, Top = 10, Width = 80, Height = 30 };
+            Button btnStatistics = new Button { Text = "Thống kê", Left = 340, Top = 10, Width = 80, Height = 30 };
             btnStatistics.Click += BtnStatistics_Click;
             _buttonPanel.Controls.Add(btnStatistics);
 
-            Button btnRefresh = new Button { Text = "Refresh", Left = 420, Top = 10, Width = 80, Height = 30 };
+            Button btnRefresh = new Button { Text = "Làm mới", Left = 420, Top = 10, Width = 80, Height = 30 };
             btnRefresh.Click += (s, e) => LoadNotifications();
             _buttonPanel.Controls.Add(btnRefresh);
         }
@@ -192,13 +208,13 @@ namespace ApartmentManager.GUI.Forms
             _statusPanel = new Panel { Dock = DockStyle.Bottom, Height = 40, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.Gainsboro };
             this.Controls.Add(_statusPanel);
 
-            _lblDraftCount = new Label { Text = "Draft: 0", Left = PADDING, Top = 10, Width = 100 };
+            _lblDraftCount = new Label { Text = "Nháp: 0", Left = PADDING, Top = 10, Width = 100 };
             _statusPanel.Controls.Add(_lblDraftCount);
 
-            _lblSentCount = new Label { Text = "Sent: 0", Left = 120, Top = 10, Width = 100 };
+            _lblSentCount = new Label { Text = "Đã gửi: 0", Left = 120, Top = 10, Width = 100 };
             _statusPanel.Controls.Add(_lblSentCount);
 
-            _lblFailedCount = new Label { Text = "Failed: 0", Left = 240, Top = 10, Width = 100 };
+            _lblFailedCount = new Label { Text = "Thất bại: 0", Left = 240, Top = 10, Width = 100 };
             _statusPanel.Controls.Add(_lblFailedCount);
         }
 
@@ -213,7 +229,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading notification data");
-                MessageBox.Show($"Error loading data: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi khi tải dữ liệu: {ex.Message}", "Lỗi");
             }
         }
 
@@ -222,16 +238,14 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 _cboApartment.Items.Clear();
-                _cboApartment.Items.Add(new { ApartmentID = 0, DisplayText = "All Apartments" });
+                _cboApartment.AddOption("Tất cả căn hộ", 0);
 
                 var apartments = ApartmentDAL.GetAllApartments();
                 foreach (var apt in apartments)
                 {
-                    _cboApartment.Items.Add(apt);
+                    _cboApartment.AddOption(apt.ApartmentCode ?? $"Căn hộ {apt.ApartmentID}", apt.ApartmentID);
                 }
 
-                _cboApartment.ValueMember = "ApartmentID";
-                _cboApartment.DisplayMember = "DisplayText";
                 _cboApartment.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -245,15 +259,15 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 _cboResident.Items.Clear();
-                _cboResident.Items.Add(new { ResidentID = 0, DisplayText = "All Residents" });
+                _cboResident.AddOption("Tất cả cư dân", 0);
 
-                if (_cboApartment.SelectedItem != null && ((dynamic)_cboApartment.SelectedItem).ApartmentID != 0)
+                int apartmentID = _cboApartment.GetSelectedValueInt();
+                if (apartmentID != 0)
                 {
-                    int apartmentID = ((dynamic)_cboApartment.SelectedItem).ApartmentID;
                     var residents = ResidentDAL.GetResidentsByApartment(apartmentID);
                     foreach (var resident in residents)
                     {
-                        _cboResident.Items.Add(resident);
+                        _cboResident.AddOption(resident.FullName ?? $"Cư dân {resident.ResidentID}", resident.ResidentID);
                     }
                 }
                 else
@@ -261,12 +275,10 @@ namespace ApartmentManager.GUI.Forms
                     var residents = ResidentDAL.GetAllResidents();
                     foreach (var resident in residents)
                     {
-                        _cboResident.Items.Add(resident);
+                        _cboResident.AddOption(resident.FullName ?? $"Cư dân {resident.ResidentID}", resident.ResidentID);
                     }
                 }
 
-                _cboResident.ValueMember = "ResidentID";
-                _cboResident.DisplayMember = "DisplayText";
                 _cboResident.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -282,32 +294,32 @@ namespace ApartmentManager.GUI.Forms
                 var notifications = NotificationDAL.GetAllNotifications();
 
                 // Apply apartment filter
-                if (_cboApartment.SelectedItem != null && ((dynamic)_cboApartment.SelectedItem).ApartmentID != 0)
+                int apartmentID = _cboApartment.GetSelectedValueInt();
+                if (apartmentID != 0)
                 {
-                    int apartmentID = ((dynamic)_cboApartment.SelectedItem).ApartmentID;
                     var residents = ResidentDAL.GetResidentsByApartment(apartmentID);
                     var residentIDs = residents.Select(r => r.ResidentID).ToList();
                     notifications = notifications.Where(n => residentIDs.Contains(n.ResidentID)).ToList();
                 }
 
                 // Apply resident filter
-                if (_cboResident.SelectedItem != null && ((dynamic)_cboResident.SelectedItem).ResidentID != 0)
+                int residentID = _cboResident.GetSelectedValueInt();
+                if (residentID != 0)
                 {
-                    int residentID = ((dynamic)_cboResident.SelectedItem).ResidentID;
                     notifications = notifications.Where(n => n.ResidentID == residentID).ToList();
                 }
 
                 // Apply notification type filter
-                if (!_cboNotificationType.SelectedItem.ToString().Equals("All"))
+                string notificationType = _cboNotificationType.GetSelectedValueString();
+                if (!string.Equals(notificationType, "All", StringComparison.OrdinalIgnoreCase))
                 {
-                    string notificationType = _cboNotificationType.SelectedItem.ToString();
                     notifications = notifications.Where(n => n.NotificationType == notificationType).ToList();
                 }
 
                 // Apply status filter
-                if (!_cboStatus.SelectedItem.ToString().Equals("All"))
+                string status = _cboStatus.GetSelectedValueString();
+                if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
                 {
-                    string status = _cboStatus.SelectedItem.ToString();
                     notifications = notifications.Where(n => n.Status == status).ToList();
                 }
 
@@ -320,7 +332,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading notifications");
-                MessageBox.Show($"Error loading notifications: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi khi tải thông báo: {ex.Message}", "Lỗi");
             }
         }
 
@@ -338,7 +350,7 @@ namespace ApartmentManager.GUI.Forms
                 {
                     _txtSubject.Text = notification.Subject ?? "";
                     _txtBody.Text = notification.Body ?? "";
-                    _txtSentDate.Text = notification.SentDate?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Not sent";
+                    _txtSentDate.Text = notification.SentDate?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Chưa gửi";
                 }
             }
             catch (Exception ex)
@@ -360,21 +372,21 @@ namespace ApartmentManager.GUI.Forms
 
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
+                        MessageBox.Show(result.Message, "Thành công");
                         AuditLogDAL.LogAction(_session.CurrentUser.UserID, "CreateNotification", $"Notification {result.NotificationID} created");
                         LoadNotifications();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error creating notification");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -384,7 +396,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvNotifications.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a notification to send.", "Information");
+                    MessageBox.Show("Vui lòng chọn thông báo cần gửi.", "Thông báo");
                     return;
                 }
 
@@ -393,13 +405,13 @@ namespace ApartmentManager.GUI.Forms
 
                 if (notification == null)
                 {
-                    MessageBox.Show("Notification not found.", "Error");
+                    MessageBox.Show("Không tìm thấy thông báo.", "Lỗi");
                     return;
                 }
 
                 if (notification.Status != "Draft")
                 {
-                    MessageBox.Show("Only draft notifications can be sent.", "Information");
+                    MessageBox.Show("Chỉ có thể gửi thông báo ở trạng thái nháp.", "Thông báo");
                     return;
                 }
 
@@ -407,20 +419,20 @@ namespace ApartmentManager.GUI.Forms
 
                 if (result.Success)
                 {
-                    MessageBox.Show(result.Message, "Success");
+                    MessageBox.Show(result.Message, "Thành công");
                     AuditLogDAL.LogAction(_session.CurrentUser.UserID, "SendNotification", $"Notification {notificationID} sent");
                     LoadNotifications();
                     UpdateStatistics();
                 }
                 else
                 {
-                    MessageBox.Show(result.Message, "Error");
+                    MessageBox.Show(result.Message, "Lỗi");
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error sending notification");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -430,7 +442,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvNotifications.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a notification to resend.", "Information");
+                    MessageBox.Show("Vui lòng chọn thông báo cần gửi lại.", "Thông báo");
                     return;
                 }
 
@@ -440,20 +452,20 @@ namespace ApartmentManager.GUI.Forms
 
                 if (result.Success)
                 {
-                    MessageBox.Show(result.Message, "Success");
+                    MessageBox.Show(result.Message, "Thành công");
                     AuditLogDAL.LogAction(_session.CurrentUser.UserID, "ResendNotification", $"Notification {notificationID} resent");
                     LoadNotifications();
                     UpdateStatistics();
                 }
                 else
                 {
-                    MessageBox.Show(result.Message, "Error");
+                    MessageBox.Show(result.Message, "Lỗi");
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error resending notification");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -463,7 +475,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvNotifications.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a notification to delete.", "Information");
+                    MessageBox.Show("Vui lòng chọn thông báo cần xóa.", "Thông báo");
                     return;
                 }
 
@@ -472,31 +484,31 @@ namespace ApartmentManager.GUI.Forms
 
                 if (notification == null || notification.Status == "Sent")
                 {
-                    MessageBox.Show("Cannot delete sent notifications.", "Information");
+                    MessageBox.Show("Không thể xóa thông báo đã gửi.", "Thông báo");
                     return;
                 }
 
-                if (MessageBox.Show("Are you sure you want to delete this notification?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show("Bạn có chắc muốn xóa thông báo này không?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
                     var result = NotificationBLL.DeleteNotification(notificationID);
 
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
+                        MessageBox.Show(result.Message, "Thành công");
                         AuditLogDAL.LogAction(_session.CurrentUser.UserID, "DeleteNotification", $"Notification {notificationID} deleted");
                         LoadNotifications();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error deleting notification");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -506,20 +518,20 @@ namespace ApartmentManager.GUI.Forms
             {
                 var stats = NotificationBLL.GetNotificationStatistics();
                 MessageBox.Show(
-                    $"Total Notifications: {stats.TotalNotifications}\n" +
-                    $"Draft: {stats.DraftCount}\n" +
-                    $"Sent: {stats.SentCount}\n" +
-                    $"Failed: {stats.FailedCount}\n" +
-                    $"Announcement: {stats.AnnouncementCount}\n" +
-                    $"Maintenance: {stats.MaintenanceCount}\n" +
-                    $"Payment: {stats.PaymentCount}\n" +
-                    $"Warning: {stats.WarningCount}",
-                    "Notification Statistics");
+                    $"Tổng thông báo: {stats.TotalNotifications}\n" +
+                    $"Nháp: {stats.DraftCount}\n" +
+                    $"Đã gửi: {stats.SentCount}\n" +
+                    $"Thất bại: {stats.FailedCount}\n" +
+                    $"Thông báo chung: {stats.AnnouncementCount}\n" +
+                    $"Bảo trì: {stats.MaintenanceCount}\n" +
+                    $"Thanh toán: {stats.PaymentCount}\n" +
+                    $"Cảnh báo: {stats.WarningCount}",
+                    "Thống kê thông báo");
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error retrieving statistics");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -528,9 +540,9 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 var stats = NotificationBLL.GetNotificationStatistics();
-                _lblDraftCount.Text = $"Draft: {stats.DraftCount}";
-                _lblSentCount.Text = $"Sent: {stats.SentCount}";
-                _lblFailedCount.Text = $"Failed: {stats.FailedCount}";
+                _lblDraftCount.Text = $"Nháp: {stats.DraftCount}";
+                _lblSentCount.Text = $"Đã gửi: {stats.SentCount}";
+                _lblFailedCount.Text = $"Thất bại: {stats.FailedCount}";
             }
             catch (Exception ex)
             {
@@ -553,7 +565,7 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeDialog()
         {
-            this.Text = _notification == null ? "Create Notification" : "Edit Notification";
+            this.Text = _notification == null ? "Tạo thông báo" : "Sửa thông báo";
             this.Size = new System.Drawing.Size(500, 400);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -562,7 +574,7 @@ namespace ApartmentManager.GUI.Forms
 
             int y = 10;
 
-            Label lblResident = new Label { Text = "Recipient:", Left = 10, Top = y, Width = 100 };
+            Label lblResident = new Label { Text = "Người nhận:", Left = 10, Top = y, Width = 100 };
             _cboResident = new ComboBox { Left = 120, Top = y, Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
             LoadResidents();
             this.Controls.Add(lblResident);
@@ -570,37 +582,44 @@ namespace ApartmentManager.GUI.Forms
 
             y += 35;
 
-            Label lblNotificationType = new Label { Text = "Type:", Left = 10, Top = y, Width = 100 };
+            Label lblNotificationType = new Label { Text = "Loại:", Left = 10, Top = y, Width = 100 };
             _cboNotificationType = new ComboBox { Left = 120, Top = y, Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboNotificationType.Items.AddRange(new object[] { "Announcement", "Maintenance", "Payment", "Warning", "Other" });
+            _cboNotificationType.Items.AddRange(new object[]
+            {
+                new UiComboItem("Thông báo chung", "Announcement"),
+                new UiComboItem("Bảo trì", "Maintenance"),
+                new UiComboItem("Thanh toán", "Payment"),
+                new UiComboItem("Cảnh báo", "Warning"),
+                new UiComboItem("Khác", "Other")
+            });
             this.Controls.Add(lblNotificationType);
             this.Controls.Add(_cboNotificationType);
 
             y += 35;
 
-            Label lblSubject = new Label { Text = "Subject:", Left = 10, Top = y, Width = 100 };
+            Label lblSubject = new Label { Text = "Tiêu đề:", Left = 10, Top = y, Width = 100 };
             _txtSubject = new TextBox { Left = 120, Top = y, Width = 350 };
             this.Controls.Add(lblSubject);
             this.Controls.Add(_txtSubject);
 
             y += 35;
 
-            Label lblBody = new Label { Text = "Message:", Left = 10, Top = y, Width = 100 };
+            Label lblBody = new Label { Text = "Nội dung:", Left = 10, Top = y, Width = 100 };
             _txtBody = new TextBox { Left = 120, Top = y, Width = 350, Height = 100, Multiline = true };
             this.Controls.Add(lblBody);
             this.Controls.Add(_txtBody);
 
             y += 110;
 
-            Button btnOK = new Button { Text = "OK", Left = 260, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.OK };
-            Button btnCancel = new Button { Text = "Cancel", Left = 370, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+            Button btnOK = new Button { Text = "Đồng ý", Left = 260, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.OK };
+            Button btnCancel = new Button { Text = "Hủy", Left = 370, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
             this.Controls.Add(btnOK);
             this.Controls.Add(btnCancel);
 
             if (_notification != null)
             {
-                _cboResident.SelectedValue = _notification.ResidentID;
-                _cboNotificationType.SelectedItem = _notification.NotificationType;
+                ComboBoxHelper.SelectValue(_cboResident, _notification.ResidentID);
+                ComboBoxHelper.SelectValue(_cboNotificationType, _notification.NotificationType);
                 _txtSubject.Text = _notification.Subject ?? "";
                 _txtBody.Text = _notification.Body ?? "";
             }
@@ -615,13 +634,11 @@ namespace ApartmentManager.GUI.Forms
             var residents = ResidentDAL.GetAllResidents();
             foreach (var resident in residents)
             {
-                _cboResident.Items.Add(resident);
+                _cboResident.AddOption(resident.FullName ?? $"Cư dân {resident.ResidentID}", resident.ResidentID);
             }
-            _cboResident.ValueMember = "ResidentID";
-            _cboResident.DisplayMember = "FullName";
 
             if (_notification != null)
-                _cboResident.SelectedValue = _notification.ResidentID;
+                ComboBoxHelper.SelectValue(_cboResident, _notification.ResidentID);
             else if (_cboResident.Items.Count > 0)
                 _cboResident.SelectedIndex = 0;
         }
@@ -629,10 +646,10 @@ namespace ApartmentManager.GUI.Forms
         public (int ResidentID, string Subject, string Body, string NotificationType) GetNotificationData()
         {
             return (
-                ((dynamic)_cboResident.SelectedItem).ResidentID,
+                _cboResident.GetSelectedValueInt(),
                 _txtSubject.Text,
                 _txtBody.Text,
-                _cboNotificationType.SelectedItem.ToString()
+                _cboNotificationType.GetSelectedValueString()
             );
         }
     }

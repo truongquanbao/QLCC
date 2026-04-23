@@ -76,7 +76,7 @@ public class VehicleBLL
                 licensePlate,
                 color,
                 brand,
-                note
+                BuildVehicleNote(model, yearMade, note)
             );
 
             if (vehicleID > 0)
@@ -148,7 +148,7 @@ public class VehicleBLL
                 vehicleType,
                 color,
                 brand,
-                note
+                BuildVehicleNote(model, yearMade, note)
             );
 
             if (success)
@@ -214,6 +214,12 @@ public class VehicleBLL
             Log.Error(ex, "Error getting vehicles by resident");
             return new List<dynamic>();
         }
+    }
+
+    private static string? BuildVehicleNote(string model, int yearMade, string? note)
+    {
+        string safeNote = note ?? string.Empty;
+        return $"MODEL={model};YEAR={yearMade};NOTE={safeNote}";
     }
 
     /// <summary>

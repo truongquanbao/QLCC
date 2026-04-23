@@ -63,7 +63,7 @@ namespace ApartmentManager.BLL
                     worksheet.Cell(row, 1).Value = apartment.ApartmentID;
                     worksheet.Cell(row, 2).Value = apartment.ApartmentCode;
                     worksheet.Cell(row, 3).Value = apartment.ApartmentType;
-                    worksheet.Cell(row, 4).Value = apartment.Area;
+                    worksheet.Cell(row, 4).Value = (double)apartment.Area;
                     worksheet.Cell(row, 5).Value = apartment.Status;
                 }
 

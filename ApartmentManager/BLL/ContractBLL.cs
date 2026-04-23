@@ -63,6 +63,10 @@ namespace ApartmentManager.BLL
                     return (false, "Resident already has an active or pending contract in this apartment.", 0);
 
                 // Create contract
+                string persistedNote = string.IsNullOrWhiteSpace(termsAndConditions)
+                    ? $"ContractType:{contractType};AutoRenewal:{autoRenewal}"
+                    : $"ContractType:{contractType};AutoRenewal:{autoRenewal}|{termsAndConditions}";
+
                 int contractID = ContractDAL.CreateContract(
                     apartmentID,
                     residentID,
@@ -70,7 +74,7 @@ namespace ApartmentManager.BLL
                     endDate,
                     0m,
                     0m,
-                    termsAndConditions);
+                    persistedNote);
 
                 if (contractID > 0)
                 {
@@ -85,6 +89,30 @@ namespace ApartmentManager.BLL
                 Log.Error(ex, "Error creating contract");
                 return (false, $"Error: {ex.Message}", 0);
             }
+        }
+
+        /// <summary>
+        /// Backward-compatible contract creation overload.
+        /// </summary>
+        public static (bool Success, string Message, int ContractID) CreateContract(
+            int apartmentID,
+            int residentID,
+            string contractType,
+            DateTime startDate,
+            DateTime endDate,
+            int termMonths,
+            bool autoRenewal,
+            string renewalNotes)
+        {
+            return CreateContract(
+                apartmentID,
+                residentID,
+                startDate,
+                endDate,
+                contractType,
+                renewalNotes,
+                autoRenewal,
+                renewalNotes);
         }
 
         /// <summary>
@@ -125,13 +153,17 @@ namespace ApartmentManager.BLL
                 if (string.IsNullOrWhiteSpace(contractType) || (!contractType.Equals("Lease") && !contractType.Equals("Service")))
                     return (false, "Invalid contract type. Must be 'Lease' or 'Service'.");
 
+                string persistedNote = string.IsNullOrWhiteSpace(termsAndConditions)
+                    ? $"ContractType:{contractType};AutoRenewal:{autoRenewal}"
+                    : $"ContractType:{contractType};AutoRenewal:{autoRenewal}|{termsAndConditions}";
+
                 bool updated = ContractDAL.UpdateContract(
                     contractID,
                     startDate,
                     endDate,
                     0m,
                     0m,
-                    termsAndConditions);
+                    persistedNote);
 
                 if (updated)
                 {
@@ -179,7 +211,9 @@ namespace ApartmentManager.BLL
                     newEndDate,
                     0m,
                     0m,
-                    $"Renewed on {DateTime.Now:yyyy-MM-dd}");
+                    contract.ContractType != null
+                        ? $"ContractType:{contract.ContractType};AutoRenewal:{contract.AutoRenewal}|Renewed on {DateTime.Now:yyyy-MM-dd}"
+                        : $"Renewed on {DateTime.Now:yyyy-MM-dd}");
 
                 if (updated)
                 {
@@ -192,6 +226,28 @@ namespace ApartmentManager.BLL
             catch (Exception ex)
             {
                 Log.Error(ex, "Error renewing contract");
+                return (false, $"Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Backward-compatible renewal overload that extends the current end date by a number of months.
+        /// </summary>
+        public static (bool Success, string Message) RenewContract(int contractID, int renewalTermMonths)
+        {
+            try
+            {
+                var contract = ContractDAL.GetContractByID(contractID);
+                if (contract == null)
+                    return (false, "Contract not found.");
+
+                DateTime currentEndDate = contract.EndDate;
+                DateTime newEndDate = currentEndDate.AddMonths(renewalTermMonths);
+                return RenewContract(contractID, currentEndDate, newEndDate);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error renewing contract (compatibility overload)");
                 return (false, $"Error: {ex.Message}");
             }
         }
@@ -269,13 +325,22 @@ namespace ApartmentManager.BLL
                 var contracts = ContractDAL.GetAllContracts();
                 var expiringContracts = ContractDAL.GetExpiringContracts(30);
 
+                int activeContracts = contracts.Count(c => c.Status == "Active");
+                int expiredContracts = contracts.Count(c => c.Status == "Expired");
+                int terminatedContracts = contracts.Count(c => c.Status == "Terminated");
+                int pendingContracts = contracts.Count(c => c.Status == "Pending");
+
                 return new
                 {
                     TotalContracts = contracts.Count,
-                    ActiveCount = contracts.Count(c => c.Status == "Active"),
-                    ExpiredCount = contracts.Count(c => c.Status == "Expired"),
-                    TerminatedCount = contracts.Count(c => c.Status == "Terminated"),
-                    PendingCount = contracts.Count(c => c.Status == "Pending"),
+                    ActiveCount = activeContracts,
+                    ActiveContracts = activeContracts,
+                    ExpiredCount = expiredContracts,
+                    ExpiredContracts = expiredContracts,
+                    TerminatedCount = terminatedContracts,
+                    TerminatedContracts = terminatedContracts,
+                    PendingCount = pendingContracts,
+                    PendingContracts = pendingContracts,
                     ExpiringCount = expiringContracts.Count,
                     AutoRenewalCount = contracts.Count(c => c.AutoRenewal)
                 };

@@ -151,7 +151,7 @@ public class InvoiceDAL
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
-                WHERE i.PaymentStatus IN ('Unpaid', 'Partial')
+                WHERE i.PaymentStatus IN ('Unpaid', 'Partial', 'Pending')
                 ORDER BY i.DueDate ASC
             ";
 
@@ -194,7 +194,7 @@ public class InvoiceDAL
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
                 INNER JOIN Residents r ON a.ApartmentID = r.ApartmentID
                 WHERE r.ResidentID = @ResidentID
-                AND i.PaymentStatus IN ('Unpaid', 'Partial')
+                AND i.PaymentStatus IN ('Unpaid', 'Partial', 'Pending')
                 AND r.Status = 'Active'
                 ORDER BY i.DueDate ASC
             ";
@@ -349,6 +349,41 @@ public class InvoiceDAL
     }
 
     /// <summary>
+    /// Backward-compatible invoice creation overload.
+    /// </summary>
+    public static int CreateInvoice(int residentID, DateTime invoiceDate, decimal totalAmount,
+                                    string monthName, int year, string? note = null)
+    {
+        try
+        {
+            var resident = ResidentDAL.GetResidentByID(residentID);
+            if (resident == null || resident.ApartmentID <= 0)
+                return 0;
+
+            if (!DateTime.TryParseExact(monthName, "MMMM", System.Globalization.CultureInfo.InvariantCulture,
+                                        System.Globalization.DateTimeStyles.None, out var parsedMonth) &&
+                !DateTime.TryParse(monthName, out parsedMonth))
+            {
+                return 0;
+            }
+
+            int month = parsedMonth.Month;
+            DateTime dueDate = invoiceDate.AddDays(30);
+            int invoiceID = CreateInvoice(resident.ApartmentID, month, year, dueDate, totalAmount, note);
+
+            if (invoiceID > 0)
+                UpdatePaymentStatus(invoiceID, "Pending", 0m);
+
+            return invoiceID;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error creating invoice for resident: {ResidentID}", residentID);
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// Update invoice
     /// </summary>
     public static bool UpdateInvoice(int invoiceID, DateTime dueDate, decimal totalAmount, string? note = null)
@@ -381,6 +416,27 @@ public class InvoiceDAL
         catch (Exception ex)
         {
             Log.Error(ex, "Error updating invoice: {InvoiceID}", invoiceID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Backward-compatible invoice update overload that keeps the due date unchanged.
+    /// </summary>
+    public static bool UpdateInvoice(int invoiceID, decimal totalAmount, string? note = null)
+    {
+        try
+        {
+            var invoice = GetInvoiceByID(invoiceID);
+            if (invoice == null)
+                return false;
+
+            DateTime dueDate = invoice.DueDate ?? DateTime.Now;
+            return UpdateInvoice(invoiceID, dueDate, totalAmount, note);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating invoice (compatibility overload): {InvoiceID}", invoiceID);
             return false;
         }
     }
@@ -488,8 +544,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT 
-                    COUNT(CASE WHEN PaymentStatus IN ('Unpaid', 'Partial') THEN 1 END) as UnpaidInvoiceCount,
-                    SUM(CASE WHEN PaymentStatus = 'Unpaid' THEN TotalAmount ELSE 0 END) as TotalUnpaidAmount,
+                    COUNT(CASE WHEN PaymentStatus IN ('Unpaid', 'Partial', 'Pending') THEN 1 END) as UnpaidInvoiceCount,
+                    SUM(CASE WHEN PaymentStatus IN ('Unpaid', 'Pending') THEN TotalAmount ELSE 0 END) as TotalUnpaidAmount,
                     SUM(CASE WHEN PaymentStatus = 'Partial' THEN (TotalAmount - PaidAmount) ELSE 0 END) as TotalPartialAmount,
                     SUM(TotalAmount) as TotalInvoiceAmount,
                     SUM(PaidAmount) as TotalPaidAmount
@@ -627,6 +683,7 @@ public class InvoiceDAL
             Year = reader.GetInt32(4),
             DueDate = reader.GetDateTime(5),
             PaymentStatus = reader.GetString(6),
+            Status = reader.GetString(6),
             TotalAmount = reader.GetDecimal(7),
             PaidAmount = reader.GetDecimal(8),
             CreatedAt = reader.GetDateTime(9),

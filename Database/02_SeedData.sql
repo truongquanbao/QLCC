@@ -6,614 +6,837 @@
 USE ApartmentManagerDB;
 GO
 
--- =====================================================
--- Transaction to ensure all-or-nothing insertion
--- =====================================================
-BEGIN TRANSACTION;
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+GO
 
 BEGIN TRY
-    -- =====================================================
-    -- 1. CHECK IF ALREADY SEEDED
-    -- =====================================================
-    DECLARE @IsSeeded BIT;
-    SELECT @IsSeeded = CAST(ConfigValue AS BIT) 
-    FROM SystemConfig 
-    WHERE ConfigKey = 'IsSeeded';
+    BEGIN TRANSACTION;
+
+    DECLARE @IsSeeded BIT = 0;
+    SELECT @IsSeeded =
+        CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM dbo.SystemConfig
+                WHERE ConfigKey = N'IsSeeded'
+                  AND TRY_CONVERT(BIT, ConfigValue) = 1
+            ) THEN 1
+            ELSE 0
+        END;
 
     IF @IsSeeded = 1
     BEGIN
-        PRINT 'Database is already seeded. Skipping...';
+        PRINT N'Database is already seeded. Skipping...';
         ROLLBACK TRANSACTION;
         RETURN;
     END;
 
-    PRINT '========== STARTING SEED DATA INSERTION ==========';
-
-    -- =====================================================
-    -- 2. INSERT ROLES (Super Admin, Manager, Resident)
-    -- =====================================================
-    PRINT 'Inserting Roles...';
-    
-    IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleName = 'Super Admin')
-        INSERT INTO Roles (RoleName, Description, CreatedAt)
-        VALUES ('Super Admin', 'Quản trị viên cao nhất của hệ thống', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleName = 'Manager')
-        INSERT INTO Roles (RoleName, Description, CreatedAt)
-        VALUES ('Manager', 'Quản lý khu chung cư', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleName = 'Resident')
-        INSERT INTO Roles (RoleName, Description, CreatedAt)
-        VALUES ('Resident', 'Cư dân chung cư', GETDATE());
-
-    -- Get role IDs for later use
+    DECLARE @Now DATETIME2(0) = GETDATE();
+    DECLARE @HostName NVARCHAR(128) = HOST_NAME();
     DECLARE @SuperAdminRoleID INT;
     DECLARE @ManagerRoleID INT;
     DECLARE @ResidentRoleID INT;
-
-    SELECT @SuperAdminRoleID = RoleID FROM Roles WHERE RoleName = 'Super Admin';
-    SELECT @ManagerRoleID = RoleID FROM Roles WHERE RoleName = 'Manager';
-    SELECT @ResidentRoleID = RoleID FROM Roles WHERE RoleName = 'Resident';
-
-    -- =====================================================
-    -- 3. INSERT PERMISSIONS
-    -- =====================================================
-    PRINT 'Inserting Permissions...';
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'UserManagement')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('UserManagement', 'Quản lý tài khoản người dùng', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'ApartmentManagement')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('ApartmentManagement', 'Quản lý căn hộ', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'ResidentManagement')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('ResidentManagement', 'Quản lý cư dân', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'InvoiceManagement')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('InvoiceManagement', 'Quản lý hóa đơn', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'ComplaintManagement')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('ComplaintManagement', 'Quản lý phản ánh', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'NotificationManagement')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('NotificationManagement', 'Quản lý thông báo', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'ReportGeneration')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('ReportGeneration', 'Tạo báo cáo', GETDATE());
-
-    IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionName = 'SystemConfiguration')
-        INSERT INTO Permissions (PermissionName, Description, CreatedAt)
-        VALUES ('SystemConfiguration', 'Cấu hình hệ thống', GETDATE());
-
-    -- =====================================================
-    -- 4. INSERT ROLE PERMISSIONS
-    -- =====================================================
-    PRINT 'Assigning permissions to roles...';
-
-    -- Clear existing role permissions
-    DELETE FROM RolePermissions WHERE RoleID IN (@SuperAdminRoleID, @ManagerRoleID, @ResidentRoleID);
-
-    -- Get all permission IDs
-    DECLARE @PermID_UserMgmt INT, @PermID_AptMgmt INT, @PermID_ResMgmt INT;
-    DECLARE @PermID_InvMgmt INT, @PermID_ComplMgmt INT, @PermID_NotifMgmt INT;
-    DECLARE @PermID_Report INT, @PermID_SysCfg INT;
-
-    SELECT @PermID_UserMgmt = PermissionID FROM Permissions WHERE PermissionName = 'UserManagement';
-    SELECT @PermID_AptMgmt = PermissionID FROM Permissions WHERE PermissionName = 'ApartmentManagement';
-    SELECT @PermID_ResMgmt = PermissionID FROM Permissions WHERE PermissionName = 'ResidentManagement';
-    SELECT @PermID_InvMgmt = PermissionID FROM Permissions WHERE PermissionName = 'InvoiceManagement';
-    SELECT @PermID_ComplMgmt = PermissionID FROM Permissions WHERE PermissionName = 'ComplaintManagement';
-    SELECT @PermID_NotifMgmt = PermissionID FROM Permissions WHERE PermissionName = 'NotificationManagement';
-    SELECT @PermID_Report = PermissionID FROM Permissions WHERE PermissionName = 'ReportGeneration';
-    SELECT @PermID_SysCfg = PermissionID FROM Permissions WHERE PermissionName = 'SystemConfiguration';
-
-    -- Super Admin has all permissions
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_UserMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_AptMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_ResMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_InvMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_ComplMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_NotifMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_Report);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@SuperAdminRoleID, @PermID_SysCfg);
-
-    -- Manager has most permissions except SystemConfiguration
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ManagerRoleID, @PermID_AptMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ManagerRoleID, @PermID_ResMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ManagerRoleID, @PermID_InvMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ManagerRoleID, @PermID_ComplMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ManagerRoleID, @PermID_NotifMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ManagerRoleID, @PermID_Report);
-
-    -- Resident has limited permissions
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ResidentRoleID, @PermID_InvMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ResidentRoleID, @PermID_ComplMgmt);
-    INSERT INTO RolePermissions (RoleID, PermissionID) VALUES (@ResidentRoleID, @PermID_NotifMgmt);
-
-    -- =====================================================
-    -- 5. INSERT USERS
-    -- =====================================================
-    PRINT 'Inserting sample user accounts...';
-
-    -- Super Admin: superadmin / Admin@123456
-    -- BCrypt hash for Admin@123456: $2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUm
-    IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'superadmin')
-        INSERT INTO Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, ApprovedAt, CreatedAt)
-        VALUES ('superadmin', 
-                '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUm',
-                'Super Administrator',
-                'superadmin@system.local',
-                '0900000001',
-                @SuperAdminRoleID,
-                'Active',
-                1,
-                GETDATE(),
-                GETDATE());
-
-    -- Manager: manager1 / Manager@123
-    -- BCrypt hash for Manager@123: $2a$12$LQv3c1yqBWVHxkd0LHAkCOYvEgcZhO3h.s.EJEE0nWMOhRiZlPO1S
-    IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'manager1')
-        INSERT INTO Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, ApprovedAt, CreatedAt)
-        VALUES ('manager1',
-                '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYvEgcZhO3h.s.EJEE0nWMOhRiZlPO1S',
-                'Manager One',
-                'manager1@system.local',
-                '0900000002',
-                @ManagerRoleID,
-                'Active',
-                1,
-                GETDATE(),
-                GETDATE());
-
-    -- Resident: resident1 / Resident@123
-    -- BCrypt hash for Resident@123: $2a$12$y2E5lfR3Uv6B1Qj1Qj.eOeI6VVlH8VQvVL9U.cE9qPkh7Hqla
-    IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'resident1')
-        INSERT INTO Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, ApprovedAt, CreatedAt)
-        VALUES ('resident1',
-                '$2a$12$y2E5lfR3Uv6B1Qj1Qj.eOeI6VVlH8VQvVL9U.cE9qPkh7Hqla',
-                'Resident One',
-                'resident1@system.local',
-                '0900000003',
-                @ResidentRoleID,
-                'Active',
-                1,
-                GETDATE(),
-                GETDATE());
-
-    DECLARE @SuperAdminUserID INT, @Manager1UserID INT, @Resident1UserID INT;
-    SELECT @SuperAdminUserID = UserID FROM Users WHERE Username = 'superadmin';
-    SELECT @Manager1UserID = UserID FROM Users WHERE Username = 'manager1';
-    SELECT @Resident1UserID = UserID FROM Users WHERE Username = 'resident1';
-
-    -- =====================================================
-    -- 6. INSERT BUILDINGS, BLOCKS, FLOORS, APARTMENTS
-    -- =====================================================
-    PRINT 'Inserting buildings and apartments...';
-
-    -- Create Building
+    DECLARE @SuperAdminUserID INT;
+    DECLARE @ManagerUserID INT;
+    DECLARE @Resident1UserID INT;
+    DECLARE @Resident2UserID INT;
+    DECLARE @Resident1ID INT;
+    DECLARE @ApartmentA101ID INT;
     DECLARE @BuildingID INT;
-    IF NOT EXISTS (SELECT 1 FROM Buildings WHERE BuildingName = 'Tòa Nhà A')
-    BEGIN
-        INSERT INTO Buildings (BuildingName, Address, Description, CreatedAt)
-        VALUES ('Tòa Nhà A', '123 Đường Nguyễn Huệ, Quận 1, TP.HCM', 'Tòa nhà cao tầng mẫu', GETDATE());
-        SELECT @BuildingID = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @BuildingID = BuildingID FROM Buildings WHERE BuildingName = 'Tòa Nhà A';
-    END
+    DECLARE @BlockAID INT;
+    DECLARE @BlockBID INT;
 
-    -- Create Block 1
-    DECLARE @Block1ID INT, @Block2ID INT;
-    IF NOT EXISTS (SELECT 1 FROM Blocks WHERE BlockName = 'Block A')
-    BEGIN
-        INSERT INTO Blocks (BlockName, BuildingID, CreatedAt)
-        VALUES ('Block A', @BuildingID, GETDATE());
-        SELECT @Block1ID = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @Block1ID = BlockID FROM Blocks WHERE BlockName = 'Block A';
-    END
+    PRINT N'Inserting roles...';
+    DECLARE @RoleSeed TABLE
+    (
+        RoleName NVARCHAR(50) NOT NULL,
+        Description NVARCHAR(255) NULL
+    );
 
-    -- Create Block 2
-    IF NOT EXISTS (SELECT 1 FROM Blocks WHERE BlockName = 'Block B')
-    BEGIN
-        INSERT INTO Blocks (BlockName, BuildingID, CreatedAt)
-        VALUES ('Block B', @BuildingID, GETDATE());
-        SELECT @Block2ID = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @Block2ID = BlockID FROM Blocks WHERE BlockName = 'Block B';
-    END
+    INSERT INTO @RoleSeed (RoleName, Description)
+    VALUES
+        (N'Super Admin', N'Quản trị viên cao nhất của hệ thống'),
+        (N'Manager', N'Quản lý khu chung cư'),
+        (N'Resident', N'Cư dân chung cư');
 
-    -- Create 5 Floors for Block 1
-    DECLARE @FloorID1_1 INT, @FloorID1_2 INT, @FloorID1_3 INT, @FloorID1_4 INT, @FloorID1_5 INT;
-    
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 1 AND BlockID = @Block1ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (1, @Block1ID, GETDATE());
-        SELECT @FloorID1_1 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID1_1 = FloorID FROM Floors WHERE FloorNumber = 1 AND BlockID = @Block1ID;
-    END
+    INSERT INTO dbo.Roles (RoleName, Description)
+    SELECT s.RoleName, s.Description
+    FROM @RoleSeed s
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.Roles r WHERE r.RoleName = s.RoleName
+    );
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 2 AND BlockID = @Block1ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (2, @Block1ID, GETDATE());
-        SELECT @FloorID1_2 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID1_2 = FloorID FROM Floors WHERE FloorNumber = 2 AND BlockID = @Block1ID;
-    END
+    SELECT @SuperAdminRoleID = RoleID FROM dbo.Roles WHERE RoleName = N'Super Admin';
+    SELECT @ManagerRoleID = RoleID FROM dbo.Roles WHERE RoleName = N'Manager';
+    SELECT @ResidentRoleID = RoleID FROM dbo.Roles WHERE RoleName = N'Resident';
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 3 AND BlockID = @Block1ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (3, @Block1ID, GETDATE());
-        SELECT @FloorID1_3 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID1_3 = FloorID FROM Floors WHERE FloorNumber = 3 AND BlockID = @Block1ID;
-    END
+    PRINT N'Inserting permissions...';
+    DECLARE @PermissionSeed TABLE
+    (
+        PermissionName NVARCHAR(100) NOT NULL,
+        Description NVARCHAR(255) NULL
+    );
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 4 AND BlockID = @Block1ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (4, @Block1ID, GETDATE());
-        SELECT @FloorID1_4 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID1_4 = FloorID FROM Floors WHERE FloorNumber = 4 AND BlockID = @Block1ID;
-    END
+    INSERT INTO @PermissionSeed (PermissionName, Description)
+    VALUES
+        (N'UserManagement', N'Quản lý tài khoản người dùng'),
+        (N'ManageApartments', N'Quản lý căn hộ'),
+        (N'ManageResidents', N'Quản lý cư dân'),
+        (N'ManageContracts', N'Quản lý hợp đồng'),
+        (N'ManageInvoices', N'Quản lý hóa đơn'),
+        (N'ManageComplaints', N'Quản lý phản ánh'),
+        (N'ManageNotifications', N'Quản lý thông báo'),
+        (N'ManageVehicles', N'Quản lý phương tiện'),
+        (N'ManageVisitors', N'Quản lý khách'),
+        (N'ManageFeeTypes', N'Quản lý loại phí'),
+        (N'ReportGeneration', N'Tạo báo cáo'),
+        (N'SystemConfiguration', N'Cấu hình hệ thống');
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 5 AND BlockID = @Block1ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (5, @Block1ID, GETDATE());
-        SELECT @FloorID1_5 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID1_5 = FloorID FROM Floors WHERE FloorNumber = 5 AND BlockID = @Block1ID;
-    END
+    INSERT INTO dbo.Permissions (PermissionName, Description)
+    SELECT s.PermissionName, s.Description
+    FROM @PermissionSeed s
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.Permissions p WHERE p.PermissionName = s.PermissionName
+    );
 
-    -- Create 5 Floors for Block 2
-    DECLARE @FloorID2_1 INT, @FloorID2_2 INT, @FloorID2_3 INT, @FloorID2_4 INT, @FloorID2_5 INT;
-    
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 1 AND BlockID = @Block2ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (1, @Block2ID, GETDATE());
-        SELECT @FloorID2_1 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID2_1 = FloorID FROM Floors WHERE FloorNumber = 1 AND BlockID = @Block2ID;
-    END
+    DECLARE @PermUserMgmt INT;
+    DECLARE @PermAptMgmt INT;
+    DECLARE @PermResMgmt INT;
+    DECLARE @PermContractMgmt INT;
+    DECLARE @PermInvoiceMgmt INT;
+    DECLARE @PermComplaintMgmt INT;
+    DECLARE @PermNotifMgmt INT;
+    DECLARE @PermVehicleMgmt INT;
+    DECLARE @PermVisitorMgmt INT;
+    DECLARE @PermFeeTypeMgmt INT;
+    DECLARE @PermReport INT;
+    DECLARE @PermSysCfg INT;
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 2 AND BlockID = @Block2ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (2, @Block2ID, GETDATE());
-        SELECT @FloorID2_2 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID2_2 = FloorID FROM Floors WHERE FloorNumber = 2 AND BlockID = @Block2ID;
-    END
+    SELECT @PermUserMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'UserManagement';
+    SELECT @PermAptMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageApartments';
+    SELECT @PermResMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageResidents';
+    SELECT @PermContractMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageContracts';
+    SELECT @PermInvoiceMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageInvoices';
+    SELECT @PermComplaintMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageComplaints';
+    SELECT @PermNotifMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageNotifications';
+    SELECT @PermVehicleMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageVehicles';
+    SELECT @PermVisitorMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageVisitors';
+    SELECT @PermFeeTypeMgmt = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ManageFeeTypes';
+    SELECT @PermReport = PermissionID FROM dbo.Permissions WHERE PermissionName = N'ReportGeneration';
+    SELECT @PermSysCfg = PermissionID FROM dbo.Permissions WHERE PermissionName = N'SystemConfiguration';
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 3 AND BlockID = @Block2ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (3, @Block2ID, GETDATE());
-        SELECT @FloorID2_3 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID2_3 = FloorID FROM Floors WHERE FloorNumber = 3 AND BlockID = @Block2ID;
-    END
+    PRINT N'Assigning permissions...';
+    DECLARE @RolePermissionSeed TABLE
+    (
+        RoleName NVARCHAR(50) NOT NULL,
+        PermissionName NVARCHAR(100) NOT NULL
+    );
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 4 AND BlockID = @Block2ID)
-    BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (4, @Block2ID, GETDATE());
-        SELECT @FloorID2_4 = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-        SELECT @FloorID2_4 = FloorID FROM Floors WHERE FloorNumber = 4 AND BlockID = @Block2ID;
-    END
+    INSERT INTO @RolePermissionSeed (RoleName, PermissionName)
+    VALUES
+        (N'Super Admin', N'UserManagement'),
+        (N'Super Admin', N'ManageApartments'),
+        (N'Super Admin', N'ManageResidents'),
+        (N'Super Admin', N'ManageContracts'),
+        (N'Super Admin', N'ManageInvoices'),
+        (N'Super Admin', N'ManageComplaints'),
+        (N'Super Admin', N'ManageNotifications'),
+        (N'Super Admin', N'ManageVehicles'),
+        (N'Super Admin', N'ManageVisitors'),
+        (N'Super Admin', N'ManageFeeTypes'),
+        (N'Super Admin', N'ReportGeneration'),
+        (N'Super Admin', N'SystemConfiguration'),
+        (N'Manager', N'ManageApartments'),
+        (N'Manager', N'ManageResidents'),
+        (N'Manager', N'ManageContracts'),
+        (N'Manager', N'ManageInvoices'),
+        (N'Manager', N'ManageComplaints'),
+        (N'Manager', N'ManageNotifications'),
+        (N'Manager', N'ManageVehicles'),
+        (N'Manager', N'ManageVisitors'),
+        (N'Manager', N'ManageFeeTypes'),
+        (N'Manager', N'ReportGeneration'),
+        (N'Resident', N'ManageInvoices'),
+        (N'Resident', N'ManageComplaints'),
+        (N'Resident', N'ManageNotifications');
 
-    IF NOT EXISTS (SELECT 1 FROM Floors WHERE FloorNumber = 5 AND BlockID = @Block2ID)
+    INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+    SELECT r.RoleID, p.PermissionID
+    FROM @RolePermissionSeed s
+    INNER JOIN dbo.Roles r ON r.RoleName = s.RoleName
+    INNER JOIN dbo.Permissions p ON p.PermissionName = s.PermissionName
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM dbo.RolePermissions rp
+        WHERE rp.RoleID = r.RoleID
+          AND rp.PermissionID = p.PermissionID
+    );
+
+    PRINT N'Inserting user accounts...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'superadmin')
     BEGIN
-        INSERT INTO Floors (FloorNumber, BlockID, CreatedAt) VALUES (5, @Block2ID, GETDATE());
-        SELECT @FloorID2_5 = SCOPE_IDENTITY();
-    END
-    ELSE
+        INSERT INTO dbo.Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, ApprovedAt, ApprovedBy, CreatedAt)
+        VALUES
+        (
+            N'superadmin',
+            N'$2a$11$MMo5UgTCNVe8I46ISQIgn.cKjGDjy23cRcIL9o4fSnJauhGUqcWBG',
+            N'Super Administrator',
+            N'superadmin@system.local',
+            N'0900000001',
+            @SuperAdminRoleID,
+            N'Active',
+            1,
+            @Now,
+            NULL,
+            @Now
+        );
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'manager1')
     BEGIN
-        SELECT @FloorID2_5 = FloorID FROM Floors WHERE FloorNumber = 5 AND BlockID = @Block2ID;
-    END
+        INSERT INTO dbo.Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, ApprovedAt, ApprovedBy, CreatedAt)
+        VALUES
+        (
+            N'manager1',
+            N'$2a$11$SJFoJ.3L2GmMUWAIhHy16Of3TdXNYA5e7fLFtEwRKhYDcGTCJkoGu',
+            N'Manager One',
+            N'manager1@system.local',
+            N'0900000002',
+            @ManagerRoleID,
+            N'Active',
+            1,
+            @Now,
+            NULL,
+            @Now
+        );
+    END;
 
-    -- Create Apartments (4 units per floor)
-    DECLARE @FloorIDs TABLE (FloorID INT, FloorNumber INT);
-    INSERT INTO @FloorIDs VALUES (@FloorID1_1, 1), (@FloorID1_2, 2), (@FloorID1_3, 3), (@FloorID1_4, 4), (@FloorID1_5, 5),
-                                  (@FloorID2_1, 1), (@FloorID2_2, 2), (@FloorID2_3, 3), (@FloorID2_4, 4), (@FloorID2_5, 5);
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'resident1')
+    BEGIN
+        INSERT INTO dbo.Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, ApprovedAt, ApprovedBy, CreatedAt)
+        VALUES
+        (
+            N'resident1',
+            N'$2a$11$MzoZYHX9e5Gqk4XzJt82xugDRXYfoPMHaEzR985kt4OkmAqwHlW6y',
+            N'Resident One',
+            N'resident1@system.local',
+            N'0900000003',
+            @ResidentRoleID,
+            N'Active',
+            1,
+            @Now,
+            NULL,
+            @Now
+        );
+    END;
 
-    DECLARE @ApartmentCode NVARCHAR(20), @FloorID_Temp INT, @FloorNum INT, @UnitCount INT;
-    DECLARE @AptCursor CURSOR;
-    
-    SET @AptCursor = CURSOR FOR SELECT FloorID, FloorNumber FROM @FloorIDs;
-    OPEN @AptCursor;
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'resident2')
+    BEGIN
+        INSERT INTO dbo.Users (Username, PasswordHash, FullName, Email, Phone, RoleID, Status, IsApproved, CreatedAt)
+        VALUES
+        (
+            N'resident2',
+            N'$2a$11$MzoZYHX9e5Gqk4XzJt82xugDRXYfoPMHaEzR985kt4OkmAqwHlW6y',
+            N'Resident Two',
+            N'resident2@system.local',
+            N'0900000004',
+            @ResidentRoleID,
+            N'Pending',
+            0,
+            @Now
+        );
+    END;
 
-    FETCH NEXT FROM @AptCursor INTO @FloorID_Temp, @FloorNum;
+    SELECT @SuperAdminUserID = UserID FROM dbo.Users WHERE Username = N'superadmin';
+    SELECT @ManagerUserID = UserID FROM dbo.Users WHERE Username = N'manager1';
+    SELECT @Resident1UserID = UserID FROM dbo.Users WHERE Username = N'resident1';
+    SELECT @Resident2UserID = UserID FROM dbo.Users WHERE Username = N'resident2';
+
+    UPDATE dbo.Users
+    SET ApprovedBy = @SuperAdminUserID,
+        ApprovedAt = @Now,
+        Status = N'Active',
+        IsApproved = 1,
+        UpdatedAt = GETDATE()
+    WHERE UserID IN (@ManagerUserID, @Resident1UserID);
+
+    PRINT N'Creating building hierarchy...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Buildings WHERE BuildingName = N'Tòa Nhà A')
+    BEGIN
+        INSERT INTO dbo.Buildings (BuildingName, Address, Description)
+        VALUES (N'Tòa Nhà A', N'123 Đường Nguyễn Huệ, Quận 1, TP.HCM', N'Tòa nhà mẫu cho dữ liệu thử nghiệm');
+    END;
+
+    SELECT @BuildingID = BuildingID FROM dbo.Buildings WHERE BuildingName = N'Tòa Nhà A';
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Blocks WHERE BlockName = N'Block A' AND BuildingID = @BuildingID)
+    BEGIN
+        INSERT INTO dbo.Blocks (BlockName, BuildingID)
+        VALUES (N'Block A', @BuildingID);
+    END;
+    SELECT @BlockAID = BlockID FROM dbo.Blocks WHERE BlockName = N'Block A' AND BuildingID = @BuildingID;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Blocks WHERE BlockName = N'Block B' AND BuildingID = @BuildingID)
+    BEGIN
+        INSERT INTO dbo.Blocks (BlockName, BuildingID)
+        VALUES (N'Block B', @BuildingID);
+    END;
+    SELECT @BlockBID = BlockID FROM dbo.Blocks WHERE BlockName = N'Block B' AND BuildingID = @BuildingID;
+
+    DECLARE @FloorMap TABLE
+    (
+        BlockPrefix CHAR(1) NOT NULL,
+        FloorNumber INT NOT NULL,
+        FloorID INT NOT NULL,
+        PRIMARY KEY (BlockPrefix, FloorNumber)
+    );
+
+    DECLARE @FloorNumber INT = 1;
+    DECLARE @FloorID INT;
+
+    WHILE @FloorNumber <= 5
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM dbo.Floors WHERE BlockID = @BlockAID AND FloorNumber = @FloorNumber)
+        BEGIN
+            INSERT INTO dbo.Floors (FloorNumber, BlockID)
+            VALUES (@FloorNumber, @BlockAID);
+        END;
+        SELECT @FloorID = FloorID FROM dbo.Floors WHERE BlockID = @BlockAID AND FloorNumber = @FloorNumber;
+        IF NOT EXISTS (SELECT 1 FROM @FloorMap WHERE BlockPrefix = 'A' AND FloorNumber = @FloorNumber)
+            INSERT INTO @FloorMap (BlockPrefix, FloorNumber, FloorID) VALUES ('A', @FloorNumber, @FloorID);
+
+        IF NOT EXISTS (SELECT 1 FROM dbo.Floors WHERE BlockID = @BlockBID AND FloorNumber = @FloorNumber)
+        BEGIN
+            INSERT INTO dbo.Floors (FloorNumber, BlockID)
+            VALUES (@FloorNumber, @BlockBID);
+        END;
+        SELECT @FloorID = FloorID FROM dbo.Floors WHERE BlockID = @BlockBID AND FloorNumber = @FloorNumber;
+        IF NOT EXISTS (SELECT 1 FROM @FloorMap WHERE BlockPrefix = 'B' AND FloorNumber = @FloorNumber)
+            INSERT INTO @FloorMap (BlockPrefix, FloorNumber, FloorID) VALUES ('B', @FloorNumber, @FloorID);
+
+        SET @FloorNumber += 1;
+    END;
+
+    DECLARE @BlockPrefix CHAR(1);
+    DECLARE @UnitNumber INT;
+    DECLARE @ApartmentCode NVARCHAR(20);
+    DECLARE @ApartmentArea DECIMAL(10,2);
+    DECLARE @ApartmentType NVARCHAR(100);
+    DECLARE @ApartmentStatus NVARCHAR(20);
+    DECLARE @ApartmentNote NVARCHAR(MAX);
+    DECLARE @ApartmentMaxResidents INT;
+    DECLARE floor_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT BlockPrefix, FloorNumber, FloorID
+        FROM @FloorMap
+        ORDER BY BlockPrefix, FloorNumber;
+
+    OPEN floor_cursor;
+    FETCH NEXT FROM floor_cursor INTO @BlockPrefix, @FloorNumber, @FloorID;
     WHILE @@FETCH_STATUS = 0
     BEGIN
-        SET @UnitCount = 1;
-        WHILE @UnitCount <= 4
+        SET @UnitNumber = 1;
+        WHILE @UnitNumber <= 4
         BEGIN
-            SET @ApartmentCode = CONCAT(
-                CASE WHEN @FloorID_Temp IN (@FloorID1_1, @FloorID1_2, @FloorID1_3, @FloorID1_4, @FloorID1_5) 
-                     THEN 'A' ELSE 'B' END,
-                @FloorNum,
-                CASE @UnitCount WHEN 1 THEN '01' WHEN 2 THEN '02' WHEN 3 THEN '03' WHEN 4 THEN '04' END
-            );
-
-            IF NOT EXISTS (SELECT 1 FROM Apartments WHERE ApartmentCode = @ApartmentCode)
+            IF @UnitNumber = 1
             BEGIN
-                INSERT INTO Apartments (ApartmentCode, FloorID, Area, ApartmentType, Status, MaxResidents, CreatedAt)
-                VALUES (@ApartmentCode, @FloorID_Temp, 75.0, N'2 Phòng Ngủ', 'Empty', 4, GETDATE());
+                SET @ApartmentArea = 45.00;
+                SET @ApartmentType = N'1 Phòng Ngủ';
+                SET @ApartmentMaxResidents = 2;
             END
+            ELSE IF @UnitNumber = 2
+            BEGIN
+                SET @ApartmentArea = 60.00;
+                SET @ApartmentType = N'2 Phòng Ngủ';
+                SET @ApartmentMaxResidents = 4;
+            END
+            ELSE IF @UnitNumber = 3
+            BEGIN
+                SET @ApartmentArea = 75.00;
+                SET @ApartmentType = N'3 Phòng Ngủ';
+                SET @ApartmentMaxResidents = 6;
+            END
+            ELSE
+            BEGIN
+                SET @ApartmentArea = 90.00;
+                SET @ApartmentType = N'4 Phòng Ngủ';
+                SET @ApartmentMaxResidents = 8;
+            END;
 
-            SET @UnitCount = @UnitCount + 1;
-        END
-        FETCH NEXT FROM @AptCursor INTO @FloorID_Temp, @FloorNum;
-    END
+            SET @ApartmentCode = CONCAT(@BlockPrefix, @FloorNumber, RIGHT(CONCAT('0', CAST(@UnitNumber AS VARCHAR(2))), 2));
+            SET @ApartmentStatus = CASE
+                WHEN @BlockPrefix = 'A' AND @FloorNumber = 1 AND @UnitNumber = 1 THEN N'Occupied'
+                ELSE N'Empty'
+            END;
+            SET @ApartmentNote = CASE
+                WHEN @BlockPrefix = 'A' AND @FloorNumber = 1 AND @UnitNumber = 1 THEN N'Căn hộ mẫu có cư dân ở'
+                ELSE N''
+            END;
 
-    CLOSE @AptCursor;
-    DEALLOCATE @AptCursor;
+            IF NOT EXISTS (SELECT 1 FROM dbo.Apartments WHERE ApartmentCode = @ApartmentCode)
+            BEGIN
+                INSERT INTO dbo.Apartments (ApartmentCode, FloorID, Area, ApartmentType, Status, MaxResidents, Note)
+                VALUES (@ApartmentCode, @FloorID, @ApartmentArea, @ApartmentType, @ApartmentStatus, @ApartmentMaxResidents, @ApartmentNote);
+            END;
 
-    -- =====================================================
-    -- 7. INSERT FEE TYPES
-    -- =====================================================
-    PRINT 'Inserting fee types...';
+            SET @UnitNumber += 1;
+        END;
 
-    IF NOT EXISTS (SELECT 1 FROM FeeTypes WHERE FeeName = N'Phí Quản Lý')
-        INSERT INTO FeeTypes (FeeName, Description, Amount, Unit, CreatedAt)
-        VALUES (N'Phí Quản Lý', N'Phí quản lý khu chung cư hàng tháng', 500000, N'VND', GETDATE());
+        FETCH NEXT FROM floor_cursor INTO @BlockPrefix, @FloorNumber, @FloorID;
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM FeeTypes WHERE FeeName = N'Phí Gửi Xe')
-        INSERT INTO FeeTypes (FeeName, Description, Amount, Unit, CreatedAt)
-        VALUES (N'Phí Gửi Xe', N'Phí gửi ô tô hàng tháng', 300000, N'VND', GETDATE());
+    CLOSE floor_cursor;
+    DEALLOCATE floor_cursor;
 
-    IF NOT EXISTS (SELECT 1 FROM FeeTypes WHERE FeeName = N'Phí Vệ Sinh')
-        INSERT INTO FeeTypes (FeeName, Description, Amount, Unit, CreatedAt)
-        VALUES (N'Phí Vệ Sinh', N'Phí vệ sinh chung cư hàng tháng', 200000, N'VND', GETDATE());
+    SELECT @ApartmentA101ID = ApartmentID FROM dbo.Apartments WHERE ApartmentCode = N'A101';
 
-    -- =====================================================
-    -- 8. CREATE RESIDENT PROFILE FOR RESIDENT1
-    -- =====================================================
-    PRINT 'Creating resident profile for test resident...';
+    PRINT N'Inserting fee types...';
+    DECLARE @FeeSeed TABLE
+    (
+        FeeTypeName NVARCHAR(100) NOT NULL,
+        Description NVARCHAR(MAX) NOT NULL,
+        UnitOfMeasurement NVARCHAR(50) NOT NULL
+    );
 
-    DECLARE @ApartmentID_Sample INT;
-    SELECT @ApartmentID_Sample = ApartmentID FROM Apartments WHERE ApartmentCode = 'A101' LIMIT 1;
+    INSERT INTO @FeeSeed (FeeTypeName, Description, UnitOfMeasurement)
+    VALUES
+        (N'Phí Quản Lý', N'Phí quản lý khu chung cư hàng tháng', N'VND'),
+        (N'Phí Gửi Xe', N'Phí gửi xe hàng tháng', N'VND'),
+        (N'Phí Vệ Sinh', N'Phí vệ sinh khu chung cư hàng tháng', N'VND');
 
-    IF NOT EXISTS (SELECT 1 FROM Residents WHERE UserID = @Resident1UserID)
+    INSERT INTO dbo.FeeTypes (FeeTypeName, Description, UnitOfMeasurement)
+    SELECT s.FeeTypeName, s.Description, s.UnitOfMeasurement
+    FROM @FeeSeed s
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.FeeTypes f WHERE f.FeeTypeName = s.FeeTypeName
+    );
+
+    DECLARE @FeeTypeManagementID INT;
+    DECLARE @FeeTypeParkingID INT;
+    DECLARE @FeeTypeCleaningID INT;
+
+    SELECT @FeeTypeManagementID = FeeTypeID FROM dbo.FeeTypes WHERE FeeTypeName = N'Phí Quản Lý';
+    SELECT @FeeTypeParkingID = FeeTypeID FROM dbo.FeeTypes WHERE FeeTypeName = N'Phí Gửi Xe';
+    SELECT @FeeTypeCleaningID = FeeTypeID FROM dbo.FeeTypes WHERE FeeTypeName = N'Phí Vệ Sinh';
+
+    PRINT N'Creating resident profile...';
+    SELECT @Resident1ID = ResidentID FROM dbo.Residents WHERE UserID = @Resident1UserID;
+
+    IF @Resident1ID IS NULL
     BEGIN
-        INSERT INTO Residents (UserID, FullName, DOB, Gender, CCCD, Phone, Email, AddressRegistration, 
-                               ApartmentID, ResidentStatus, MoveInDate, CreatedAt)
-        VALUES (@Resident1UserID, 'Resident One', '1990-05-15', N'Nam', '123456789012', '0900000003', 
-                'resident1@system.local', '123 Đường Nguyễn Huệ, Quận 1, TP.HCM',
-                @ApartmentID_Sample, N'Đang Ở', GETDATE(), GETDATE());
-    END
+        INSERT INTO dbo.Residents
+        (
+            UserID, FullName, Phone, Email, CCCD, DOB, Gender, AddressRegistration,
+            ApartmentID, RelationshipWithOwner, Status, ResidentStatus, MoveInDate, StartDate, Note
+        )
+        VALUES
+        (
+            @Resident1UserID,
+            N'Resident One',
+            N'0900000003',
+            N'resident1@system.local',
+            N'123456789012',
+            '1990-05-15',
+            N'Nam',
+            N'123 Đường Nguyễn Huệ, Quận 1, TP.HCM',
+            @ApartmentA101ID,
+            N'Chủ hộ',
+            N'Active',
+            N'Đang ở',
+            @Now,
+            @Now,
+            N'Cư dân mẫu'
+        );
 
-    -- =====================================================
-    -- 9. INSERT SAMPLE INVOICES
-    -- =====================================================
-    PRINT 'Inserting sample invoices...';
+        SELECT @Resident1ID = SCOPE_IDENTITY();
+    END;
 
-    DECLARE @FeeType1 INT, @FeeType2 INT, @FeeType3 INT;
-    SELECT @FeeType1 = FeeTypeID FROM FeeTypes WHERE FeeName = N'Phí Quản Lý';
-    SELECT @FeeType2 = FeeTypeID FROM FeeTypes WHERE FeeName = N'Phí Gửi Xe';
-    SELECT @FeeType3 = FeeTypeID FROM FeeTypes WHERE FeeName = N'Phí Vệ Sinh';
+    IF @ApartmentA101ID IS NOT NULL
+    BEGIN
+        UPDATE dbo.Apartments
+        SET Status = N'Occupied',
+            Note = CASE
+                WHEN ISNULL(Note, N'') = N'' THEN N'Căn hộ mẫu có cư dân ở'
+                ELSE Note
+            END,
+            UpdatedAt = GETDATE()
+        WHERE ApartmentID = @ApartmentA101ID;
+    END;
 
-    -- Invoice 1: Current month (Paid)
+    PRINT N'Inserting contracts...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Contracts WHERE ApartmentID = @ApartmentA101ID AND ResidentID = @Resident1ID)
+    BEGIN
+        INSERT INTO dbo.Contracts
+        (
+            ApartmentID, ResidentID, StartDate, EndDate, RentAmount, DepositAmount, Status, Note
+        )
+        VALUES
+        (
+            @ApartmentA101ID,
+            @Resident1ID,
+            CONVERT(DATE, DATEADD(MONTH, -1, @Now)),
+            CONVERT(DATE, DATEADD(MONTH, 11, @Now)),
+            8500000,
+            17000000,
+            N'Active',
+            N'ContractType:Lease;AutoRenewal:False|Hợp đồng mẫu căn hộ A101'
+        );
+    END;
+
+    PRINT N'Inserting sample invoices...';
     DECLARE @Invoice1ID INT;
-    IF NOT EXISTS (SELECT 1 FROM Invoices WHERE ApartmentID = @ApartmentID_Sample AND InvoiceMonth = MONTH(GETDATE()) AND InvoiceYear = YEAR(GETDATE()))
-    BEGIN
-        INSERT INTO Invoices (ApartmentID, InvoiceMonth, InvoiceYear, TotalAmount, Status, CreatedAt)
-        VALUES (@ApartmentID_Sample, MONTH(GETDATE()), YEAR(GETDATE()), 1000000, N'Paid', GETDATE());
-        SELECT @Invoice1ID = SCOPE_IDENTITY();
-
-        -- Add invoice details
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice1ID, @FeeType1, 500000, GETDATE());
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice1ID, @FeeType2, 300000, GETDATE());
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice1ID, @FeeType3, 200000, GETDATE());
-    END
-
-    -- Invoice 2: Previous month (Unpaid)
     DECLARE @Invoice2ID INT;
-    DECLARE @PrevMonth INT = MONTH(DATEADD(MONTH, -1, GETDATE()));
-    DECLARE @PrevYear INT = YEAR(DATEADD(MONTH, -1, GETDATE()));
-    
-    IF NOT EXISTS (SELECT 1 FROM Invoices WHERE ApartmentID = @ApartmentID_Sample AND InvoiceMonth = @PrevMonth AND InvoiceYear = @PrevYear)
-    BEGIN
-        INSERT INTO Invoices (ApartmentID, InvoiceMonth, InvoiceYear, TotalAmount, Status, CreatedAt)
-        VALUES (@ApartmentID_Sample, @PrevMonth, @PrevYear, 1000000, N'Unpaid', GETDATE());
-        SELECT @Invoice2ID = SCOPE_IDENTITY();
-
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice2ID, @FeeType1, 500000, GETDATE());
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice2ID, @FeeType2, 300000, GETDATE());
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice2ID, @FeeType3, 200000, GETDATE());
-    END
-
-    -- Invoice 3: 2 months ago (Overdue)
     DECLARE @Invoice3ID INT;
-    DECLARE @Prev2Month INT = MONTH(DATEADD(MONTH, -2, GETDATE()));
-    DECLARE @Prev2Year INT = YEAR(DATEADD(MONTH, -2, GETDATE()));
-    
-    IF NOT EXISTS (SELECT 1 FROM Invoices WHERE ApartmentID = @ApartmentID_Sample AND InvoiceMonth = @Prev2Month AND InvoiceYear = @Prev2Year)
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.Invoices
+        WHERE ApartmentID = @ApartmentA101ID
+          AND [Month] = MONTH(GETDATE())
+          AND [Year] = YEAR(GETDATE())
+    )
     BEGIN
-        INSERT INTO Invoices (ApartmentID, InvoiceMonth, InvoiceYear, TotalAmount, Status, CreatedAt)
-        VALUES (@ApartmentID_Sample, @Prev2Month, @Prev2Year, 1000000, N'Overdue', GETDATE());
-        SELECT @Invoice3ID = SCOPE_IDENTITY();
+        INSERT INTO dbo.Invoices (ApartmentID, [Month], [Year], DueDate, PaymentStatus, TotalAmount, PaidAmount, Note)
+        VALUES (
+            @ApartmentA101ID,
+            MONTH(GETDATE()),
+            YEAR(GETDATE()),
+            EOMONTH(GETDATE()),
+            N'Paid',
+            1000000,
+            1000000,
+            N'Hóa đơn tháng hiện tại'
+        );
+        SET @Invoice1ID = SCOPE_IDENTITY();
 
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice3ID, @FeeType1, 500000, GETDATE());
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice3ID, @FeeType2, 300000, GETDATE());
-        INSERT INTO InvoiceDetails (InvoiceID, FeeTypeID, Amount, CreatedAt)
-        VALUES (@Invoice3ID, @FeeType3, 200000, GETDATE());
-    END
+        INSERT INTO dbo.InvoiceDetails (InvoiceID, FeeTypeID, Amount)
+        VALUES
+            (@Invoice1ID, @FeeTypeManagementID, 500000),
+            (@Invoice1ID, @FeeTypeParkingID, 300000),
+            (@Invoice1ID, @FeeTypeCleaningID, 200000);
+    END;
 
-    -- =====================================================
-    -- 10. INSERT SAMPLE COMPLAINTS
-    -- =====================================================
-    PRINT 'Inserting sample complaints...';
-
-    IF NOT EXISTS (SELECT 1 FROM Complaints WHERE ResidentID = (SELECT ResidentID FROM Residents WHERE UserID = @Resident1UserID))
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.Invoices
+        WHERE ApartmentID = @ApartmentA101ID
+          AND [Month] = MONTH(DATEADD(MONTH, -1, GETDATE()))
+          AND [Year] = YEAR(DATEADD(MONTH, -1, GETDATE()))
+    )
     BEGIN
-        INSERT INTO Complaints (ResidentID, ComplaintType, Title, Description, Priority, Status, CreatedAt, UpdatedAt)
-        VALUES ((SELECT ResidentID FROM Residents WHERE UserID = @Resident1UserID), 
-                N'Vệ Sinh',
-                N'Thang máy bẩn',
-                N'Thang máy chung không được vệ sinh sạch sẽ',
-                N'Medium',
-                N'Open',
-                GETDATE(),
-                GETDATE());
-    END
+        INSERT INTO dbo.Invoices (ApartmentID, [Month], [Year], DueDate, PaymentStatus, TotalAmount, PaidAmount, Note)
+        VALUES (
+            @ApartmentA101ID,
+            MONTH(DATEADD(MONTH, -1, GETDATE())),
+            YEAR(DATEADD(MONTH, -1, GETDATE())),
+            EOMONTH(DATEADD(MONTH, -1, GETDATE())),
+            N'Unpaid',
+            1000000,
+            0,
+            N'Hóa đơn quá hạn'
+        );
+        SET @Invoice2ID = SCOPE_IDENTITY();
 
-    IF NOT EXISTS (SELECT 1 FROM Complaints WHERE ResidentID = (SELECT ResidentID FROM Residents WHERE UserID = @Resident1UserID) AND Title = N'Tiếng ồn')
+        INSERT INTO dbo.InvoiceDetails (InvoiceID, FeeTypeID, Amount)
+        VALUES
+            (@Invoice2ID, @FeeTypeManagementID, 500000),
+            (@Invoice2ID, @FeeTypeParkingID, 300000),
+            (@Invoice2ID, @FeeTypeCleaningID, 200000);
+    END;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.Invoices
+        WHERE ApartmentID = @ApartmentA101ID
+          AND [Month] = MONTH(DATEADD(MONTH, -2, GETDATE()))
+          AND [Year] = YEAR(DATEADD(MONTH, -2, GETDATE()))
+    )
     BEGIN
-        INSERT INTO Complaints (ResidentID, ComplaintType, Title, Description, Priority, Status, CreatedAt, UpdatedAt)
-        VALUES ((SELECT ResidentID FROM Residents WHERE UserID = @Resident1UserID),
-                N'Khác',
-                N'Tiếng ồn vào ban đêm',
-                N'Nhân viên trong tòa nhà gây tiếng ồn vào ban đêm',
-                N'Low',
-                N'Resolved',
-                DATEADD(DAY, -10, GETDATE()),
-                DATEADD(DAY, -5, GETDATE()));
-    END
+        INSERT INTO dbo.Invoices (ApartmentID, [Month], [Year], DueDate, PaymentStatus, TotalAmount, PaidAmount, Note)
+        VALUES (
+            @ApartmentA101ID,
+            MONTH(DATEADD(MONTH, -2, GETDATE())),
+            YEAR(DATEADD(MONTH, -2, GETDATE())),
+            EOMONTH(DATEADD(MONTH, -2, GETDATE())),
+            N'Partial',
+            1000000,
+            300000,
+            N'Hóa đơn thanh toán một phần'
+        );
+        SET @Invoice3ID = SCOPE_IDENTITY();
 
-    -- =====================================================
-    -- 11. INSERT SAMPLE NOTIFICATIONS
-    -- =====================================================
-    PRINT 'Inserting sample notifications...';
+        INSERT INTO dbo.InvoiceDetails (InvoiceID, FeeTypeID, Amount)
+        VALUES
+            (@Invoice3ID, @FeeTypeManagementID, 500000),
+            (@Invoice3ID, @FeeTypeParkingID, 300000),
+            (@Invoice3ID, @FeeTypeCleaningID, 200000);
+    END;
 
-    DECLARE @NotifID1 INT, @NotifID2 INT, @NotifID3 INT;
-
-    IF NOT EXISTS (SELECT 1 FROM Notifications WHERE Title = N'Bảo trì thang máy')
+    PRINT N'Inserting sample complaints...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Complaints WHERE ResidentID = @Resident1ID AND Title = N'Thang máy chậm')
     BEGIN
-        INSERT INTO Notifications (Title, Description, Type, Priority, Status, CreatedAt)
-        VALUES (N'Bảo trì thang máy', N'Thang máy sẽ được bảo trì từ 8h đến 12h hôm nay', N'Maintenance', N'High', N'Published', GETDATE());
-        SELECT @NotifID1 = SCOPE_IDENTITY();
-    END
+        INSERT INTO dbo.Complaints
+        (
+            ResidentID, ApartmentID, Category, ComplaintType, Title, Description,
+            Priority, Status, AssignedToUserID, ResolutionNotes, SatisfactionRating
+        )
+        VALUES
+        (
+            @Resident1ID,
+            @ApartmentA101ID,
+            N'Maintenance',
+            N'Maintenance',
+            N'Thang máy chậm',
+            N'Thang máy Block A hoạt động chậm trong giờ cao điểm.',
+            N'Medium',
+            N'Open',
+            NULL,
+            NULL,
+            NULL
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM Notifications WHERE Title = N'Thanh toán phí tháng này')
+    IF NOT EXISTS (SELECT 1 FROM dbo.Complaints WHERE ResidentID = @Resident1ID AND Title = N'Tiếng ồn ban đêm')
     BEGIN
-        INSERT INTO Notifications (Title, Description, Type, Priority, Status, CreatedAt)
-        VALUES (N'Thanh toán phí tháng này', N'Vui lòng thanh toán phí quản lý, gửi xe và vệ sinh trước ngày 25/04/2026', N'Payment', N'Medium', N'Published', GETDATE());
-        SELECT @NotifID2 = SCOPE_IDENTITY();
-    END
+        INSERT INTO dbo.Complaints
+        (
+            ResidentID, ApartmentID, Category, ComplaintType, Title, Description,
+            Priority, Status, AssignedToUserID, ResolutionNotes, SatisfactionRating
+        )
+        VALUES
+        (
+            @Resident1ID,
+            @ApartmentA101ID,
+            N'General',
+            N'Noise',
+            N'Tiếng ồn ban đêm',
+            N'Có tiếng ồn lớn vào khung giờ nghỉ đêm.',
+            N'Low',
+            N'Resolved',
+            @ManagerUserID,
+            N'Đã nhắc nhở và xử lý xong.',
+            4
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM Notifications WHERE Title = N'Cúp điện bảo trì')
+    PRINT N'Inserting sample notifications...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Notifications WHERE Title = N'Bảo trì thang máy')
     BEGIN
-        INSERT INTO Notifications (Title, Description, Type, Priority, Status, CreatedAt)
-        VALUES (N'Cúp điện bảo trì', N'Hệ thống điện sẽ bảo trì, khu vực có thể mất điện từ 14h-16h ngày 20/04/2026', N'Maintenance', N'High', N'Published', GETDATE());
-        SELECT @NotifID3 = SCOPE_IDENTITY();
-    END
+        INSERT INTO dbo.Notifications
+        (
+            UserID, ResidentID, Title, Subject, Message, Body, NotificationType,
+            Priority, IsRead, Status, SentDate, ReadAt
+        )
+        VALUES
+        (
+            @Resident1UserID,
+            @Resident1ID,
+            N'Bảo trì thang máy',
+            N'Bảo trì thang máy',
+            N'Thang máy Block A sẽ bảo trì từ 8h đến 12h hôm nay.',
+            N'Thang máy Block A sẽ bảo trì từ 8h đến 12h hôm nay.',
+            N'Maintenance',
+            N'High',
+            0,
+            N'Sent',
+            @Now,
+            NULL
+        );
+    END;
 
-    -- =====================================================
-    -- 12. INSERT SYSTEM CONFIGURATION
-    -- =====================================================
-    PRINT 'Inserting system configuration...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Notifications WHERE Title = N'Thanh toán phí tháng này')
+    BEGIN
+        INSERT INTO dbo.Notifications
+        (
+            UserID, ResidentID, Title, Subject, Message, Body, NotificationType,
+            Priority, IsRead, Status, SentDate, ReadAt
+        )
+        VALUES
+        (
+            @Resident1UserID,
+            @Resident1ID,
+            N'Thanh toán phí tháng này',
+            N'Thanh toán phí tháng này',
+            N'Vui lòng thanh toán phí quản lý, gửi xe và vệ sinh trước ngày 25.',
+            N'Vui lòng thanh toán phí quản lý, gửi xe và vệ sinh trước ngày 25.',
+            N'Payment',
+            N'Medium',
+            0,
+            N'Draft',
+            NULL,
+            NULL
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM SystemConfig WHERE ConfigKey = 'IsSeeded')
-        INSERT INTO SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
-        VALUES ('IsSeeded', 'true', 'Dữ liệu mẫu đã được khởi tạo', GETDATE(), @SuperAdminUserID);
+    IF NOT EXISTS (SELECT 1 FROM dbo.Notifications WHERE Title = N'Cảnh báo an ninh')
+    BEGIN
+        INSERT INTO dbo.Notifications
+        (
+            UserID, ResidentID, Title, Subject, Message, Body, NotificationType,
+            Priority, IsRead, Status, SentDate, ReadAt
+        )
+        VALUES
+        (
+            @ManagerUserID,
+            NULL,
+            N'Cảnh báo an ninh',
+            N'Cảnh báo an ninh',
+            N'Hệ thống ghi nhận một cảnh báo an ninh cần kiểm tra.',
+            N'Hệ thống ghi nhận một cảnh báo an ninh cần kiểm tra.',
+            N'Warning',
+            N'High',
+            0,
+            N'Failed',
+            NULL,
+            NULL
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM SystemConfig WHERE ConfigKey = 'ApartmentNameFormat')
-        INSERT INTO SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
-        VALUES ('ApartmentNameFormat', 'Block {block} - Tầng {floor} - Căn {code}', 'Định dạng tên căn hộ', GETDATE(), @SuperAdminUserID);
+    PRINT N'Inserting sample visitors...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Visitors WHERE ResidentID = @Resident1ID AND VisitorName = N'Nguyễn Văn A')
+    BEGIN
+        INSERT INTO dbo.Visitors
+        (
+            ResidentID, VisitorName, Phone, Email, IDNumber, Purpose,
+            ArrivalTime, DepartureTime, Status, ApprovedByUserID, Note
+        )
+        VALUES
+        (
+            @Resident1ID,
+            N'Nguyễn Văn A',
+            N'0911111111',
+            N'guest1@example.com',
+            N'',
+            N'Giao hàng bưu phẩm',
+            DATEADD(HOUR, -2, @Now),
+            NULL,
+            N'Pending',
+            NULL,
+            N'Delivery'
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM SystemConfig WHERE ConfigKey = 'MaxLoginAttempts')
-        INSERT INTO SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
-        VALUES ('MaxLoginAttempts', '5', 'Số lần đăng nhập sai tối đa trước khi khóa', GETDATE(), @SuperAdminUserID);
+    IF NOT EXISTS (SELECT 1 FROM dbo.Visitors WHERE ResidentID = @Resident1ID AND VisitorName = N'Trần Thị B')
+    BEGIN
+        INSERT INTO dbo.Visitors
+        (
+            ResidentID, VisitorName, Phone, Email, IDNumber, Purpose,
+            ArrivalTime, DepartureTime, Status, ApprovedByUserID, Note
+        )
+        VALUES
+        (
+            @Resident1ID,
+            N'Trần Thị B',
+            N'0922222222',
+            N'family@example.com',
+            N'',
+            N'Thăm người thân',
+            DATEADD(HOUR, -4, @Now),
+            DATEADD(HOUR, -1, @Now),
+            N'Approved',
+            @ManagerUserID,
+            N'Family'
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM SystemConfig WHERE ConfigKey = 'LockDurationMinutes')
-        INSERT INTO SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
-        VALUES ('LockDurationMinutes', '15', 'Thời gian khóa tài khoản (phút)', GETDATE(), @SuperAdminUserID);
+    PRINT N'Inserting sample vehicles...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.Vehicles WHERE LicensePlate = N'59X1-123.45')
+    BEGIN
+        INSERT INTO dbo.Vehicles
+        (
+            ResidentID, VehicleType, LicensePlate, Color, Brand, Status, Note
+        )
+        VALUES
+        (
+            @Resident1ID,
+            N'Motorcycle',
+            N'59X1-123.45',
+            N'Đỏ',
+            N'Honda',
+            N'Active',
+            N'MODEL=Wave Alpha;YEAR=2023;NOTE=Xe máy cá nhân'
+        );
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM SystemConfig WHERE ConfigKey = 'AppVersion')
-        INSERT INTO SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
-        VALUES ('AppVersion', '1.0.0', 'Phiên bản ứng dụng', GETDATE(), @SuperAdminUserID);
+    IF NOT EXISTS (SELECT 1 FROM dbo.Vehicles WHERE LicensePlate = N'51A-999.99')
+    BEGIN
+        INSERT INTO dbo.Vehicles
+        (
+            ResidentID, VehicleType, LicensePlate, Color, Brand, Status, Note
+        )
+        VALUES
+        (
+            @Resident1ID,
+            N'Car',
+            N'51A-999.99',
+            N'Trắng',
+            N'Toyota',
+            N'Inactive',
+            N'MODEL=Vios;YEAR=2021;NOTE=Xe ô tô gia đình'
+        );
+    END;
 
-    -- =====================================================
-    -- 13. INSERT AUDIT LOG FOR SEED DATA
-    -- =====================================================
-    PRINT 'Logging seed data initialization...';
+    PRINT N'Inserting system configuration...';
+    IF NOT EXISTS (SELECT 1 FROM dbo.SystemConfig WHERE ConfigKey = N'IsSeeded')
+    BEGIN
+        INSERT INTO dbo.SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
+        VALUES (N'IsSeeded', N'1', N'Dữ liệu mẫu đã được khởi tạo', @Now, @SuperAdminUserID);
+    END;
 
-    INSERT INTO AuditLogs (UserID, Action, TableName, Description, CreatedAt)
-    VALUES (@SuperAdminUserID, 'SEED_DATA_INIT', 'Multiple', 'Initial seed data created', GETDATE());
+    IF NOT EXISTS (SELECT 1 FROM dbo.SystemConfig WHERE ConfigKey = N'ApartmentNameFormat')
+    BEGIN
+        INSERT INTO dbo.SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
+        VALUES (N'ApartmentNameFormat', N'Block {block} - Floor {floor} - Apt {code}', N'Định dạng tên căn hộ', @Now, @SuperAdminUserID);
+    END;
 
-    -- =====================================================
-    -- COMMIT TRANSACTION
-    -- =====================================================
+    IF NOT EXISTS (SELECT 1 FROM dbo.SystemConfig WHERE ConfigKey = N'MaxLoginAttempts')
+    BEGIN
+        INSERT INTO dbo.SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
+        VALUES (N'MaxLoginAttempts', N'5', N'Số lần đăng nhập sai tối đa trước khi khóa', @Now, @SuperAdminUserID);
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.SystemConfig WHERE ConfigKey = N'LockDurationMinutes')
+    BEGIN
+        INSERT INTO dbo.SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
+        VALUES (N'LockDurationMinutes', N'15', N'Thời gian khóa tài khoản (phút)', @Now, @SuperAdminUserID);
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.SystemConfig WHERE ConfigKey = N'AppVersion')
+    BEGIN
+        INSERT INTO dbo.SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
+        VALUES (N'AppVersion', N'1.0.0', N'Phiên bản ứng dụng', @Now, @SuperAdminUserID);
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.SystemConfig WHERE ConfigKey = N'ThemeColor')
+    BEGIN
+        INSERT INTO dbo.SystemConfig (ConfigKey, ConfigValue, Description, UpdatedAt, UpdatedBy)
+        VALUES (N'ThemeColor', N'#215C9B', N'Màu giao diện mặc định', @Now, @SuperAdminUserID);
+    END;
+
+    PRINT N'Logging seed data initialization...';
+    INSERT INTO dbo.AuditLogs
+    (
+        UserID, Action, EntityName, EntityID, OldValue, NewValue, [Timestamp], Description, IPAddress
+    )
+    VALUES
+    (
+        @SuperAdminUserID,
+        N'SEED_DATA_INIT',
+        N'Database',
+        NULL,
+        NULL,
+        NULL,
+        @Now,
+        N'Initial seed data created',
+        @HostName
+    );
+
     COMMIT TRANSACTION;
-    PRINT '========== SEED DATA INSERTION COMPLETED SUCCESSFULLY ==========';
-
+    PRINT N'========== SEED DATA INSERTION COMPLETED SUCCESSFULLY =========='; 
 END TRY
 BEGIN CATCH
-    ROLLBACK TRANSACTION;
-    PRINT 'ERROR DURING SEED DATA INSERTION:';
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+
+    PRINT N'ERROR DURING SEED DATA INSERTION:';
     PRINT ERROR_MESSAGE();
     THROW;
 END CATCH
-
 GO
-
--- =====================================================
--- VERIFICATION SCRIPT
--- =====================================================
-PRINT '';
-PRINT '========== VERIFICATION ==========';
-
-SELECT 'Users Created:' AS [Info];
-SELECT UserID, Username, FullName, Email, RoleName, Status 
-FROM Users u
-INNER JOIN Roles r ON u.RoleID = r.RoleID
-ORDER BY UserID;
-
-PRINT '';
-SELECT 'Buildings and Apartments:' AS [Info];
-SELECT COUNT(*) AS TotalApartments FROM Apartments;
-SELECT DISTINCT BuildingName FROM Buildings;
-
-PRINT '';
-SELECT 'Fee Types:' AS [Info];
-SELECT FeeName, Amount, Unit FROM FeeTypes;
-
-PRINT '';
-SELECT 'Sample Invoices:' AS [Info];
-SELECT InvoiceID, ApartmentID, InvoiceMonth, InvoiceYear, TotalAmount, Status FROM Invoices;
-
-PRINT '';
-SELECT 'Configuration:' AS [Info];
-SELECT ConfigKey, ConfigValue FROM SystemConfig;
-
-PRINT '';
-PRINT '========== SEED DATA VERIFICATION COMPLETED ==========';

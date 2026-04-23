@@ -264,6 +264,24 @@ public class ContractDAL
     }
 
     /// <summary>
+    /// Backward-compatible contract creation overload.
+    /// </summary>
+    public static int CreateContract(int apartmentID, int residentID, string contractType, DateTime startDate,
+                                     DateTime endDate, int termMonths, bool autoRenewal, string? note = null)
+    {
+        string compatibilityNote = string.IsNullOrWhiteSpace(note)
+            ? $"ContractType:{contractType};AutoRenewal:{autoRenewal}"
+            : $"ContractType:{contractType};AutoRenewal:{autoRenewal}|{note}";
+
+        int contractID = CreateContract(apartmentID, residentID, startDate, endDate, 0m, 0m, compatibilityNote);
+
+        if (contractID > 0)
+            UpdateContractStatus(contractID, "Pending");
+
+        return contractID;
+    }
+
+    /// <summary>
     /// Update contract
     /// </summary>
     public static bool UpdateContract(int contractID, DateTime startDate, DateTime endDate,
@@ -373,6 +391,32 @@ public class ContractDAL
     /// </summary>
     private static dynamic MapContract(SqlDataReader reader)
     {
+        string? rawNote = reader.IsDBNull(12) ? null : reader.GetString(12);
+        string? contractType = null;
+        string? note = rawNote;
+        bool autoRenewal = false;
+
+        if (!string.IsNullOrWhiteSpace(rawNote) && rawNote.StartsWith("ContractType:", StringComparison.OrdinalIgnoreCase))
+        {
+            int separatorIndex = rawNote.IndexOf('|');
+            string metadata = separatorIndex >= 0 ? rawNote.Substring(0, separatorIndex) : rawNote;
+
+            foreach (var part in metadata.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part.StartsWith("ContractType:", StringComparison.OrdinalIgnoreCase))
+                {
+                    contractType = part.Substring("ContractType:".Length);
+                }
+                else if (part.StartsWith("AutoRenewal:", StringComparison.OrdinalIgnoreCase) &&
+                         bool.TryParse(part.Substring("AutoRenewal:".Length), out var parsedAutoRenewal))
+                {
+                    autoRenewal = parsedAutoRenewal;
+                }
+            }
+
+            note = separatorIndex + 1 < rawNote.Length ? rawNote.Substring(separatorIndex + 1) : null;
+        }
+
         return new
         {
             ContractID = reader.GetInt32(0),
@@ -385,9 +429,11 @@ public class ContractDAL
             RentAmount = reader.GetDecimal(7),
             DepositAmount = reader.GetDecimal(8),
             Status = reader.GetString(9),
+            ContractType = contractType,
+            AutoRenewal = autoRenewal,
             CreatedAt = reader.GetDateTime(10),
             UpdatedAt = reader.GetDateTime(11),
-            Note = reader.IsDBNull(12) ? null : reader.GetString(12)
+            Note = note
         };
     }
 }

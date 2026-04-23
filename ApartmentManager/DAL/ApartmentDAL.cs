@@ -318,6 +318,15 @@ public class ApartmentDAL
     }
 
     /// <summary>
+    /// Backward-compatible apartment creation overload.
+    /// </summary>
+    public static int CreateApartment(int floorID, string apartmentCode, decimal area,
+                                      string apartmentType, int maxResidents, string? note = null)
+    {
+        return CreateApartment(apartmentCode, floorID, area, apartmentType, maxResidents, note);
+    }
+
+    /// <summary>
     /// Update apartment
     /// </summary>
     public static bool UpdateApartment(int apartmentID, string apartmentCode, decimal area, 
@@ -518,7 +527,7 @@ public class ApartmentDAL
             BlockName = reader.GetString(5),
             BuildingID = reader.IsDBNull(6) ? null : reader.GetInt32(6),
             BuildingName = reader.GetString(7),
-            Area = (double)reader.GetDecimal(8),
+            Area = reader.GetDecimal(8),
             ApartmentType = reader.GetString(9),
             Status = reader.GetString(10),
             MaxResidents = reader.GetInt32(11),

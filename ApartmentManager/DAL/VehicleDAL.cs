@@ -211,6 +211,16 @@ public class VehicleDAL
     }
 
     /// <summary>
+    /// Backward-compatible vehicle creation overload.
+    /// </summary>
+    public static int CreateVehicle(int residentID, string licensePlate, string vehicleType,
+                                    string brand, string model, int year, string color)
+    {
+        string compatibilityNote = $"MODEL={model};YEAR={year};NOTE=";
+        return CreateVehicle(residentID, vehicleType, licensePlate, color, brand, compatibilityNote);
+    }
+
+    /// <summary>
     /// Update vehicle
     /// </summary>
     public static bool UpdateVehicle(int vehicleID, string vehicleType, string color, string brand, string? note = null)
@@ -348,6 +358,31 @@ public class VehicleDAL
     /// </summary>
     private static dynamic MapVehicle(SqlDataReader reader)
     {
+        string? rawNote = reader.IsDBNull(8) ? null : reader.GetString(8);
+        string? note = rawNote;
+        string model = string.Empty;
+        int yearMade = DateTime.Now.Year;
+
+        if (!string.IsNullOrWhiteSpace(rawNote) && rawNote.StartsWith("MODEL=", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var part in rawNote.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part.StartsWith("MODEL=", StringComparison.OrdinalIgnoreCase))
+                {
+                    model = part.Substring("MODEL=".Length);
+                }
+                else if (part.StartsWith("YEAR=", StringComparison.OrdinalIgnoreCase) &&
+                         int.TryParse(part.Substring("YEAR=".Length), out var parsedYear))
+                {
+                    yearMade = parsedYear;
+                }
+                else if (part.StartsWith("NOTE=", StringComparison.OrdinalIgnoreCase))
+                {
+                    note = part.Substring("NOTE=".Length);
+                }
+            }
+        }
+
         return new
         {
             VehicleID = reader.GetInt32(0),
@@ -358,7 +393,9 @@ public class VehicleDAL
             Color = reader.GetString(5),
             Brand = reader.GetString(6),
             Status = reader.GetString(7),
-            Note = reader.IsDBNull(8) ? null : reader.GetString(8),
+            Model = model,
+            YearMade = yearMade,
+            Note = note,
             CreatedAt = reader.GetDateTime(9),
             UpdatedAt = reader.GetDateTime(10)
         };

@@ -52,6 +52,51 @@ public class ResidentBLL
     }
 
     /// <summary>
+    /// Backward-compatible resident registration overload used by older tests.
+    /// </summary>
+    public static (bool Success, string Message, int ResidentID) RegisterResident(
+        int apartmentID,
+        string fullName,
+        string dobString,
+        string cccd,
+        string phone,
+        string email,
+        string status)
+    {
+        try
+        {
+            if (apartmentID <= 0)
+                return (false, "Invalid apartment ID", 0);
+
+            if (!DateTime.TryParse(dobString, out var dob))
+                return (false, "Invalid date of birth", 0);
+
+            if (!ValidationHelper.IsValidPhone(phone))
+                return (false, "Invalid phone number format", 0);
+
+            if (!ValidationHelper.IsValidEmail(email))
+                return (false, "Invalid email format", 0);
+
+            if (!ValidationHelper.IsValidCCCD(cccd))
+                return (false, "CCCD must be 9 or 12 digits", 0);
+
+            int residentID = ResidentDAL.CreateResident(apartmentID, fullName, dobString, cccd, phone, email, status);
+            if (residentID > 0)
+            {
+                Log.Information("Resident registered via compatibility overload: {FullName} (ID: {ResidentID})", fullName, residentID);
+                return (true, "Resident registered successfully", residentID);
+            }
+
+            return (false, "Failed to register resident", 0);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error registering resident: {FullName}", fullName);
+            return (false, $"Error registering resident: {ex.Message}", 0);
+        }
+    }
+
+    /// <summary>
     /// Get active residents
     /// </summary>
     public static List<dynamic> GetActiveResidents()

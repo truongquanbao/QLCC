@@ -118,6 +118,14 @@ public static class ValidationHelper
     }
 
     /// <summary>
+    /// Validate age value directly.
+    /// </summary>
+    public static bool IsValidAge(int age)
+    {
+        return age >= 18 && age <= 120;
+    }
+
+    /// <summary>
     /// Validate string length
     /// </summary>
     public static bool IsValidLength(string value, int minLength, int maxLength)

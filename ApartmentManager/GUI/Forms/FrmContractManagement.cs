@@ -36,15 +36,17 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeForm()
         {
+            _session = SessionManager.GetSession();
+
             // Permission Check
-            if (!_session.HasPermission("ManageContracts"))
+            if (_session == null || !_session.HasPermission("ManageContracts"))
             {
-                MessageBox.Show("You do not have permission to access contract management.", "Access Denied");
+                MessageBox.Show("Bạn không có quyền truy cập màn hình này.", "Từ chối truy cập");
                 this.Close();
                 return;
             }
 
-            this.Text = "Contract Management";
+            this.Text = "Quản lý hợp đồng";
             this.Size = new System.Drawing.Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = System.Drawing.Color.White;
@@ -66,29 +68,41 @@ namespace ApartmentManager.GUI.Forms
             int y = PADDING;
 
             // Row 1: Apartment Filter
-            Label lblApartment = new Label { Text = "Apartment:", Left = PADDING, Top = y, Width = 100 };
+            Label lblApartment = new Label { Text = "Căn hộ:", Left = PADDING, Top = y, Width = 100 };
             _cboApartment = new ComboBox { Left = 120, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
             _cboApartment.SelectedIndexChanged += (s, e) => LoadContracts();
             _filterPanel.Controls.Add(lblApartment);
             _filterPanel.Controls.Add(_cboApartment);
 
-            Label lblResident = new Label { Text = "Resident:", Left = 290, Top = y, Width = 100 };
+            Label lblResident = new Label { Text = "Cư dân:", Left = 290, Top = y, Width = 100 };
             _cboResident = new ComboBox { Left = 410, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
             _cboResident.SelectedIndexChanged += (s, e) => LoadContracts();
             _filterPanel.Controls.Add(lblResident);
             _filterPanel.Controls.Add(_cboResident);
 
-            Label lblContractType = new Label { Text = "Contract Type:", Left = 580, Top = y, Width = 100 };
+            Label lblContractType = new Label { Text = "Loại hợp đồng:", Left = 580, Top = y, Width = 100 };
             _cboContractType = new ComboBox { Left = 700, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboContractType.Items.AddRange(new object[] { "All", "Lease", "Service" });
+            _cboContractType.Items.AddRange(new object[]
+            {
+                new UiComboItem("Tất cả", "All"),
+                new UiComboItem("Thuê", "Lease"),
+                new UiComboItem("Dịch vụ", "Service")
+            });
             _cboContractType.SelectedIndex = 0;
             _cboContractType.SelectedIndexChanged += (s, e) => LoadContracts();
             _filterPanel.Controls.Add(lblContractType);
             _filterPanel.Controls.Add(_cboContractType);
 
-            Label lblStatus = new Label { Text = "Status:", Left = 870, Top = y, Width = 100 };
+            Label lblStatus = new Label { Text = "Trạng thái:", Left = 870, Top = y, Width = 100 };
             _cboStatus = new ComboBox { Left = 970, Top = y, Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboStatus.Items.AddRange(new object[] { "All", "Active", "Expired", "Terminated", "Pending" });
+            _cboStatus.Items.AddRange(new object[]
+            {
+                new UiComboItem("Tất cả", "All"),
+                new UiComboItem("Đang hiệu lực", "Active"),
+                new UiComboItem("Hết hạn", "Expired"),
+                new UiComboItem("Đã chấm dứt", "Terminated"),
+                new UiComboItem("Chờ xác nhận", "Pending")
+            });
             _cboStatus.SelectedIndex = 0;
             _cboStatus.SelectedIndexChanged += (s, e) => LoadContracts();
             _filterPanel.Controls.Add(lblStatus);
@@ -97,22 +111,22 @@ namespace ApartmentManager.GUI.Forms
             y += 40;
 
             // Row 2: Details
-            Label lblStartDate = new Label { Text = "Start Date:", Left = PADDING, Top = y, Width = 100 };
+            Label lblStartDate = new Label { Text = "Ngày bắt đầu:", Left = PADDING, Top = y, Width = 100 };
             _txtStartDate = new TextBox { Left = 120, Top = y, Width = 150, ReadOnly = true };
             _filterPanel.Controls.Add(lblStartDate);
             _filterPanel.Controls.Add(_txtStartDate);
 
-            Label lblEndDate = new Label { Text = "End Date:", Left = 290, Top = y, Width = 100 };
+            Label lblEndDate = new Label { Text = "Ngày kết thúc:", Left = 290, Top = y, Width = 100 };
             _txtEndDate = new TextBox { Left = 410, Top = y, Width = 150, ReadOnly = true };
             _filterPanel.Controls.Add(lblEndDate);
             _filterPanel.Controls.Add(_txtEndDate);
 
-            Label lblTermDuration = new Label { Text = "Term (Months):", Left = 580, Top = y, Width = 100 };
+            Label lblTermDuration = new Label { Text = "Thời hạn (tháng):", Left = 580, Top = y, Width = 120 };
             _txtTermDuration = new TextBox { Left = 700, Top = y, Width = 150 };
             _filterPanel.Controls.Add(lblTermDuration);
             _filterPanel.Controls.Add(_txtTermDuration);
 
-            _chkAutoRenewal = new CheckBox { Text = "Auto-Renewal", Left = 870, Top = y, Width = 150 };
+            _chkAutoRenewal = new CheckBox { Text = "Tự động gia hạn", Left = 870, Top = y, Width = 150 };
             _filterPanel.Controls.Add(_chkAutoRenewal);
         }
 
@@ -123,14 +137,14 @@ namespace ApartmentManager.GUI.Forms
 
             int y = PADDING;
 
-            Label lblTermsAndConditions = new Label { Text = "Terms & Conditions:", Left = PADDING, Top = y, Width = 150 };
+            Label lblTermsAndConditions = new Label { Text = "Điều khoản:", Left = PADDING, Top = y, Width = 150 };
             _txtTermsAndConditions = new TextBox { Left = 170, Top = y, Width = 1000, Height = 30, Multiline = true };
             _detailsPanel.Controls.Add(lblTermsAndConditions);
             _detailsPanel.Controls.Add(_txtTermsAndConditions);
 
             y += 40;
 
-            Label lblRenewalNotes = new Label { Text = "Renewal Notes:", Left = PADDING, Top = y, Width = 150 };
+            Label lblRenewalNotes = new Label { Text = "Ghi chú gia hạn:", Left = PADDING, Top = y, Width = 150 };
             _txtRenewalNotes = new TextBox { Left = 170, Top = y, Width = 1000, Height = 25, Multiline = true };
             _detailsPanel.Controls.Add(lblRenewalNotes);
             _detailsPanel.Controls.Add(_txtRenewalNotes);
@@ -153,13 +167,13 @@ namespace ApartmentManager.GUI.Forms
             };
 
             _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "ContractID", HeaderText = "ID", DataPropertyName = "ContractID", Width = 50 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "Apartment", HeaderText = "Apartment", DataPropertyName = "ApartmentCode", Width = 100 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "Resident", HeaderText = "Resident", DataPropertyName = "ResidentName", Width = 150 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "ContractType", HeaderText = "Type", DataPropertyName = "ContractType", Width = 80 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "StartDate", HeaderText = "Start Date", DataPropertyName = "StartDate", Width = 100 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "EndDate", HeaderText = "End Date", DataPropertyName = "EndDate", Width = 100 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Status", DataPropertyName = "Status", Width = 100 });
-            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "AutoRenewal", HeaderText = "Auto-Renewal", DataPropertyName = "AutoRenewal", Width = 80 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "Apartment", HeaderText = "Căn hộ", DataPropertyName = "ApartmentCode", Width = 100 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "Resident", HeaderText = "Cư dân", DataPropertyName = "ResidentName", Width = 150 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "ContractType", HeaderText = "Loại", DataPropertyName = "ContractType", Width = 80 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "StartDate", HeaderText = "Ngày bắt đầu", DataPropertyName = "StartDate", Width = 100 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "EndDate", HeaderText = "Ngày kết thúc", DataPropertyName = "EndDate", Width = 100 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Trạng thái", DataPropertyName = "Status", Width = 100 });
+            _dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { Name = "AutoRenewal", HeaderText = "Tự động gia hạn", DataPropertyName = "AutoRenewal", Width = 100 });
 
             _dgvContracts.CellClick += DgvContracts_CellClick;
             _gridPanel.Controls.Add(_dgvContracts);
@@ -170,31 +184,31 @@ namespace ApartmentManager.GUI.Forms
             _buttonPanel = new Panel { Dock = DockStyle.Bottom, Height = 50, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.LightGray };
             this.Controls.Add(_buttonPanel);
 
-            Button btnCreate = new Button { Text = "Create", Left = PADDING, Top = 10, Width = 80, Height = 30 };
+            Button btnCreate = new Button { Text = "Thêm", Left = PADDING, Top = 10, Width = 80, Height = 30 };
             btnCreate.Click += BtnCreate_Click;
             _buttonPanel.Controls.Add(btnCreate);
 
-            Button btnEdit = new Button { Text = "Edit", Left = 100, Top = 10, Width = 80, Height = 30 };
+            Button btnEdit = new Button { Text = "Sửa", Left = 100, Top = 10, Width = 80, Height = 30 };
             btnEdit.Click += BtnEdit_Click;
             _buttonPanel.Controls.Add(btnEdit);
 
-            Button btnRenew = new Button { Text = "Renew", Left = 180, Top = 10, Width = 80, Height = 30 };
+            Button btnRenew = new Button { Text = "Gia hạn", Left = 180, Top = 10, Width = 80, Height = 30 };
             btnRenew.Click += BtnRenew_Click;
             _buttonPanel.Controls.Add(btnRenew);
 
-            Button btnTerminate = new Button { Text = "Terminate", Left = 260, Top = 10, Width = 80, Height = 30 };
+            Button btnTerminate = new Button { Text = "Chấm dứt", Left = 260, Top = 10, Width = 80, Height = 30 };
             btnTerminate.Click += BtnTerminate_Click;
             _buttonPanel.Controls.Add(btnTerminate);
 
-            Button btnDelete = new Button { Text = "Delete", Left = 340, Top = 10, Width = 80, Height = 30 };
+            Button btnDelete = new Button { Text = "Xóa", Left = 340, Top = 10, Width = 80, Height = 30 };
             btnDelete.Click += BtnDelete_Click;
             _buttonPanel.Controls.Add(btnDelete);
 
-            Button btnStatistics = new Button { Text = "Statistics", Left = 420, Top = 10, Width = 80, Height = 30 };
+            Button btnStatistics = new Button { Text = "Thống kê", Left = 420, Top = 10, Width = 80, Height = 30 };
             btnStatistics.Click += BtnStatistics_Click;
             _buttonPanel.Controls.Add(btnStatistics);
 
-            Button btnExpiringContracts = new Button { Text = "Expiring", Left = 500, Top = 10, Width = 80, Height = 30 };
+            Button btnExpiringContracts = new Button { Text = "Sắp hết hạn", Left = 500, Top = 10, Width = 90, Height = 30 };
             btnExpiringContracts.Click += BtnExpiringContracts_Click;
             _buttonPanel.Controls.Add(btnExpiringContracts);
         }
@@ -204,13 +218,13 @@ namespace ApartmentManager.GUI.Forms
             _statusPanel = new Panel { Dock = DockStyle.Bottom, Height = 40, BorderStyle = BorderStyle.FixedSingle, BackColor = System.Drawing.Color.Gainsboro };
             this.Controls.Add(_statusPanel);
 
-            _lblActiveCount = new Label { Text = "Active: 0", Left = PADDING, Top = 10, Width = 100 };
+            _lblActiveCount = new Label { Text = "Đang hiệu lực: 0", Left = PADDING, Top = 10, Width = 120 };
             _statusPanel.Controls.Add(_lblActiveCount);
 
-            _lblExpiringCount = new Label { Text = "Expiring in 30 days: 0", Left = 120, Top = 10, Width = 180 };
+            _lblExpiringCount = new Label { Text = "Sắp hết hạn (30 ngày): 0", Left = 140, Top = 10, Width = 180 };
             _statusPanel.Controls.Add(_lblExpiringCount);
 
-            _lblTerminatedCount = new Label { Text = "Terminated: 0", Left = 320, Top = 10, Width = 150 };
+            _lblTerminatedCount = new Label { Text = "Đã chấm dứt: 0", Left = 340, Top = 10, Width = 150 };
             _statusPanel.Controls.Add(_lblTerminatedCount);
         }
 
@@ -225,7 +239,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading contract data");
-                MessageBox.Show($"Error loading data: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi khi tải dữ liệu: {ex.Message}", "Lỗi");
             }
         }
 
@@ -234,16 +248,14 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 _cboApartment.Items.Clear();
-                _cboApartment.Items.Add(new { ApartmentID = 0, DisplayText = "All Apartments" });
+                _cboApartment.AddOption("Tất cả căn hộ", 0);
 
                 var apartments = ApartmentDAL.GetAllApartments();
                 foreach (var apt in apartments)
                 {
-                    _cboApartment.Items.Add(apt);
+                    _cboApartment.AddOption(apt.ApartmentCode ?? $"Căn hộ {apt.ApartmentID}", apt.ApartmentID);
                 }
 
-                _cboApartment.ValueMember = "ApartmentID";
-                _cboApartment.DisplayMember = "DisplayText";
                 _cboApartment.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -259,21 +271,21 @@ namespace ApartmentManager.GUI.Forms
                 var contracts = ContractDAL.GetAllContracts();
 
                 // Apply filters
-                if (_cboApartment.SelectedItem != null && ((dynamic)_cboApartment.SelectedItem).ApartmentID != 0)
+                int apartmentID = _cboApartment.GetSelectedValueInt();
+                if (apartmentID != 0)
                 {
-                    int apartmentID = ((dynamic)_cboApartment.SelectedItem).ApartmentID;
                     contracts = contracts.Where(c => c.ApartmentID == apartmentID).ToList();
                 }
 
-                if (!_cboContractType.SelectedItem.ToString().Equals("All"))
+                string contractType = _cboContractType.GetSelectedValueString();
+                if (!string.Equals(contractType, "All", StringComparison.OrdinalIgnoreCase))
                 {
-                    string contractType = _cboContractType.SelectedItem.ToString();
                     contracts = contracts.Where(c => c.ContractType == contractType).ToList();
                 }
 
-                if (!_cboStatus.SelectedItem.ToString().Equals("All"))
+                string status = _cboStatus.GetSelectedValueString();
+                if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
                 {
-                    string status = _cboStatus.SelectedItem.ToString();
                     contracts = contracts.Where(c => c.Status == status).ToList();
                 }
 
@@ -282,7 +294,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading contracts");
-                MessageBox.Show($"Error loading contracts: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi khi tải hợp đồng: {ex.Message}", "Lỗi");
             }
         }
 
@@ -328,21 +340,21 @@ namespace ApartmentManager.GUI.Forms
                     
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
+                        MessageBox.Show(result.Message, "Thành công");
                         AuditLogDAL.LogAction(_session.CurrentUser.UserID, "CreateContract", $"Contract {result.ContractID} created");
                         LoadContracts();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error creating contract");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -352,7 +364,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvContracts.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a contract to edit.", "Information");
+                    MessageBox.Show("Vui lòng chọn hợp đồng cần sửa.", "Thông báo");
                     return;
                 }
 
@@ -361,7 +373,7 @@ namespace ApartmentManager.GUI.Forms
 
                 if (contract.Status == "Expired" || contract.Status == "Terminated")
                 {
-                    MessageBox.Show("Cannot edit expired or terminated contracts.", "Information");
+                    MessageBox.Show("Không thể sửa hợp đồng đã hết hạn hoặc đã chấm dứt.", "Thông báo");
                     return;
                 }
 
@@ -374,21 +386,21 @@ namespace ApartmentManager.GUI.Forms
                     
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
+                        MessageBox.Show(result.Message, "Thành công");
                         AuditLogDAL.LogAction(_session.CurrentUser.UserID, "UpdateContract", $"Contract {contractID} updated");
                         LoadContracts();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error editing contract");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -398,7 +410,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvContracts.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a contract to renew.", "Information");
+                    MessageBox.Show("Vui lòng chọn hợp đồng cần gia hạn.", "Thông báo");
                     return;
                 }
 
@@ -407,7 +419,7 @@ namespace ApartmentManager.GUI.Forms
 
                 if (contract.Status != "Active" && contract.Status != "Expired")
                 {
-                    MessageBox.Show("Only active or expired contracts can be renewed.", "Information");
+                    MessageBox.Show("Chỉ có thể gia hạn hợp đồng đang hiệu lực hoặc đã hết hạn.", "Thông báo");
                     return;
                 }
 
@@ -418,20 +430,20 @@ namespace ApartmentManager.GUI.Forms
                 
                 if (result.Success)
                 {
-                    MessageBox.Show(result.Message, "Success");
+                    MessageBox.Show(result.Message, "Thành công");
                     AuditLogDAL.LogAction(_session.CurrentUser.UserID, "RenewContract", $"Contract {contractID} renewed");
                     LoadContracts();
                     UpdateStatistics();
                 }
                 else
                 {
-                    MessageBox.Show(result.Message, "Error");
+                    MessageBox.Show(result.Message, "Lỗi");
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error renewing contract");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -441,7 +453,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvContracts.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a contract to terminate.", "Information");
+                    MessageBox.Show("Vui lòng chọn hợp đồng cần chấm dứt.", "Thông báo");
                     return;
                 }
 
@@ -450,31 +462,31 @@ namespace ApartmentManager.GUI.Forms
 
                 if (contract.Status == "Terminated")
                 {
-                    MessageBox.Show("Contract is already terminated.", "Information");
+                    MessageBox.Show("Hợp đồng đã được chấm dứt.", "Thông báo");
                     return;
                 }
 
-                if (MessageBox.Show("Are you sure you want to terminate this contract?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show("Bạn có chắc muốn chấm dứt hợp đồng này không?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
                     var result = ContractBLL.TerminateContract(contractID, DateTime.Now);
                     
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
+                        MessageBox.Show(result.Message, "Thành công");
                         AuditLogDAL.LogAction(_session.CurrentUser.UserID, "TerminateContract", $"Contract {contractID} terminated");
                         LoadContracts();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error terminating contract");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -484,7 +496,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 if (_dgvContracts.SelectedRows.Count == 0)
                 {
-                    MessageBox.Show("Please select a contract to delete.", "Information");
+                    MessageBox.Show("Vui lòng chọn hợp đồng cần xóa.", "Thông báo");
                     return;
                 }
 
@@ -493,31 +505,31 @@ namespace ApartmentManager.GUI.Forms
 
                 if (contract.Status == "Active")
                 {
-                    MessageBox.Show("Cannot delete active contracts.", "Information");
+                    MessageBox.Show("Không thể xóa hợp đồng đang hiệu lực.", "Thông báo");
                     return;
                 }
 
-                if (MessageBox.Show("Are you sure you want to delete this contract?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show("Bạn có chắc muốn xóa hợp đồng này không?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
                     var result = ContractBLL.DeleteContract(contractID);
                     
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Success");
+                        MessageBox.Show(result.Message, "Thành công");
                         AuditLogDAL.LogAction(_session.CurrentUser.UserID, "DeleteContract", $"Contract {contractID} deleted");
                         LoadContracts();
                         UpdateStatistics();
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Error");
+                        MessageBox.Show(result.Message, "Lỗi");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error deleting contract");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -527,18 +539,18 @@ namespace ApartmentManager.GUI.Forms
             {
                 var stats = ContractBLL.GetContractStatistics();
                 MessageBox.Show(
-                    $"Total Contracts: {stats.TotalContracts}\n" +
-                    $"Active: {stats.ActiveCount}\n" +
-                    $"Expired: {stats.ExpiredCount}\n" +
-                    $"Terminated: {stats.TerminatedCount}\n" +
-                    $"Expiring in 30 days: {stats.ExpiringCount}\n" +
-                    $"Auto-Renewal Enabled: {stats.AutoRenewalCount}",
-                    "Contract Statistics");
+                    $"Tổng hợp đồng: {stats.TotalContracts}\n" +
+                    $"Đang hiệu lực: {stats.ActiveCount}\n" +
+                    $"Đã hết hạn: {stats.ExpiredCount}\n" +
+                    $"Đã chấm dứt: {stats.TerminatedCount}\n" +
+                    $"Sắp hết hạn trong 30 ngày: {stats.ExpiringCount}\n" +
+                    $"Đã bật tự động gia hạn: {stats.AutoRenewalCount}",
+                    "Thống kê hợp đồng");
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error retrieving statistics");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -549,22 +561,22 @@ namespace ApartmentManager.GUI.Forms
                 var expiringContracts = ContractDAL.GetExpiringContracts(30);
                 if (expiringContracts.Count == 0)
                 {
-                    MessageBox.Show("No contracts expiring in the next 30 days.", "Information");
+                    MessageBox.Show("Không có hợp đồng nào hết hạn trong 30 ngày tới.", "Thông báo");
                     return;
                 }
 
-                string message = "Contracts expiring in the next 30 days:\n\n";
+                string message = "Hợp đồng sắp hết hạn trong 30 ngày tới:\n\n";
                 foreach (var contract in expiringContracts)
                 {
                     message += $"- {contract.ApartmentCode} ({contract.ResidentName}): {contract.EndDate:yyyy-MM-dd}\n";
                 }
 
-                MessageBox.Show(message, "Expiring Contracts");
+                MessageBox.Show(message, "Hợp đồng sắp hết hạn");
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error retrieving expiring contracts");
-                MessageBox.Show($"Error: {ex.Message}", "Error");
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi");
             }
         }
 
@@ -573,9 +585,9 @@ namespace ApartmentManager.GUI.Forms
             try
             {
                 var stats = ContractBLL.GetContractStatistics();
-                _lblActiveCount.Text = $"Active: {stats.ActiveCount}";
-                _lblExpiringCount.Text = $"Expiring in 30 days: {stats.ExpiringCount}";
-                _lblTerminatedCount.Text = $"Terminated: {stats.TerminatedCount}";
+                _lblActiveCount.Text = $"Đang hiệu lực: {stats.ActiveCount}";
+                _lblExpiringCount.Text = $"Sắp hết hạn 30 ngày: {stats.ExpiringCount}";
+                _lblTerminatedCount.Text = $"Đã chấm dứt: {stats.TerminatedCount}";
             }
             catch (Exception ex)
             {
@@ -600,7 +612,7 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeDialog()
         {
-            this.Text = _contract == null ? "Create Contract" : "Edit Contract";
+            this.Text = _contract == null ? "Tạo hợp đồng" : "Sửa hợp đồng";
             this.Size = new System.Drawing.Size(500, 400);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -609,7 +621,7 @@ namespace ApartmentManager.GUI.Forms
 
             int y = 10;
 
-            Label lblApartment = new Label { Text = "Apartment:", Left = 10, Top = y, Width = 100 };
+            Label lblApartment = new Label { Text = "Căn hộ:", Left = 10, Top = y, Width = 100 };
             _cboApartment = new ComboBox { Left = 120, Top = y, Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
             LoadApartments();
             this.Controls.Add(lblApartment);
@@ -617,7 +629,7 @@ namespace ApartmentManager.GUI.Forms
 
             y += 35;
 
-            Label lblResident = new Label { Text = "Resident:", Left = 10, Top = y, Width = 100 };
+            Label lblResident = new Label { Text = "Cư dân:", Left = 10, Top = y, Width = 100 };
             _cboResident = new ComboBox { Left = 120, Top = y, Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
             LoadResidents();
             this.Controls.Add(lblResident);
@@ -625,42 +637,46 @@ namespace ApartmentManager.GUI.Forms
 
             y += 35;
 
-            Label lblContractType = new Label { Text = "Contract Type:", Left = 10, Top = y, Width = 100 };
+            Label lblContractType = new Label { Text = "Loại hợp đồng:", Left = 10, Top = y, Width = 100 };
             _cboContractType = new ComboBox { Left = 120, Top = y, Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cboContractType.Items.AddRange(new object[] { "Lease", "Service" });
+            _cboContractType.Items.AddRange(new object[]
+            {
+                new UiComboItem("Thuê", "Lease"),
+                new UiComboItem("Dịch vụ", "Service")
+            });
             this.Controls.Add(lblContractType);
             this.Controls.Add(_cboContractType);
 
             y += 35;
 
-            Label lblStartDate = new Label { Text = "Start Date:", Left = 10, Top = y, Width = 100 };
+            Label lblStartDate = new Label { Text = "Ngày bắt đầu:", Left = 10, Top = y, Width = 100 };
             _dtpStartDate = new DateTimePicker { Left = 120, Top = y, Width = 350 };
             this.Controls.Add(lblStartDate);
             this.Controls.Add(_dtpStartDate);
 
             y += 35;
 
-            Label lblEndDate = new Label { Text = "End Date:", Left = 10, Top = y, Width = 100 };
+            Label lblEndDate = new Label { Text = "Ngày kết thúc:", Left = 10, Top = y, Width = 100 };
             _dtpEndDate = new DateTimePicker { Left = 120, Top = y, Width = 350 };
             this.Controls.Add(lblEndDate);
             this.Controls.Add(_dtpEndDate);
 
             y += 35;
 
-            Label lblTermsAndConditions = new Label { Text = "Terms:", Left = 10, Top = y, Width = 100 };
+            Label lblTermsAndConditions = new Label { Text = "Điều khoản:", Left = 10, Top = y, Width = 100 };
             _txtTermsAndConditions = new TextBox { Left = 120, Top = y, Width = 350, Height = 50, Multiline = true };
             this.Controls.Add(lblTermsAndConditions);
             this.Controls.Add(_txtTermsAndConditions);
 
             y += 60;
 
-            _chkAutoRenewal = new CheckBox { Text = "Auto-Renewal", Left = 120, Top = y, Width = 200 };
+            _chkAutoRenewal = new CheckBox { Text = "Tự động gia hạn", Left = 120, Top = y, Width = 200 };
             this.Controls.Add(_chkAutoRenewal);
 
             y += 35;
 
-            Button btnOK = new Button { Text = "OK", Left = 250, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.OK };
-            Button btnCancel = new Button { Text = "Cancel", Left = 370, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+            Button btnOK = new Button { Text = "Đồng ý", Left = 250, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.OK };
+            Button btnCancel = new Button { Text = "Hủy", Left = 370, Top = y, Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
             this.Controls.Add(btnOK);
             this.Controls.Add(btnCancel);
 
@@ -668,7 +684,7 @@ namespace ApartmentManager.GUI.Forms
             {
                 _dtpStartDate.Value = _contract.StartDate;
                 _dtpEndDate.Value = _contract.EndDate;
-                _cboContractType.SelectedItem = _contract.ContractType;
+                ComboBoxHelper.SelectValue(_cboContractType, _contract.ContractType);
                 _txtTermsAndConditions.Text = _contract.TermsAndConditions ?? "";
                 _chkAutoRenewal.Checked = _contract.AutoRenewal;
             }
@@ -713,7 +729,7 @@ namespace ApartmentManager.GUI.Forms
                 ((dynamic)_cboResident.SelectedItem).ResidentID,
                 _dtpStartDate.Value,
                 _dtpEndDate.Value,
-                _cboContractType.SelectedItem.ToString(),
+                _cboContractType.GetSelectedValueString(),
                 _txtTermsAndConditions.Text,
                 _chkAutoRenewal.Checked
             );

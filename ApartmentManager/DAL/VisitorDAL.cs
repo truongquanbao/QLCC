@@ -271,6 +271,15 @@ public class VisitorDAL
     }
 
     /// <summary>
+    /// Backward-compatible visitor registration overload.
+    /// </summary>
+    public static int RegisterVisitor(int residentID, string visitorName, string phone, string email,
+                                      string visitorType, string purpose)
+    {
+        return RegisterVisitor(residentID, visitorName, phone, email, visitorType, purpose, DateTime.Now, null);
+    }
+
+    /// <summary>
     /// Approve visitor
     /// </summary>
     public static bool ApproveVisitor(int visitorID, int userID)
@@ -301,6 +310,41 @@ public class VisitorDAL
         catch (Exception ex)
         {
             Log.Error(ex, "Error approving visitor: {VisitorID}", visitorID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Backward-compatible approval overload that records the approval time only.
+    /// </summary>
+    public static bool ApproveVisitor(int visitorID, DateTime approvedAt)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Visitors
+                SET Status = 'Approved', UpdatedAt = @ApprovedAt
+                WHERE VisitorID = @VisitorID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@VisitorID", visitorID);
+                    command.Parameters.AddWithValue("@ApprovedAt", approvedAt);
+
+                    connection.Open();
+                    command.ExecuteNonQuery();
+
+                    Log.Information("Visitor approved (compatibility overload): {VisitorID}", visitorID);
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error approving visitor (compatibility overload): {VisitorID}", visitorID);
             return false;
         }
     }
@@ -409,6 +453,10 @@ public class VisitorDAL
     /// </summary>
     private static dynamic MapVisitor(SqlDataReader reader)
     {
+        string? idNumber = reader.GetString(6);
+        string? note = reader.IsDBNull(13) ? null : reader.GetString(13);
+        DateTime? checkOutTime = reader.IsDBNull(9) ? null : reader.GetDateTime(9);
+
         return new
         {
             VisitorID = reader.GetInt32(0),
@@ -417,14 +465,17 @@ public class VisitorDAL
             VisitorName = reader.GetString(3),
             Phone = reader.GetString(4),
             Email = reader.GetString(5),
-            IDNumber = reader.GetString(6),
+            IDNumber = idNumber,
+            VisitorType = !string.IsNullOrWhiteSpace(idNumber) ? idNumber : (note ?? string.Empty),
             Purpose = reader.GetString(7),
+            CheckInTime = reader.GetDateTime(8),
             ArrivalTime = reader.GetDateTime(8),
-            DepartureTime = reader.IsDBNull(9) ? DateTime.MinValue : reader.GetDateTime(9),
+            CheckOutTime = checkOutTime,
+            DepartureTime = checkOutTime ?? DateTime.MinValue,
             Status = reader.GetString(10),
             ApprovedByUserID = reader.IsDBNull(11) ? 0 : reader.GetInt32(11),
             ApprovedBy = reader.GetString(12),
-            Note = reader.IsDBNull(13) ? null : reader.GetString(13),
+            Note = note,
             CreatedAt = reader.GetDateTime(14),
             UpdatedAt = reader.GetDateTime(15)
         };

@@ -80,6 +80,25 @@ public class ApartmentBLL
     }
 
     /// <summary>
+    /// Get apartments by building with validation.
+    /// </summary>
+    public static List<dynamic> GetApartmentsByBuilding(int buildingID)
+    {
+        try
+        {
+            if (buildingID <= 0)
+                return new List<dynamic>();
+
+            return ApartmentDAL.GetApartmentsByBuilding(buildingID).Cast<dynamic>().ToList();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error getting apartments by building: {BuildingID}", buildingID);
+            return new List<dynamic>();
+        }
+    }
+
+    /// <summary>
     /// Create apartment with validation
     /// </summary>
     public static (bool Success, string Message, int ApartmentID) CreateApartment(

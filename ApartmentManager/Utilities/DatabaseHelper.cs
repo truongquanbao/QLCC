@@ -23,12 +23,12 @@ public static class DatabaseHelper
             if (config != null)
                 return config.ConnectionString;
 
-            // Fallback to default LocalDB
-            return "Server=(localdb)\\mssqllocaldb;Database=ApartmentManagerDB;Trusted_Connection=true;";
+            // Fallback to SQL Express with relaxed local encryption defaults
+            return "Server=.\\SQLEXPRESS;Database=ApartmentManagerDB;Trusted_Connection=true;Encrypt=False;TrustServerCertificate=True;";
         }
         catch
         {
-            return "Server=(localdb)\\mssqllocaldb;Database=ApartmentManagerDB;Trusted_Connection=true;";
+            return "Server=.\\SQLEXPRESS;Database=ApartmentManagerDB;Trusted_Connection=true;Encrypt=False;TrustServerCertificate=True;";
         }
     }
 

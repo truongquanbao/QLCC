@@ -64,7 +64,7 @@ public class FrmInvoiceManagement : Form
     {
         if (SessionManager.GetSession() == null || !SessionManager.HasPermission("ManageInvoices"))
         {
-            MessageBox.Show("You do not have permission to access this form.", "Access Denied",
+            MessageBox.Show("Bạn không có quyền truy cập màn hình này.", "Từ chối truy cập",
                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
             this.Close();
             return;
@@ -77,7 +77,7 @@ public class FrmInvoiceManagement : Form
 
     private void InitializeComponent()
     {
-        this.Text = "Invoice Management";
+        this.Text = "Quản lý hóa đơn";
         this.Size = new Size(1300, 900);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
@@ -105,16 +105,23 @@ public class FrmInvoiceManagement : Form
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        var lblStatus = new Label { Text = "Status:", Location = new Point(SPACING, SPACING), Size = new Size(60, 20) };
+        var lblStatus = new Label { Text = "Trạng thái:", Location = new Point(SPACING, SPACING), Size = new Size(70, 20) };
         pnl.Controls.Add(lblStatus);
 
         cmbFilterStatus.Location = new Point(SPACING + 70, SPACING);
         cmbFilterStatus.Size = new Size(100, 25);
-        cmbFilterStatus.Items.AddRange(new string[] { "All", "Paid", "Unpaid", "Partial", "Overdue" });
+        cmbFilterStatus.Items.AddRange(new object[]
+        {
+            new UiComboItem("Tất cả", "All"),
+            new UiComboItem("Đã thanh toán", "Paid"),
+            new UiComboItem("Chưa thanh toán", "Unpaid"),
+            new UiComboItem("Thanh toán một phần", "Partial"),
+            new UiComboItem("Quá hạn", "Overdue")
+        });
         cmbFilterStatus.SelectedIndex = 0;
         pnl.Controls.Add(cmbFilterStatus);
 
-        var lblApt = new Label { Text = "Apartment:", Location = new Point(SPACING + 180, SPACING), Size = new Size(70, 20) };
+        var lblApt = new Label { Text = "Căn hộ:", Location = new Point(SPACING + 180, SPACING), Size = new Size(70, 20) };
         pnl.Controls.Add(lblApt);
 
         cmbFilterApartment.Location = new Point(SPACING + 260, SPACING);
@@ -122,7 +129,7 @@ public class FrmInvoiceManagement : Form
         cmbFilterApartment.DropDownStyle = ComboBoxStyle.DropDownList;
         pnl.Controls.Add(cmbFilterApartment);
 
-        btnSearch.Text = "Search";
+        btnSearch.Text = "Tìm kiếm";
         btnSearch.Location = new Point(SPACING + 390, SPACING);
         btnSearch.Size = new Size(80, 30);
         btnSearch.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -130,7 +137,7 @@ public class FrmInvoiceManagement : Form
         btnSearch.Click += BtnSearch_Click;
         pnl.Controls.Add(btnSearch);
 
-        btnShowAll.Text = "Show All";
+        btnShowAll.Text = "Hiển thị tất cả";
         btnShowAll.Location = new Point(SPACING + 480, SPACING);
         btnShowAll.Size = new Size(80, 30);
         btnShowAll.BackColor = Color.Gray;
@@ -155,7 +162,7 @@ public class FrmInvoiceManagement : Form
         int x = SPACING;
 
         // Row 1
-        lblApartment.Text = "Apartment:";
+        lblApartment.Text = "Căn hộ:";
         lblApartment.Location = new Point(x, y);
         lblApartment.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblApartment);
@@ -165,7 +172,7 @@ public class FrmInvoiceManagement : Form
         cmbApartment.DropDownStyle = ComboBoxStyle.DropDownList;
         pnl.Controls.Add(cmbApartment);
 
-        lblMonth.Text = "Month:";
+        lblMonth.Text = "Tháng:";
         lblMonth.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y);
         lblMonth.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblMonth);
@@ -177,7 +184,7 @@ public class FrmInvoiceManagement : Form
         nudMonth.Value = DateTime.Now.Month;
         pnl.Controls.Add(nudMonth);
 
-        lblYear.Text = "Year:";
+        lblYear.Text = "Năm:";
         lblYear.Location = new Point(x + LABEL_WIDTH * 2 + CONTROL_WIDTH + 80 + SPACING * 5, y);
         lblYear.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblYear);
@@ -190,7 +197,7 @@ public class FrmInvoiceManagement : Form
         pnl.Controls.Add(nudYear);
 
         // Row 2
-        lblDueDate.Text = "Due Date:";
+        lblDueDate.Text = "Hạn thanh toán:";
         lblDueDate.Location = new Point(x, y + 35);
         lblDueDate.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblDueDate);
@@ -200,7 +207,7 @@ public class FrmInvoiceManagement : Form
         dtpDueDate.Format = DateTimePickerFormat.Short;
         pnl.Controls.Add(dtpDueDate);
 
-        lblTotalAmount.Text = "Total Amount:";
+        lblTotalAmount.Text = "Tổng tiền:";
         lblTotalAmount.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y + 35);
         lblTotalAmount.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblTotalAmount);
@@ -210,7 +217,7 @@ public class FrmInvoiceManagement : Form
         pnl.Controls.Add(txtTotalAmount);
 
         // Row 3
-        lblPaidAmount.Text = "Paid Amount:";
+        lblPaidAmount.Text = "Đã thanh toán:";
         lblPaidAmount.Location = new Point(x, y + 70);
         lblPaidAmount.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblPaidAmount);
@@ -220,7 +227,7 @@ public class FrmInvoiceManagement : Form
         txtPaidAmount.ReadOnly = true;
         pnl.Controls.Add(txtPaidAmount);
 
-        lblNote.Text = "Note:";
+        lblNote.Text = "Ghi chú:";
         lblNote.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y + 70);
         lblNote.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblNote);
@@ -254,13 +261,13 @@ public class FrmInvoiceManagement : Form
         dgvInvoices.CellClick += DgvInvoices_CellClick;
 
         dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ID", DataPropertyName = "InvoiceID", Width = 50, Visible = false });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Apartment", DataPropertyName = "ApartmentCode", Width = 100 });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Month", DataPropertyName = "Month", Width = 60 });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Year", DataPropertyName = "Year", Width = 60 });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Due Date", DataPropertyName = "DueDate", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Total Amount", DataPropertyName = "TotalAmount", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" } });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Paid Amount", DataPropertyName = "PaidAmount", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" } });
-        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Status", DataPropertyName = "PaymentStatus", Width = 100 });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Căn hộ", DataPropertyName = "ApartmentCode", Width = 100 });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Tháng", DataPropertyName = "Month", Width = 60 });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Năm", DataPropertyName = "Year", Width = 60 });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Hạn thanh toán", DataPropertyName = "DueDate", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Tổng tiền", DataPropertyName = "TotalAmount", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" } });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Đã thanh toán", DataPropertyName = "PaidAmount", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" } });
+        dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Trạng thái", DataPropertyName = "PaymentStatus", Width = 100 });
 
         pnl.Controls.Add(dgvInvoices);
         return pnl;
@@ -279,7 +286,7 @@ public class FrmInvoiceManagement : Form
         int x = SPACING;
         int y = SPACING;
 
-        btnCreate.Text = "Create";
+        btnCreate.Text = "Thêm";
         btnCreate.Location = new Point(x, y);
         btnCreate.Size = new Size(100, 30);
         btnCreate.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -287,7 +294,7 @@ public class FrmInvoiceManagement : Form
         btnCreate.Click += BtnCreate_Click;
         pnl.Controls.Add(btnCreate);
 
-        btnCreateMonthly.Text = "Create All Monthly";
+        btnCreateMonthly.Text = "Tạo hàng loạt theo tháng";
         btnCreateMonthly.Location = new Point(x + 110, y);
         btnCreateMonthly.Size = new Size(130, 30);
         btnCreateMonthly.BackColor = Color.FromArgb(0, 100, 100);
@@ -295,7 +302,7 @@ public class FrmInvoiceManagement : Form
         btnCreateMonthly.Click += BtnCreateMonthly_Click;
         pnl.Controls.Add(btnCreateMonthly);
 
-        btnEdit.Text = "Edit";
+        btnEdit.Text = "Sửa";
         btnEdit.Location = new Point(x + 250, y);
         btnEdit.Size = new Size(100, 30);
         btnEdit.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -303,7 +310,7 @@ public class FrmInvoiceManagement : Form
         btnEdit.Click += BtnEdit_Click;
         pnl.Controls.Add(btnEdit);
 
-        btnRecordPayment.Text = "Record Payment";
+        btnRecordPayment.Text = "Ghi nhận thanh toán";
         btnRecordPayment.Location = new Point(x + 360, y);
         btnRecordPayment.Size = new Size(120, 30);
         btnRecordPayment.BackColor = Color.FromArgb(0, 100, 0);
@@ -311,7 +318,7 @@ public class FrmInvoiceManagement : Form
         btnRecordPayment.Click += BtnRecordPayment_Click;
         pnl.Controls.Add(btnRecordPayment);
 
-        btnDebtSummary.Text = "Debt Summary";
+        btnDebtSummary.Text = "Tổng hợp công nợ";
         btnDebtSummary.Location = new Point(x + 490, y);
         btnDebtSummary.Size = new Size(110, 30);
         btnDebtSummary.BackColor = Color.FromArgb(255, 140, 0);
@@ -319,7 +326,7 @@ public class FrmInvoiceManagement : Form
         btnDebtSummary.Click += BtnDebtSummary_Click;
         pnl.Controls.Add(btnDebtSummary);
 
-        btnDelete.Text = "Delete";
+        btnDelete.Text = "Xóa";
         btnDelete.Location = new Point(x + 610, y);
         btnDelete.Size = new Size(100, 30);
         btnDelete.BackColor = Color.FromArgb(0xC00000);
@@ -327,7 +334,7 @@ public class FrmInvoiceManagement : Form
         btnDelete.Click += BtnDelete_Click;
         pnl.Controls.Add(btnDelete);
 
-        btnClose.Text = "Close";
+        btnClose.Text = "Đóng";
         btnClose.Location = new Point(pnl.ClientSize.Width - 110, y);
         btnClose.Size = new Size(100, 30);
         btnClose.BackColor = Color.Gray;
@@ -348,13 +355,13 @@ public class FrmInvoiceManagement : Form
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        lblStatusBar.Text = "Ready";
+        lblStatusBar.Text = "Sẵn sàng";
         lblStatusBar.Location = new Point(SPACING, SPACING);
         lblStatusBar.Size = new Size(400, 20);
         lblStatusBar.ForeColor = Color.Green;
         pnl.Controls.Add(lblStatusBar);
 
-        lblDebtInfo.Text = "Total Debt: 0 VND | Overdue: 0";
+        lblDebtInfo.Text = "Tổng công nợ: 0 VND | Quá hạn: 0";
         lblDebtInfo.Location = new Point(SPACING, SPACING + 25);
         lblDebtInfo.Size = new Size(600, 20);
         pnl.Controls.Add(lblDebtInfo);
@@ -368,14 +375,14 @@ public class FrmInvoiceManagement : Form
         {
             var invoices = InvoiceDAL.GetAllInvoices();
             dgvInvoices.DataSource = invoices.Cast<dynamic>().ToList();
-            lblStatusBar.Text = $"Loaded {invoices.Count} invoices";
+            lblStatusBar.Text = $"Đã tải {invoices.Count} hóa đơn";
 
             LoadApartments();
             CalculateDebtInfo();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading invoices: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải hóa đơn: {ex.Message}", "Lỗi");
         }
     }
 
@@ -386,12 +393,12 @@ public class FrmInvoiceManagement : Form
             var apartments = ApartmentDAL.GetAllApartments();
             cmbApartment.Items.Clear();
             cmbFilterApartment.Items.Clear();
-            cmbFilterApartment.Items.Add("All");
+            cmbFilterApartment.Items.Add(new UiComboItem("Tất cả", "All"));
 
             foreach (var apt in apartments)
             {
-                cmbApartment.Items.Add(new { Text = apt.ApartmentCode, Value = apt.ApartmentID });
-                cmbFilterApartment.Items.Add(new { Text = apt.ApartmentCode, Value = apt.ApartmentID });
+                cmbApartment.Items.Add(new UiComboItem(apt.ApartmentCode, apt.ApartmentID));
+                cmbFilterApartment.Items.Add(new UiComboItem(apt.ApartmentCode, apt.ApartmentID));
             }
 
             cmbApartment.DisplayMember = "Text";
@@ -402,7 +409,7 @@ public class FrmInvoiceManagement : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading apartments: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải căn hộ: {ex.Message}", "Lỗi");
         }
     }
 
@@ -414,11 +421,11 @@ public class FrmInvoiceManagement : Form
             decimal totalDebt = unpaidInvoices.Sum(i => i.TotalAmount - i.PaidAmount);
             int overdueCount = unpaidInvoices.Count(i => i.DueDate < DateTime.Now);
 
-            lblDebtInfo.Text = $"Total Debt: {totalDebt:N0} VND | Overdue Invoices: {overdueCount}";
+            lblDebtInfo.Text = $"Tổng công nợ: {totalDebt:N0} VND | Hóa đơn quá hạn: {overdueCount}";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error calculating debt: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tính công nợ: {ex.Message}", "Lỗi");
         }
     }
 
@@ -438,11 +445,9 @@ public class FrmInvoiceManagement : Form
                 txtPaidAmount.Text = invoice.PaidAmount.ToString("N0");
                 txtNote.Text = invoice.Note ?? "";
 
-                var aptItem = cmbApartment.Items.Cast<dynamic>().FirstOrDefault(a => a.Value == invoice.ApartmentID);
-                if (aptItem != null)
-                    cmbApartment.SelectedItem = aptItem;
+                cmbApartment.SelectValue(invoice.ApartmentID);
 
-                lblStatusBar.Text = $"Selected: Invoice {invoice.InvoiceID} - {invoice.ApartmentCode}";
+                lblStatusBar.Text = $"Đã chọn: Hóa đơn {invoice.InvoiceID} - {invoice.ApartmentCode}";
             }
         }
     }
@@ -451,13 +456,13 @@ public class FrmInvoiceManagement : Form
     {
         if (cmbApartment.SelectedItem == null)
         {
-            MessageBox.Show("Please select an apartment.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn căn hộ.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         if (decimal.TryParse(txtTotalAmount.Text, out decimal totalAmount) && totalAmount <= 0)
         {
-            MessageBox.Show("Total amount must be greater than 0.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Tổng tiền phải lớn hơn 0.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -477,26 +482,26 @@ public class FrmInvoiceManagement : Form
             if (result.Success)
             {
                 MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
-                                     $"Created invoice for apartment {((dynamic)cmbApartment.SelectedItem).Text}", "FrmInvoiceManagement");
+                AuditLogDAL.LogAction(SessionManager.GetSession().UserID,
+                                     $"Created invoice for apartment {ComboBoxHelper.GetSelectedText(cmbApartment)}", "FrmInvoiceManagement");
                 ClearForm();
                 LoadData();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error creating invoice: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tạo hóa đơn: {ex.Message}", "Lỗi");
         }
     }
 
     private void BtnCreateMonthly_Click(object sender, EventArgs e)
     {
-        if (MessageBox.Show("Create monthly invoices for all apartments?\nThis will create invoices for the specified month if they don't exist.",
-            "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        if (MessageBox.Show("Tạo hóa đơn hàng tháng cho tất cả căn hộ?\nHệ thống sẽ tạo hóa đơn cho tháng đã chọn nếu chưa tồn tại.",
+            "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
 
         try
@@ -517,14 +522,14 @@ public class FrmInvoiceManagement : Form
                 }
             }
 
-            MessageBox.Show($"Created {created} invoices successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show($"Đã tạo thành công {created} hóa đơn.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
             AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                  $"Created {created} monthly invoices for {month}/{year}", "FrmInvoiceManagement");
             LoadData();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error creating monthly invoices: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tạo hóa đơn hàng tháng: {ex.Message}", "Lỗi");
         }
     }
 
@@ -532,13 +537,13 @@ public class FrmInvoiceManagement : Form
     {
         if (_selectedInvoiceID == 0)
         {
-            MessageBox.Show("Please select an invoice.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn hóa đơn.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         if (!decimal.TryParse(txtTotalAmount.Text, out decimal totalAmount) || totalAmount <= 0)
         {
-            MessageBox.Show("Total amount must be a positive number.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Tổng tiền phải là số dương.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -548,7 +553,7 @@ public class FrmInvoiceManagement : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                      $"Updated invoice {_selectedInvoiceID}", "FrmInvoiceManagement");
                 LoadData();
@@ -556,12 +561,12 @@ public class FrmInvoiceManagement : Form
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error updating invoice: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi cập nhật hóa đơn: {ex.Message}", "Lỗi");
         }
     }
 
@@ -569,7 +574,7 @@ public class FrmInvoiceManagement : Form
     {
         if (_selectedInvoiceID == 0)
         {
-            MessageBox.Show("Please select an invoice.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn hóa đơn.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -582,11 +587,11 @@ public class FrmInvoiceManagement : Form
     {
         if (_selectedInvoiceID == 0)
         {
-            MessageBox.Show("Please select an invoice.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn hóa đơn.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        if (MessageBox.Show("Are you sure you want to delete this invoice?", "Confirm",
+        if (MessageBox.Show("Bạn có chắc muốn xóa hóa đơn này không?", "Xác nhận",
             MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
 
@@ -596,7 +601,7 @@ public class FrmInvoiceManagement : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
                                      $"Deleted invoice {_selectedInvoiceID}", "FrmInvoiceManagement");
                 LoadData();
@@ -604,12 +609,12 @@ public class FrmInvoiceManagement : Form
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error deleting invoice: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi xóa hóa đơn: {ex.Message}", "Lỗi");
         }
     }
 
@@ -617,7 +622,7 @@ public class FrmInvoiceManagement : Form
     {
         if (cmbApartment.SelectedItem == null)
         {
-            MessageBox.Show("Please select an apartment.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn căn hộ.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -628,20 +633,20 @@ public class FrmInvoiceManagement : Form
 
             if (summary != null)
             {
-                string message = $"Apartment: {((dynamic)cmbApartment.SelectedItem).Text}\n\n" +
-                               $"Total Invoices: {summary.TotalInvoices}\n" +
-                               $"Total Amount: {summary.TotalAmount:N0} VND\n" +
-                               $"Total Paid: {summary.TotalPaid:N0} VND\n" +
-                               $"Outstanding Debt: {summary.OutstandingDebt:N0} VND\n" +
-                               $"Paid Invoices: {summary.PaidCount}\n" +
-                               $"Unpaid Invoices: {summary.UnpaidCount}";
+                string message = $"Căn hộ: {ComboBoxHelper.GetSelectedText(cmbApartment)}\n\n" +
+                               $"Tổng hóa đơn: {summary.TotalInvoices}\n" +
+                               $"Tổng tiền: {summary.TotalAmount:N0} VND\n" +
+                               $"Đã thanh toán: {summary.TotalPaid:N0} VND\n" +
+                               $"Công nợ: {summary.OutstandingDebt:N0} VND\n" +
+                               $"Hóa đơn đã thanh toán: {summary.PaidCount}\n" +
+                               $"Hóa đơn chưa thanh toán: {summary.UnpaidCount}";
 
-                MessageBox.Show(message, "Debt Summary", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(message, "Tổng hợp công nợ", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error getting debt summary: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi lấy tổng hợp công nợ: {ex.Message}", "Lỗi");
         }
     }
 
@@ -653,7 +658,7 @@ public class FrmInvoiceManagement : Form
             var filtered = allInvoices.AsEnumerable();
 
             if (cmbFilterStatus.SelectedIndex > 0)
-                filtered = filtered.Where(i => i.PaymentStatus == cmbFilterStatus.SelectedItem.ToString());
+                filtered = filtered.Where(i => i.PaymentStatus == ComboBoxHelper.GetSelectedValueString(cmbFilterStatus));
 
             if (cmbFilterApartment.SelectedIndex > 0)
             {
@@ -662,11 +667,11 @@ public class FrmInvoiceManagement : Form
             }
 
             dgvInvoices.DataSource = filtered.ToList();
-            lblStatusBar.Text = $"Found {filtered.Count()} invoices";
+            lblStatusBar.Text = $"Tìm thấy {filtered.Count()} hóa đơn";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error searching: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tìm kiếm: {ex.Message}", "Lỗi");
         }
     }
 

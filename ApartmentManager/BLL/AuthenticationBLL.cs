@@ -22,8 +22,12 @@ public class AuthenticationBLL
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "TÃªn Ä‘Äƒng nháº­p hoáº·c máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng", null);
 
-            // Get user from database
+            // Allow login by username or email to match the UI label
             var user = UserDAL.GetUserByUsername(username);
+            if (user == null && ValidationHelper.IsValidEmail(username))
+            {
+                user = UserDAL.GetUserByEmail(username);
+            }
             if (user == null)
             {
                 Log.Warning("Login failed: user not found - {Username}", username);

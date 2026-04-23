@@ -1,6 +1,7 @@
 using ApartmentManager.BLL;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -9,9 +10,6 @@ using System.Windows.Forms;
 
 namespace ApartmentManager.GUI.Forms;
 
-/// <summary>
-/// Form for managing resident complaints with assignment and resolution tracking
-/// </summary>
 public class FrmComplaintManagement : Form
 {
     private const int PRIMARY_COLOR = 0x215689;
@@ -19,84 +17,77 @@ public class FrmComplaintManagement : Form
     private const int LABEL_WIDTH = 120;
     private const int CONTROL_WIDTH = 200;
 
-    // Filter controls
-    private ComboBox cmbFilterStatus = new ComboBox();
-    private ComboBox cmbFilterPriority = new ComboBox();
-    private Button btnSearch = new Button();
-    private Button btnShowAll = new Button();
+    private readonly UserSession? _session;
 
-    // Complaint details controls
-    private ComboBox cmbResident = new ComboBox();
-    private TextBox txtTitle = new TextBox();
-    private TextBox txtDescription = new TextBox();
-    private ComboBox cmbPriority = new ComboBox();
-    private ComboBox cmbStatus = new ComboBox();
-    private ComboBox cmbAssignedTo = new ComboBox();
-    private TextBox txtResolutionNote = new TextBox();
-    private DateTimePicker dtpReportDate = new DateTimePicker();
-    private DateTimePicker dtpCompletionDate = new DateTimePicker();
+    private readonly ComboBox cmbFilterStatus = new ComboBox();
+    private readonly ComboBox cmbFilterPriority = new ComboBox();
+    private readonly Button btnSearch = new Button();
+    private readonly Button btnShowAll = new Button();
 
-    // Labels
-    private Label lblResident = new Label();
-    private Label lblTitle = new Label();
-    private Label lblDescription = new Label();
-    private Label lblPriority = new Label();
-    private Label lblStatus = new Label();
-    private Label lblAssignedTo = new Label();
-    private Label lblResolutionNote = new Label();
-    private Label lblReportDate = new Label();
-    private Label lblCompletionDate = new Label();
+    private readonly ComboBox cmbResident = new ComboBox();
+    private readonly TextBox txtTitle = new TextBox();
+    private readonly TextBox txtDescription = new TextBox();
+    private readonly ComboBox cmbPriority = new ComboBox();
+    private readonly ComboBox cmbStatus = new ComboBox();
+    private readonly ComboBox cmbAssignedTo = new ComboBox();
+    private readonly TextBox txtResolutionNote = new TextBox();
+    private readonly DateTimePicker dtpReportDate = new DateTimePicker();
+    private readonly DateTimePicker dtpCompletionDate = new DateTimePicker();
 
-    // Grid and buttons
-    private DataGridView dgvComplaints = new DataGridView();
-    private Button btnCreate = new Button();
-    private Button btnEdit = new Button();
-    private Button btnAssign = new Button();
-    private Button btnResolve = new Button();
-    private Button btnDelete = new Button();
-    private Button btnStatistics = new Button();
-    private Button btnClose = new Button();
+    private readonly Label lblResident = new Label();
+    private readonly Label lblTitle = new Label();
+    private readonly Label lblDescription = new Label();
+    private readonly Label lblPriority = new Label();
+    private readonly Label lblStatus = new Label();
+    private readonly Label lblAssignedTo = new Label();
+    private readonly Label lblResolutionNote = new Label();
+    private readonly Label lblReportDate = new Label();
+    private readonly Label lblCompletionDate = new Label();
 
-    // Status
-    private Label lblStatusBar = new Label();
-    private Label lblComplaintInfo = new Label();
+    private readonly DataGridView dgvComplaints = new DataGridView();
+    private readonly Button btnCreate = new Button();
+    private readonly Button btnEdit = new Button();
+    private readonly Button btnAssign = new Button();
+    private readonly Button btnResolve = new Button();
+    private readonly Button btnDelete = new Button();
+    private readonly Button btnStatistics = new Button();
+    private readonly Button btnClose = new Button();
 
-    private int _selectedComplaintID = 0;
+    private readonly Label lblStatusBar = new Label();
+    private readonly Label lblComplaintInfo = new Label();
+
+    private int _selectedComplaintID;
     private List<dynamic> _staffList = new List<dynamic>();
 
     public FrmComplaintManagement()
     {
-        if (SessionManager.GetSession() == null || !SessionManager.HasPermission("ManageComplaints"))
+        _session = SessionManager.GetSession();
+
+        if (_session == null || !SessionManager.HasPermission("ManageComplaints"))
         {
-            MessageBox.Show("You do not have permission to access this form.", "Access Denied",
-                           MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            this.Close();
+            MessageBox.Show("Bạn không có quyền truy cập màn hình này.", "Từ chối truy cập",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Close();
             return;
         }
 
         InitializeComponent();
         LoadData();
-        AuditLogDAL.LogAction(SessionManager.GetSession().UserID, "Opened complaint management form", "FrmComplaintManagement");
+        AuditLogDAL.LogAction(_session.UserID, "Opened complaint management form", "FrmComplaintManagement");
     }
 
     private void InitializeComponent()
     {
-        this.Text = "Complaint Management";
-        this.Size = new Size(1300, 950);
-        this.StartPosition = FormStartPosition.CenterScreen;
-        this.BackColor = Color.White;
+        Text = "Quản lý khiếu nại";
+        Size = new Size(1300, 950);
+        StartPosition = FormStartPosition.CenterScreen;
+        BackColor = Color.White;
 
-        var pnlFilter = CreateFilterPanel();
-        var pnlDetails = CreateDetailsPanel();
-        var pnlGrid = CreateGridPanel();
-        var pnlButtons = CreateButtonPanel();
-        var pnlStatus = CreateStatusPanel();
-
-        this.Controls.Add(pnlFilter);
-        this.Controls.Add(pnlDetails);
-        this.Controls.Add(pnlGrid);
-        this.Controls.Add(pnlButtons);
-        this.Controls.Add(pnlStatus);
+        Controls.Add(CreateFilterPanel());
+        Controls.Add(CreateDetailsPanel());
+        Controls.Add(CreateGridPanel());
+        Controls.Add(CreateButtonPanel());
+        Controls.Add(CreateStatusPanel());
     }
 
     private Panel CreateFilterPanel()
@@ -104,30 +95,45 @@ public class FrmComplaintManagement : Form
         var pnl = new Panel
         {
             Location = new Point(SPACING, SPACING),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 50),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 50),
             BackColor = Color.FromArgb(240, 240, 240),
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        var lblStatus = new Label { Text = "Status:", Location = new Point(SPACING, SPACING), Size = new Size(60, 20) };
-        pnl.Controls.Add(lblStatus);
+        pnl.Controls.Add(new Label { Text = "Trạng thái:", Location = new Point(SPACING, SPACING), Size = new Size(70, 20) });
 
         cmbFilterStatus.Location = new Point(SPACING + 70, SPACING);
         cmbFilterStatus.Size = new Size(120, 25);
-        cmbFilterStatus.Items.AddRange(new string[] { "All", "New", "Assigned", "In-Progress", "Resolved", "Closed" });
+        cmbFilterStatus.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbFilterStatus.Items.AddRange(new object[]
+        {
+            new UiComboItem("Tất cả", "All"),
+            new UiComboItem("Mới", "New"),
+            new UiComboItem("Đã phân công", "Assigned"),
+            new UiComboItem("Đang xử lý", "In-Progress"),
+            new UiComboItem("Đã giải quyết", "Resolved"),
+            new UiComboItem("Đã đóng", "Closed")
+        });
         cmbFilterStatus.SelectedIndex = 0;
         pnl.Controls.Add(cmbFilterStatus);
 
-        var lblPriority = new Label { Text = "Priority:", Location = new Point(SPACING + 200, SPACING), Size = new Size(70, 20) };
-        pnl.Controls.Add(lblPriority);
+        pnl.Controls.Add(new Label { Text = "Ưu tiên:", Location = new Point(SPACING + 200, SPACING), Size = new Size(60, 20) });
 
         cmbFilterPriority.Location = new Point(SPACING + 280, SPACING);
         cmbFilterPriority.Size = new Size(120, 25);
-        cmbFilterPriority.Items.AddRange(new string[] { "All", "Low", "Medium", "High", "Critical" });
+        cmbFilterPriority.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbFilterPriority.Items.AddRange(new object[]
+        {
+            new UiComboItem("Tất cả", "All"),
+            new UiComboItem("Thấp", "Low"),
+            new UiComboItem("Trung bình", "Medium"),
+            new UiComboItem("Cao", "High"),
+            new UiComboItem("Khẩn cấp", "Critical")
+        });
         cmbFilterPriority.SelectedIndex = 0;
         pnl.Controls.Add(cmbFilterPriority);
 
-        btnSearch.Text = "Search";
+        btnSearch.Text = "Tìm kiếm";
         btnSearch.Location = new Point(SPACING + 410, SPACING);
         btnSearch.Size = new Size(80, 30);
         btnSearch.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -135,9 +141,9 @@ public class FrmComplaintManagement : Form
         btnSearch.Click += BtnSearch_Click;
         pnl.Controls.Add(btnSearch);
 
-        btnShowAll.Text = "Show All";
+        btnShowAll.Text = "Hiển thị tất cả";
         btnShowAll.Location = new Point(SPACING + 500, SPACING);
-        btnShowAll.Size = new Size(80, 30);
+        btnShowAll.Size = new Size(100, 30);
         btnShowAll.BackColor = Color.Gray;
         btnShowAll.ForeColor = Color.White;
         btnShowAll.Click += (s, e) => LoadData();
@@ -151,7 +157,7 @@ public class FrmComplaintManagement : Form
         var pnl = new Panel
         {
             Location = new Point(SPACING, 70),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 200),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 220),
             BackColor = Color.FromArgb(240, 240, 240),
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -159,8 +165,7 @@ public class FrmComplaintManagement : Form
         int y = SPACING;
         int x = SPACING;
 
-        // Row 1
-        lblResident.Text = "Resident:";
+        lblResident.Text = "Cư dân:";
         lblResident.Location = new Point(x, y);
         lblResident.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblResident);
@@ -170,19 +175,24 @@ public class FrmComplaintManagement : Form
         cmbResident.DropDownStyle = ComboBoxStyle.DropDownList;
         pnl.Controls.Add(cmbResident);
 
-        lblPriority.Text = "Priority:";
+        lblPriority.Text = "Ưu tiên:";
         lblPriority.Location = new Point(x + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 3, y);
         lblPriority.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblPriority);
 
         cmbPriority.Location = new Point(x + LABEL_WIDTH * 2 + CONTROL_WIDTH + SPACING * 4, y);
         cmbPriority.Size = new Size(CONTROL_WIDTH, 25);
-        cmbPriority.Items.AddRange(new string[] { "Low", "Medium", "High", "Critical" });
         cmbPriority.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbPriority.Items.AddRange(new object[]
+        {
+            new UiComboItem("Thấp", "Low"),
+            new UiComboItem("Trung bình", "Medium"),
+            new UiComboItem("Cao", "High"),
+            new UiComboItem("Khẩn cấp", "Critical")
+        });
         pnl.Controls.Add(cmbPriority);
 
-        // Row 2
-        lblTitle.Text = "Title:";
+        lblTitle.Text = "Tiêu đề:";
         lblTitle.Location = new Point(x, y + 35);
         lblTitle.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblTitle);
@@ -191,8 +201,7 @@ public class FrmComplaintManagement : Form
         txtTitle.Size = new Size(CONTROL_WIDTH * 2 + SPACING + 80, 25);
         pnl.Controls.Add(txtTitle);
 
-        // Row 3
-        lblDescription.Text = "Description:";
+        lblDescription.Text = "Mô tả:";
         lblDescription.Location = new Point(x, y + 70);
         lblDescription.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblDescription);
@@ -202,19 +211,25 @@ public class FrmComplaintManagement : Form
         txtDescription.Multiline = true;
         pnl.Controls.Add(txtDescription);
 
-        // Row 4 - Right side
-        lblStatus.Text = "Status:";
+        lblStatus.Text = "Trạng thái:";
         lblStatus.Location = new Point(x + LABEL_WIDTH * 3 + CONTROL_WIDTH * 2 + SPACING * 5, y + 35);
         lblStatus.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblStatus);
 
         cmbStatus.Location = new Point(x + LABEL_WIDTH * 4 + CONTROL_WIDTH * 2 + SPACING * 6, y + 35);
         cmbStatus.Size = new Size(CONTROL_WIDTH, 25);
-        cmbStatus.Items.AddRange(new string[] { "New", "Assigned", "In-Progress", "Resolved", "Closed" });
         cmbStatus.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbStatus.Items.AddRange(new object[]
+        {
+            new UiComboItem("Mới", "New"),
+            new UiComboItem("Đã phân công", "Assigned"),
+            new UiComboItem("Đang xử lý", "In-Progress"),
+            new UiComboItem("Đã giải quyết", "Resolved"),
+            new UiComboItem("Đã đóng", "Closed")
+        });
         pnl.Controls.Add(cmbStatus);
 
-        lblAssignedTo.Text = "Assigned To:";
+        lblAssignedTo.Text = "Người xử lý:";
         lblAssignedTo.Location = new Point(x + LABEL_WIDTH * 3 + CONTROL_WIDTH * 2 + SPACING * 5, y + 70);
         lblAssignedTo.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblAssignedTo);
@@ -224,6 +239,36 @@ public class FrmComplaintManagement : Form
         cmbAssignedTo.DropDownStyle = ComboBoxStyle.DropDownList;
         pnl.Controls.Add(cmbAssignedTo);
 
+        lblReportDate.Text = "Ngày báo cáo:";
+        lblReportDate.Location = new Point(x + LABEL_WIDTH * 3 + CONTROL_WIDTH * 2 + SPACING * 5, y + 105);
+        lblReportDate.Size = new Size(LABEL_WIDTH, 20);
+        pnl.Controls.Add(lblReportDate);
+
+        dtpReportDate.Location = new Point(x + LABEL_WIDTH * 4 + CONTROL_WIDTH * 2 + SPACING * 6, y + 105);
+        dtpReportDate.Size = new Size(CONTROL_WIDTH, 25);
+        dtpReportDate.Format = DateTimePickerFormat.Short;
+        pnl.Controls.Add(dtpReportDate);
+
+        lblCompletionDate.Text = "Ngày hoàn thành:";
+        lblCompletionDate.Location = new Point(x + LABEL_WIDTH * 3 + CONTROL_WIDTH * 2 + SPACING * 5, y + 140);
+        lblCompletionDate.Size = new Size(LABEL_WIDTH, 20);
+        pnl.Controls.Add(lblCompletionDate);
+
+        dtpCompletionDate.Location = new Point(x + LABEL_WIDTH * 4 + CONTROL_WIDTH * 2 + SPACING * 6, y + 140);
+        dtpCompletionDate.Size = new Size(CONTROL_WIDTH, 25);
+        dtpCompletionDate.Format = DateTimePickerFormat.Short;
+        pnl.Controls.Add(dtpCompletionDate);
+
+        lblResolutionNote.Text = "Ghi chú xử lý:";
+        lblResolutionNote.Location = new Point(x, y + 140);
+        lblResolutionNote.Size = new Size(LABEL_WIDTH, 20);
+        pnl.Controls.Add(lblResolutionNote);
+
+        txtResolutionNote.Location = new Point(x + LABEL_WIDTH + SPACING, y + 140);
+        txtResolutionNote.Size = new Size(CONTROL_WIDTH * 2 + SPACING + 80, 50);
+        txtResolutionNote.Multiline = true;
+        pnl.Controls.Add(txtResolutionNote);
+
         return pnl;
     }
 
@@ -231,8 +276,8 @@ public class FrmComplaintManagement : Form
     {
         var pnl = new Panel
         {
-            Location = new Point(SPACING, 280),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 340),
+            Location = new Point(SPACING, 300),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 340),
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -249,13 +294,13 @@ public class FrmComplaintManagement : Form
         dgvComplaints.CellClick += DgvComplaints_CellClick;
 
         dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ID", DataPropertyName = "ComplaintID", Width = 50, Visible = false });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Title", DataPropertyName = "Title", Width = 180 });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Resident", DataPropertyName = "ResidentName", Width = 120 });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Priority", DataPropertyName = "Priority", Width = 80 });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Status", DataPropertyName = "Status", Width = 100 });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Assigned To", DataPropertyName = "AssignedToName", Width = 120 });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Report Date", DataPropertyName = "ReportDate", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
-        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Completion", DataPropertyName = "CompletionDate", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Tiêu đề", DataPropertyName = "Title", Width = 180 });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Cư dân", DataPropertyName = "ResidentName", Width = 120 });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ưu tiên", DataPropertyName = "Priority", Width = 80 });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Trạng thái", DataPropertyName = "Status", Width = 100 });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Người xử lý", DataPropertyName = "AssignedToName", Width = 120 });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ngày báo cáo", DataPropertyName = "ReportDate", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
+        dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Hoàn thành", DataPropertyName = "CompletionDate", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
 
         pnl.Controls.Add(dgvComplaints);
         return pnl;
@@ -265,8 +310,8 @@ public class FrmComplaintManagement : Form
     {
         var pnl = new Panel
         {
-            Location = new Point(SPACING, 630),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 50),
+            Location = new Point(SPACING, 650),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 50),
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -274,7 +319,7 @@ public class FrmComplaintManagement : Form
         int x = SPACING;
         int y = SPACING;
 
-        btnCreate.Text = "Create";
+        btnCreate.Text = "Thêm";
         btnCreate.Location = new Point(x, y);
         btnCreate.Size = new Size(100, 30);
         btnCreate.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -282,7 +327,7 @@ public class FrmComplaintManagement : Form
         btnCreate.Click += BtnCreate_Click;
         pnl.Controls.Add(btnCreate);
 
-        btnEdit.Text = "Edit";
+        btnEdit.Text = "Sửa";
         btnEdit.Location = new Point(x + 110, y);
         btnEdit.Size = new Size(100, 30);
         btnEdit.BackColor = Color.FromArgb(PRIMARY_COLOR);
@@ -290,7 +335,7 @@ public class FrmComplaintManagement : Form
         btnEdit.Click += BtnEdit_Click;
         pnl.Controls.Add(btnEdit);
 
-        btnAssign.Text = "Assign";
+        btnAssign.Text = "Phân công";
         btnAssign.Location = new Point(x + 220, y);
         btnAssign.Size = new Size(100, 30);
         btnAssign.BackColor = Color.FromArgb(0, 100, 100);
@@ -298,7 +343,7 @@ public class FrmComplaintManagement : Form
         btnAssign.Click += BtnAssign_Click;
         pnl.Controls.Add(btnAssign);
 
-        btnResolve.Text = "Resolve";
+        btnResolve.Text = "Giải quyết";
         btnResolve.Location = new Point(x + 330, y);
         btnResolve.Size = new Size(100, 30);
         btnResolve.BackColor = Color.FromArgb(0, 100, 0);
@@ -306,7 +351,7 @@ public class FrmComplaintManagement : Form
         btnResolve.Click += BtnResolve_Click;
         pnl.Controls.Add(btnResolve);
 
-        btnDelete.Text = "Delete";
+        btnDelete.Text = "Xóa";
         btnDelete.Location = new Point(x + 440, y);
         btnDelete.Size = new Size(100, 30);
         btnDelete.BackColor = Color.FromArgb(0xC00000);
@@ -314,7 +359,7 @@ public class FrmComplaintManagement : Form
         btnDelete.Click += BtnDelete_Click;
         pnl.Controls.Add(btnDelete);
 
-        btnStatistics.Text = "Statistics";
+        btnStatistics.Text = "Thống kê";
         btnStatistics.Location = new Point(x + 550, y);
         btnStatistics.Size = new Size(100, 30);
         btnStatistics.BackColor = Color.FromArgb(255, 140, 0);
@@ -322,12 +367,12 @@ public class FrmComplaintManagement : Form
         btnStatistics.Click += BtnStatistics_Click;
         pnl.Controls.Add(btnStatistics);
 
-        btnClose.Text = "Close";
+        btnClose.Text = "Đóng";
         btnClose.Location = new Point(pnl.ClientSize.Width - 110, y);
         btnClose.Size = new Size(100, 30);
         btnClose.BackColor = Color.Gray;
         btnClose.ForeColor = Color.White;
-        btnClose.Click += (s, e) => this.Close();
+        btnClose.Click += (s, e) => Close();
         pnl.Controls.Add(btnClose);
 
         return pnl;
@@ -337,19 +382,19 @@ public class FrmComplaintManagement : Form
     {
         var pnl = new Panel
         {
-            Location = new Point(SPACING, 690),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 70),
+            Location = new Point(SPACING, 710),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 70),
             BackColor = Color.FromArgb(240, 240, 240),
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        lblStatusBar.Text = "Ready";
+        lblStatusBar.Text = "Sẵn sàng";
         lblStatusBar.Location = new Point(SPACING, SPACING);
         lblStatusBar.Size = new Size(400, 20);
         lblStatusBar.ForeColor = Color.Green;
         pnl.Controls.Add(lblStatusBar);
 
-        lblComplaintInfo.Text = "Total Complaints: 0 | Pending: 0 | Critical: 0";
+        lblComplaintInfo.Text = "Tổng khiếu nại: 0 | Đang xử lý: 0 | Khẩn cấp: 0";
         lblComplaintInfo.Location = new Point(SPACING, SPACING + 25);
         lblComplaintInfo.Size = new Size(600, 20);
         pnl.Controls.Add(lblComplaintInfo);
@@ -363,15 +408,14 @@ public class FrmComplaintManagement : Form
         {
             var complaints = ComplaintDAL.GetAllComplaints();
             dgvComplaints.DataSource = complaints.Cast<dynamic>().ToList();
-            lblStatusBar.Text = $"Loaded {complaints.Count} complaints";
-
+            lblStatusBar.Text = $"Đã tải {complaints.Count} khiếu nại";
             LoadResidents();
             LoadStaff();
             CalculateComplaintInfo();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading complaints: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -384,7 +428,7 @@ public class FrmComplaintManagement : Form
 
             foreach (var res in residents)
             {
-                cmbResident.Items.Add(new { Text = res.FullName, Value = res.ResidentID });
+                cmbResident.Items.Add(new UiComboItem(res.FullName, res.ResidentID));
             }
 
             cmbResident.DisplayMember = "Text";
@@ -392,7 +436,7 @@ public class FrmComplaintManagement : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading residents: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải cư dân: {ex.Message}", "Lỗi");
         }
     }
 
@@ -403,11 +447,11 @@ public class FrmComplaintManagement : Form
             var users = UserDAL.GetAllUsers();
             _staffList = users.Where(u => u.IsActive).Cast<dynamic>().ToList();
             cmbAssignedTo.Items.Clear();
-            cmbAssignedTo.Items.Add(new { Text = "Unassigned", Value = 0 });
+            cmbAssignedTo.Items.Add(new UiComboItem("Chưa phân công", 0));
 
             foreach (var user in _staffList)
             {
-                cmbAssignedTo.Items.Add(new { Text = user.FullName, Value = user.UserID });
+                cmbAssignedTo.Items.Add(new UiComboItem(user.FullName, user.UserID));
             }
 
             cmbAssignedTo.DisplayMember = "Text";
@@ -416,7 +460,7 @@ public class FrmComplaintManagement : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading staff: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải nhân sự: {ex.Message}", "Lỗi");
         }
     }
 
@@ -427,44 +471,42 @@ public class FrmComplaintManagement : Form
             var complaints = ComplaintDAL.GetAllComplaints();
             int pending = complaints.Count(c => c.Status != "Resolved" && c.Status != "Closed");
             int critical = complaints.Count(c => c.Priority == "Critical");
-
-            lblComplaintInfo.Text = $"Total Complaints: {complaints.Count} | Pending: {pending} | Critical: {critical}";
+            lblComplaintInfo.Text = $"Tổng khiếu nại: {complaints.Count} | Đang xử lý: {pending} | Khẩn cấp: {critical}";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error calculating complaint info: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tính thống kê khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
     private void DgvComplaints_CellClick(object sender, DataGridViewCellEventArgs e)
     {
-        if (e.RowIndex >= 0)
+        if (e.RowIndex < 0) return;
+
+        try
         {
             _selectedComplaintID = (int)dgvComplaints[0, e.RowIndex].Value;
             var complaint = ComplaintDAL.GetComplaintByID(_selectedComplaintID);
+            if (complaint == null) return;
 
-            if (complaint != null)
+            txtTitle.Text = complaint.Title;
+            txtDescription.Text = complaint.Description;
+            ComboBoxHelper.SelectValue(cmbPriority, complaint.Priority);
+            ComboBoxHelper.SelectValue(cmbStatus, complaint.Status);
+            txtResolutionNote.Text = complaint.ResolutionNote ?? string.Empty;
+            dtpReportDate.Value = complaint.ReportDate;
+            if (complaint.CompletionDate.HasValue)
             {
-                txtTitle.Text = complaint.Title;
-                txtDescription.Text = complaint.Description;
-                cmbPriority.SelectedItem = complaint.Priority;
-                cmbStatus.SelectedItem = complaint.Status;
-                txtResolutionNote.Text = complaint.ResolutionNote ?? "";
-                dtpReportDate.Value = complaint.ReportDate;
-
-                if (complaint.CompletionDate.HasValue)
-                    dtpCompletionDate.Value = complaint.CompletionDate.Value;
-
-                var resItem = cmbResident.Items.Cast<dynamic>().FirstOrDefault(r => r.Value == complaint.ResidentID);
-                if (resItem != null)
-                    cmbResident.SelectedItem = resItem;
-
-                var assignedItem = cmbAssignedTo.Items.Cast<dynamic>().FirstOrDefault(a => a.Value == (complaint.AssignedToUserID ?? 0));
-                if (assignedItem != null)
-                    cmbAssignedTo.SelectedItem = assignedItem;
-
-                lblStatusBar.Text = $"Selected: {complaint.Title} - {complaint.Status}";
+                dtpCompletionDate.Value = complaint.CompletionDate.Value;
             }
+
+            ComboBoxHelper.SelectValue(cmbResident, complaint.ResidentID);
+            ComboBoxHelper.SelectValue(cmbAssignedTo, complaint.AssignedToUserID ?? 0);
+            lblStatusBar.Text = $"Đã chọn: {complaint.Title} - {complaint.Status}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi khi tải chi tiết khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -472,37 +514,34 @@ public class FrmComplaintManagement : Form
     {
         if (cmbResident.SelectedItem == null)
         {
-            MessageBox.Show("Please select a resident.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn cư dân.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         try
         {
-            int residentID = (int)((dynamic)cmbResident.SelectedItem).Value;
-
+            int residentID = ComboBoxHelper.GetSelectedValueInt(cmbResident);
             var result = ComplaintBLL.CreateComplaint(
                 residentID,
                 txtTitle.Text,
                 txtDescription.Text,
-                cmbPriority.SelectedItem?.ToString() ?? "Medium"
-            );
+                ComboBoxHelper.GetSelectedValueString(cmbPriority));
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
-                                     $"Created complaint: {txtTitle.Text}", "FrmComplaintManagement");
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AuditLogDAL.LogAction(_session!.UserID, $"Created complaint: {txtTitle.Text}", "FrmComplaintManagement");
                 ClearForm();
                 LoadData();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error creating complaint: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tạo khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -510,7 +549,7 @@ public class FrmComplaintManagement : Form
     {
         if (_selectedComplaintID == 0)
         {
-            MessageBox.Show("Please select a complaint.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn khiếu nại.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -520,25 +559,23 @@ public class FrmComplaintManagement : Form
                 _selectedComplaintID,
                 txtTitle.Text,
                 txtDescription.Text,
-                cmbPriority.SelectedItem?.ToString() ?? "Medium"
-            );
+                ComboBoxHelper.GetSelectedValueString(cmbPriority));
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
-                                     $"Updated complaint {_selectedComplaintID}", "FrmComplaintManagement");
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AuditLogDAL.LogAction(_session!.UserID, $"Updated complaint {_selectedComplaintID}", "FrmComplaintManagement");
                 LoadData();
                 ClearForm();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error updating complaint: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi cập nhật khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -546,31 +583,29 @@ public class FrmComplaintManagement : Form
     {
         if (_selectedComplaintID == 0)
         {
-            MessageBox.Show("Please select a complaint.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn khiếu nại.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         try
         {
-            int staffID = (int)((dynamic)cmbAssignedTo.SelectedItem).Value;
-            
+            int staffID = ComboBoxHelper.GetSelectedValueInt(cmbAssignedTo);
             var result = ComplaintBLL.AssignComplaint(_selectedComplaintID, staffID > 0 ? staffID : null);
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
-                                     $"Assigned complaint {_selectedComplaintID}", "FrmComplaintManagement");
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AuditLogDAL.LogAction(_session!.UserID, $"Assigned complaint {_selectedComplaintID}", "FrmComplaintManagement");
                 LoadData();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error assigning complaint: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi phân công khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -578,7 +613,7 @@ public class FrmComplaintManagement : Form
     {
         if (_selectedComplaintID == 0)
         {
-            MessageBox.Show("Please select a complaint.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn khiếu nại.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -588,20 +623,19 @@ public class FrmComplaintManagement : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
-                                     $"Resolved complaint {_selectedComplaintID}", "FrmComplaintManagement");
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AuditLogDAL.LogAction(_session!.UserID, $"Resolved complaint {_selectedComplaintID}", "FrmComplaintManagement");
                 LoadData();
                 ClearForm();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error resolving complaint: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi giải quyết khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -609,13 +643,15 @@ public class FrmComplaintManagement : Form
     {
         if (_selectedComplaintID == 0)
         {
-            MessageBox.Show("Please select a complaint.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng chọn khiếu nại.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        if (MessageBox.Show("Are you sure you want to delete this complaint?", "Confirm",
-            MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        if (MessageBox.Show("Bạn có chắc muốn xóa khiếu nại này không?", "Xác nhận",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        {
             return;
+        }
 
         try
         {
@@ -623,20 +659,19 @@ public class FrmComplaintManagement : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
-                                     $"Deleted complaint {_selectedComplaintID}", "FrmComplaintManagement");
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AuditLogDAL.LogAction(_session!.UserID, $"Deleted complaint {_selectedComplaintID}", "FrmComplaintManagement");
                 LoadData();
                 ClearForm();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error deleting complaint: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi xóa khiếu nại: {ex.Message}", "Lỗi");
         }
     }
 
@@ -644,21 +679,24 @@ public class FrmComplaintManagement : Form
     {
         try
         {
-            var allComplaints = ComplaintDAL.GetAllComplaints();
-            var filtered = allComplaints.AsEnumerable();
+            var filtered = ComplaintDAL.GetAllComplaints().AsEnumerable();
 
             if (cmbFilterStatus.SelectedIndex > 0)
-                filtered = filtered.Where(c => c.Status == cmbFilterStatus.SelectedItem.ToString());
+            {
+                filtered = filtered.Where(c => c.Status == ComboBoxHelper.GetSelectedValueString(cmbFilterStatus));
+            }
 
             if (cmbFilterPriority.SelectedIndex > 0)
-                filtered = filtered.Where(c => c.Priority == cmbFilterPriority.SelectedItem.ToString());
+            {
+                filtered = filtered.Where(c => c.Priority == ComboBoxHelper.GetSelectedValueString(cmbFilterPriority));
+            }
 
             dgvComplaints.DataSource = filtered.ToList();
-            lblStatusBar.Text = $"Found {filtered.Count()} complaints";
+            lblStatusBar.Text = $"Tìm thấy {filtered.Count()} khiếu nại";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error searching: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tìm kiếm: {ex.Message}", "Lỗi");
         }
     }
 
@@ -669,22 +707,22 @@ public class FrmComplaintManagement : Form
             var stats = ComplaintBLL.GetComplaintStatistics();
             if (stats != null)
             {
-                string message = $"Total Complaints: {stats.TotalComplaints}\n\n" +
-                               $"By Priority:\n" +
-                               $"  Low: {stats.LowPriority}\n" +
-                               $"  Medium: {stats.MediumPriority}\n" +
-                               $"  High: {stats.HighPriority}\n" +
-                               $"  Critical: {stats.CriticalPriority}\n\n" +
-                               $"By Status:\n" +
-                               $"  Resolved: {stats.ResolvedCount}\n" +
-                               $"  Pending: {stats.PendingCount}";
+                string message = $"Tổng khiếu nại: {stats.TotalComplaints}\n\n" +
+                                 $"Theo mức độ ưu tiên:\n" +
+                                 $"  Thấp: {stats.LowPriority}\n" +
+                                 $"  Trung bình: {stats.MediumPriority}\n" +
+                                 $"  Cao: {stats.HighPriority}\n" +
+                                 $"  Khẩn cấp: {stats.CriticalPriority}\n\n" +
+                                 $"Theo trạng thái:\n" +
+                                 $"  Đã giải quyết: {stats.ResolvedCount}\n" +
+                                 $"  Đang xử lý: {stats.PendingCount}";
 
-                MessageBox.Show(message, "Complaint Statistics", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(message, "Thống kê khiếu nại", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error getting statistics: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi lấy thống kê: {ex.Message}", "Lỗi");
         }
     }
 

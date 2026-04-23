@@ -412,6 +412,7 @@ public class UserDAL
         {
             UserID = reader.GetInt32(0),
             Username = reader.GetString(1),
+            PasswordHash = reader.IsDBNull(2) ? null : reader.GetString(2),
             FullName = reader.GetString(3),
             Email = reader.GetString(4),
             Phone = reader.GetString(5),

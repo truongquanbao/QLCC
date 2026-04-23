@@ -20,7 +20,8 @@ public class NotificationDAL
         try
         {
             const string query = @"
-                SELECT NotificationID, UserID, Title, Message, NotificationType, IsRead, ReadAt, CreatedAt
+                SELECT NotificationID, UserID, ResidentID, Title, Subject, Message, Body,
+                       NotificationType, Priority, IsRead, ReadAt, Status, SentDate, CreatedAt, UpdatedAt
                 FROM Notifications
                 WHERE NotificationID = @NotificationID
             ";
@@ -59,7 +60,8 @@ public class NotificationDAL
         try
         {
             const string query = @"
-                SELECT NotificationID, UserID, Title, Message, NotificationType, IsRead, ReadAt, CreatedAt
+                SELECT NotificationID, UserID, ResidentID, Title, Subject, Message, Body,
+                       NotificationType, Priority, IsRead, ReadAt, Status, SentDate, CreatedAt, UpdatedAt
                 FROM Notifications
                 WHERE UserID = @UserID
                 ORDER BY CreatedAt DESC
@@ -98,7 +100,8 @@ public class NotificationDAL
         try
         {
             const string query = @"
-                SELECT NotificationID, UserID, Title, Message, NotificationType, IsRead, ReadAt, CreatedAt
+                SELECT NotificationID, UserID, ResidentID, Title, Subject, Message, Body,
+                       NotificationType, Priority, IsRead, ReadAt, Status, SentDate, CreatedAt, UpdatedAt
                 FROM Notifications
                 WHERE UserID = @UserID AND IsRead = 0
                 ORDER BY CreatedAt DESC
@@ -160,9 +163,20 @@ public class NotificationDAL
     {
         try
         {
+            var resident = ResidentDAL.GetResidentByID(userID);
+            int? residentID = resident?.ResidentID;
+            int? actualUserID = resident?.UserID;
+
+            if (resident == null)
+            {
+                actualUserID = userID;
+            }
+
             const string query = @"
-                INSERT INTO Notifications (UserID, Title, Message, NotificationType, IsRead, Status)
-                VALUES (@UserID, @Title, @Message, @NotificationType, 0, @Status);
+                INSERT INTO Notifications (UserID, ResidentID, Title, Subject, Message, Body,
+                                           NotificationType, Priority, IsRead, Status, SentDate)
+                VALUES (@UserID, @ResidentID, @Title, @Subject, @Message, @Body,
+                        @NotificationType, @Priority, 0, @Status, @SentDate);
                 SELECT SCOPE_IDENTITY();
             ";
 
@@ -170,17 +184,22 @@ public class NotificationDAL
             {
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@UserID", userID);
+                    command.Parameters.AddWithValue("@UserID", actualUserID ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@ResidentID", residentID ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@Title", title);
+                    command.Parameters.AddWithValue("@Subject", title);
                     command.Parameters.AddWithValue("@Message", message);
+                    command.Parameters.AddWithValue("@Body", message);
                     command.Parameters.AddWithValue("@NotificationType", notificationType);
+                    command.Parameters.AddWithValue("@Priority", "Medium");
                     command.Parameters.AddWithValue("@Status", status ?? "Draft");
+                    command.Parameters.AddWithValue("@SentDate", status == "Sent" ? (object)DateTime.Now : DBNull.Value);
 
                     connection.Open();
                     var result = command.ExecuteScalar();
                     var notificationID = Convert.ToInt32(result);
 
-                    Log.Information("Notification created: {Title} for user {UserID} (ID: {NotificationID})", title, userID, notificationID);
+                    Log.Information("Notification created: {Title} for recipient {UserID} (ID: {NotificationID})", title, userID, notificationID);
                     return notificationID;
                 }
             }
@@ -202,8 +221,10 @@ public class NotificationDAL
         try
         {
             const string query = @"
-                INSERT INTO Notifications (UserID, Title, Message, NotificationType, IsRead)
-                VALUES (@UserID, @Title, @Message, @NotificationType, 0)
+                INSERT INTO Notifications (UserID, ResidentID, Title, Subject, Message, Body,
+                                           NotificationType, Priority, IsRead, Status, SentDate)
+                VALUES (@UserID, NULL, @Title, @Subject, @Message, @Body,
+                        @NotificationType, @Priority, 0, 'Sent', GETDATE())
             ";
 
             using (var connection = DatabaseHelper.CreateConnection())
@@ -217,8 +238,11 @@ public class NotificationDAL
                         command.Parameters.Clear();
                         command.Parameters.AddWithValue("@UserID", userID);
                         command.Parameters.AddWithValue("@Title", title);
+                        command.Parameters.AddWithValue("@Subject", title);
                         command.Parameters.AddWithValue("@Message", message);
+                        command.Parameters.AddWithValue("@Body", message);
                         command.Parameters.AddWithValue("@NotificationType", notificationType);
+                        command.Parameters.AddWithValue("@Priority", "Medium");
 
                         command.ExecuteNonQuery();
                         count++;
@@ -368,7 +392,8 @@ public class NotificationDAL
         try
         {
             const string query = @"
-                SELECT NotificationID, UserID, Title, Message, NotificationType, IsRead, ReadAt, CreatedAt
+                SELECT NotificationID, UserID, ResidentID, Title, Subject, Message, Body,
+                       NotificationType, Priority, IsRead, ReadAt, Status, SentDate, CreatedAt, UpdatedAt
                 FROM Notifications
                 ORDER BY CreatedAt DESC
             ";
@@ -406,7 +431,7 @@ public class NotificationDAL
         {
             const string query = @"
                 UPDATE Notifications 
-                SET IsRead = @IsRead, Status = @Status, SentDate = ISNULL(@SentDate, SentDate)
+                SET IsRead = @IsRead, Status = @Status, SentDate = ISNULL(@SentDate, SentDate), UpdatedAt = GETDATE()
                 WHERE NotificationID = @NotificationID
             ";
 
@@ -446,12 +471,21 @@ public class NotificationDAL
         {
             NotificationID = reader.GetInt32(0),
             UserID = reader.GetInt32(1),
-            Title = reader.GetString(2),
-            Message = reader.GetString(3),
-            NotificationType = reader.GetString(4),
-            IsRead = reader.GetBoolean(5),
-            ReadAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-            CreatedAt = reader.GetDateTime(7)
+            ResidentID = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+            Title = reader.GetString(3),
+            Subject = reader.IsDBNull(4) ? null : reader.GetString(4),
+            Description = reader.IsDBNull(5) ? null : reader.GetString(5),
+            Message = reader.GetString(5),
+            Body = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Type = reader.GetString(7),
+            NotificationType = reader.GetString(7),
+            Priority = reader.GetString(8),
+            IsRead = reader.GetBoolean(9),
+            ReadAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+            Status = reader.GetString(11),
+            SentDate = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+            CreatedAt = reader.GetDateTime(13),
+            UpdatedAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14)
         };
     }
 }

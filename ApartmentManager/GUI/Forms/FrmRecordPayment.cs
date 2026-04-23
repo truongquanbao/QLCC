@@ -2,14 +2,11 @@ using ApartmentManager.BLL;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
 using System;
-using System.Windows.Forms;
 using System.Drawing;
+using System.Windows.Forms;
 
 namespace ApartmentManager.GUI.Forms;
 
-/// <summary>
-/// Dialog form for recording invoice payments
-/// </summary>
 public class FrmRecordPayment : Form
 {
     private const int PRIMARY_COLOR = 0x215689;
@@ -17,20 +14,20 @@ public class FrmRecordPayment : Form
     private const int LABEL_WIDTH = 120;
     private const int CONTROL_WIDTH = 200;
 
-    private Label lblInvoiceInfo = new Label();
-    private Label lblTotalAmount = new Label();
-    private Label lblPaidSoFar = new Label();
-    private Label lblRemaining = new Label();
+    private readonly Label lblInvoiceInfo = new Label();
+    private readonly Label lblTotalAmount = new Label();
+    private readonly Label lblPaidSoFar = new Label();
+    private readonly Label lblRemaining = new Label();
 
-    private Label lblAmount = new Label();
-    private TextBox txtAmount = new TextBox();
-    private Label lblNote = new Label();
-    private TextBox txtNote = new TextBox();
+    private readonly Label lblAmount = new Label();
+    private readonly TextBox txtAmount = new TextBox();
+    private readonly Label lblNote = new Label();
+    private readonly TextBox txtNote = new TextBox();
 
-    private Button btnRecord = new Button();
-    private Button btnCancel = new Button();
+    private readonly Button btnRecord = new Button();
+    private readonly Button btnCancel = new Button();
 
-    private int _invoiceID;
+    private readonly int _invoiceID;
     private decimal _totalAmount;
     private decimal _paidAmount;
 
@@ -43,21 +40,21 @@ public class FrmRecordPayment : Form
 
     private void InitializeComponent()
     {
-        this.Text = "Record Payment";
-        this.Size = new Size(500, 350);
-        this.StartPosition = FormStartPosition.CenterScreen;
-        this.BackColor = Color.White;
-        this.FormBorderStyle = FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.MinimizeBox = false;
+        Text = "Ghi nhận thanh toán";
+        Size = new Size(500, 350);
+        StartPosition = FormStartPosition.CenterScreen;
+        BackColor = Color.White;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = false;
 
         var pnlInfo = CreateInfoPanel();
         var pnlInput = CreateInputPanel();
         var pnlButtons = CreateButtonPanel();
 
-        this.Controls.Add(pnlInfo);
-        this.Controls.Add(pnlInput);
-        this.Controls.Add(pnlButtons);
+        Controls.Add(pnlInfo);
+        Controls.Add(pnlInput);
+        Controls.Add(pnlButtons);
     }
 
     private Panel CreateInfoPanel()
@@ -65,28 +62,28 @@ public class FrmRecordPayment : Form
         var pnl = new Panel
         {
             Location = new Point(SPACING, SPACING),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 80),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 80),
             BackColor = Color.FromArgb(240, 240, 240),
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        lblInvoiceInfo.Text = $"Invoice #{_invoiceID}";
+        lblInvoiceInfo.Text = $"Hóa đơn #{_invoiceID}";
         lblInvoiceInfo.Location = new Point(SPACING, SPACING);
         lblInvoiceInfo.Size = new Size(300, 20);
         lblInvoiceInfo.Font = new Font(lblInvoiceInfo.Font, FontStyle.Bold);
         pnl.Controls.Add(lblInvoiceInfo);
 
-        lblTotalAmount.Text = "Total Amount: ";
+        lblTotalAmount.Text = "Tổng tiền: ";
         lblTotalAmount.Location = new Point(SPACING, SPACING + 25);
         lblTotalAmount.Size = new Size(400, 20);
         pnl.Controls.Add(lblTotalAmount);
 
-        lblPaidSoFar.Text = "Paid So Far: ";
+        lblPaidSoFar.Text = "Đã thanh toán: ";
         lblPaidSoFar.Location = new Point(SPACING, SPACING + 50);
         lblPaidSoFar.Size = new Size(400, 20);
         pnl.Controls.Add(lblPaidSoFar);
 
-        lblRemaining.Text = "Remaining: ";
+        lblRemaining.Text = "Còn lại: ";
         lblRemaining.Location = new Point(200, SPACING + 50);
         lblRemaining.Size = new Size(200, 20);
         lblRemaining.ForeColor = Color.Red;
@@ -101,25 +98,29 @@ public class FrmRecordPayment : Form
         var pnl = new Panel
         {
             Location = new Point(SPACING, 100),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 130),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 130),
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        lblAmount.Text = "Payment Amount:";
+        lblAmount.Text = "Số tiền thanh toán:";
         lblAmount.Location = new Point(SPACING, SPACING);
         lblAmount.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblAmount);
 
         txtAmount.Location = new Point(SPACING + LABEL_WIDTH + SPACING, SPACING);
         txtAmount.Size = new Size(CONTROL_WIDTH, 25);
-        // txtAmount.Placeholder = "0";  // Placeholder not supported in Windows Forms TextBox
         pnl.Controls.Add(txtAmount);
 
-        var lblCurrency = new Label { Text = "VND", Location = new Point(SPACING + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 2, SPACING), Size = new Size(40, 20) };
+        var lblCurrency = new Label
+        {
+            Text = "VND",
+            Location = new Point(SPACING + LABEL_WIDTH + CONTROL_WIDTH + SPACING * 2, SPACING),
+            Size = new Size(40, 20)
+        };
         pnl.Controls.Add(lblCurrency);
 
-        lblNote.Text = "Note:";
+        lblNote.Text = "Ghi chú:";
         lblNote.Location = new Point(SPACING, SPACING + 40);
         lblNote.Size = new Size(LABEL_WIDTH, 20);
         pnl.Controls.Add(lblNote);
@@ -137,12 +138,12 @@ public class FrmRecordPayment : Form
         var pnl = new Panel
         {
             Location = new Point(SPACING, 240),
-            Size = new Size(this.ClientSize.Width - 2 * SPACING, 60),
+            Size = new Size(ClientSize.Width - 2 * SPACING, 60),
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        btnRecord.Text = "Record Payment";
+        btnRecord.Text = "Ghi nhận";
         btnRecord.Location = new Point(SPACING, SPACING);
         btnRecord.Size = new Size(150, 35);
         btnRecord.BackColor = Color.FromArgb(0, 100, 0);
@@ -150,12 +151,12 @@ public class FrmRecordPayment : Form
         btnRecord.Click += BtnRecord_Click;
         pnl.Controls.Add(btnRecord);
 
-        btnCancel.Text = "Cancel";
+        btnCancel.Text = "Hủy";
         btnCancel.Location = new Point(pnl.ClientSize.Width - 110, SPACING);
         btnCancel.Size = new Size(100, 35);
         btnCancel.BackColor = Color.Gray;
         btnCancel.ForeColor = Color.White;
-        btnCancel.Click += (s, e) => this.Close();
+        btnCancel.Click += (s, e) => Close();
         pnl.Controls.Add(btnCancel);
 
         return pnl;
@@ -171,14 +172,14 @@ public class FrmRecordPayment : Form
                 _totalAmount = invoice.TotalAmount;
                 _paidAmount = invoice.PaidAmount;
 
-                lblTotalAmount.Text = $"Total Amount: {_totalAmount:N0} VND";
-                lblPaidSoFar.Text = $"Paid So Far: {_paidAmount:N0} VND";
-                lblRemaining.Text = $"Remaining: {_totalAmount - _paidAmount:N0} VND";
+                lblTotalAmount.Text = $"Tổng tiền: {_totalAmount:N0} VND";
+                lblPaidSoFar.Text = $"Đã thanh toán: {_paidAmount:N0} VND";
+                lblRemaining.Text = $"Còn lại: {_totalAmount - _paidAmount:N0} VND";
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading invoice: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi tải hóa đơn: {ex.Message}", "Lỗi");
         }
     }
 
@@ -186,14 +187,17 @@ public class FrmRecordPayment : Form
     {
         if (!decimal.TryParse(txtAmount.Text, out decimal amount) || amount <= 0)
         {
-            MessageBox.Show("Please enter a valid payment amount.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Vui lòng nhập số tiền thanh toán hợp lệ.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         if (amount > _totalAmount - _paidAmount)
         {
-            MessageBox.Show($"Payment amount cannot exceed remaining balance ({_totalAmount - _paidAmount:N0} VND).", 
-                          "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(
+                $"Số tiền thanh toán không được vượt quá số dư còn lại ({_totalAmount - _paidAmount:N0} VND).",
+                "Lỗi",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
             return;
         }
 
@@ -203,20 +207,20 @@ public class FrmRecordPayment : Form
 
             if (result.Success)
             {
-                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AuditLogDAL.LogAction(SessionManager.GetSession().UserID, 
+                MessageBox.Show(result.Message, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AuditLogDAL.LogAction(SessionManager.GetSession().UserID,
                                      $"Recorded payment of {amount:N0} VND for invoice {_invoiceID}", "FrmRecordPayment");
-                this.DialogResult = DialogResult.OK;
-                this.Close();
+                DialogResult = DialogResult.OK;
+                Close();
             }
             else
             {
-                MessageBox.Show(result.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error recording payment: {ex.Message}", "Error");
+            MessageBox.Show($"Lỗi khi ghi nhận thanh toán: {ex.Message}", "Lỗi");
         }
     }
 }
