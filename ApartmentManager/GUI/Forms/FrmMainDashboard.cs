@@ -2131,6 +2131,23 @@ END";
             grid.DataSource = null;
             grid.Rows.Clear();
 
+            // If the grid was originally created with a DataSource the auto-generated columns
+            // may have been removed when DataSource was cleared. Ensure columns exist before
+            // adding rows manually to avoid InvalidOperationException.
+            if (grid.Columns.Count == 0)
+            {
+                foreach (var col in apartmentColumns)
+                {
+                    grid.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                        HeaderText = col,
+                        DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+                    });
+                }
+                grid.ColumnHeadersHeight = 38;
+                grid.RowTemplate.Height = 37;
+            }
+
             if (source.Count == 0)
             {
                 grid.Rows.Add(EmptyRow(apartmentColumns.Length, "Không có căn hộ phù hợp"));
