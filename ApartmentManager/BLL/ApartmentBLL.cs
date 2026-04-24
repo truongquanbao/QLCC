@@ -191,6 +191,55 @@ public class ApartmentBLL
     }
 
     /// <summary>
+    /// Update apartment including floor assignment.
+    /// </summary>
+    public static (bool Success, string Message) UpdateApartment(
+        int apartmentID, int floorID, string apartmentCode, decimal area, string apartmentType, int maxResidents, string? note = null)
+    {
+        try
+        {
+            if (apartmentID <= 0)
+                return (false, "Invalid apartment ID");
+
+            if (floorID <= 0)
+                return (false, "Invalid floor ID");
+
+            if (string.IsNullOrWhiteSpace(apartmentCode))
+                return (false, "Apartment code is required");
+
+            if (apartmentCode.Length > 20)
+                return (false, "Apartment code must be less than 20 characters");
+
+            if (area <= 0 || area > 1000)
+                return (false, "Area must be between 0 and 1000 m²");
+
+            if (string.IsNullOrWhiteSpace(apartmentType))
+                return (false, "Apartment type is required");
+
+            if (maxResidents <= 0 || maxResidents > 20)
+                return (false, "Max residents must be between 1 and 20");
+
+            if (ApartmentDAL.ApartmentCodeExists(apartmentCode, apartmentID))
+                return (false, "Apartment code already exists");
+
+            bool success = ApartmentDAL.UpdateApartment(apartmentID, floorID, apartmentCode, area, apartmentType, maxResidents, note);
+
+            if (success)
+            {
+                Log.Information("Apartment updated via BLL with floor assignment: {ApartmentID} -> {FloorID}", apartmentID, floorID);
+                return (true, "Apartment updated successfully");
+            }
+
+            return (false, "Failed to update apartment");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error updating apartment with floor assignment: {ApartmentID}", apartmentID);
+            return (false, $"Error updating apartment: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Update apartment status with validation
     /// </summary>
     public static (bool Success, string Message) UpdateApartmentStatus(int apartmentID, string status)

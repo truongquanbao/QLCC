@@ -390,6 +390,9 @@ internal sealed class BarChartPanel : Control
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool ShowValueLabels { get; set; }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int GridSteps { get; set; } = 4;
+
     public BarChartPanel()
     {
         DoubleBuffered = true;
@@ -407,11 +410,12 @@ internal sealed class BarChartPanel : Control
         using var barBrush = new SolidBrush(BarColor);
 
         long max = Math.Max(1, AxisMax > 0 ? AxisMax : Bars.Count == 0 ? 1 : Bars.Max(b => b.Value));
-        for (int i = 0; i <= 4; i++)
+        int steps = Math.Max(1, GridSteps);
+        for (int i = 0; i <= steps; i++)
         {
-            int y = plot.Bottom - i * plot.Height / 4;
+            int y = plot.Bottom - i * plot.Height / steps;
             e.Graphics.DrawLine(gridPen, plot.Left, y, plot.Right, y);
-            string label = (max * i / 4).ToString("N0");
+            string label = (max * i / steps).ToString("N0");
             e.Graphics.DrawString(label, ModernUi.Font(7.6f), textBrush, 0, y - 8);
         }
 

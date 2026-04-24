@@ -368,6 +368,48 @@ public class ApartmentDAL
     }
 
     /// <summary>
+    /// Update apartment including floor assignment.
+    /// </summary>
+    public static bool UpdateApartment(int apartmentID, int floorID, string apartmentCode, decimal area,
+                                       string apartmentType, int maxResidents, string? note = null)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Apartments
+                SET FloorID = @FloorID, ApartmentCode = @ApartmentCode, Area = @Area, ApartmentType = @ApartmentType,
+                    MaxResidents = @MaxResidents, Note = @Note, UpdatedAt = GETDATE()
+                WHERE ApartmentID = @ApartmentID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ApartmentID", apartmentID);
+                    command.Parameters.AddWithValue("@FloorID", floorID);
+                    command.Parameters.AddWithValue("@ApartmentCode", apartmentCode);
+                    command.Parameters.AddWithValue("@Area", area);
+                    command.Parameters.AddWithValue("@ApartmentType", apartmentType);
+                    command.Parameters.AddWithValue("@MaxResidents", maxResidents);
+                    command.Parameters.AddWithValue("@Note", note ?? (object)DBNull.Value);
+
+                    connection.Open();
+                    command.ExecuteNonQuery();
+
+                    Log.Information("Apartment updated with floor: {ApartmentID} -> {FloorID}", apartmentID, floorID);
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating apartment floor assignment: {ApartmentID}", apartmentID);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Update apartment status
     /// </summary>
     public static bool UpdateApartmentStatus(int apartmentID, string status)

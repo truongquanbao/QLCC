@@ -22,7 +22,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -63,7 +63,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -104,7 +104,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -147,7 +147,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -190,7 +190,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -235,7 +235,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -278,7 +278,7 @@ public class ResidentDAL
             const string query = @"
                 SELECT r.ResidentID, r.UserID, u.Username, r.FullName, r.Phone, r.Email,
                        r.CCCD, r.DOB, r.ApartmentID, a.ApartmentCode, r.RelationshipWithOwner,
-                       r.Status, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
+                       r.Status, r.ResidentStatus, r.StartDate, r.EndDate, r.Note, r.CreatedAt, r.UpdatedAt
                 FROM Residents r
                 LEFT JOIN Users u ON r.UserID = u.UserID
                 LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
@@ -567,11 +567,12 @@ public class ResidentDAL
             ApartmentCode = reader.IsDBNull(9) ? null : reader.GetString(9),
             RelationshipWithOwner = reader.GetString(10),
             Status = reader.GetString(11),
-            StartDate = reader.GetDateTime(12),
-            EndDate = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
-            Note = reader.IsDBNull(14) ? null : reader.GetString(14),
-            CreatedAt = reader.GetDateTime(15),
-            UpdatedAt = reader.GetDateTime(16)
+            ResidentStatus = reader.IsDBNull(12) ? null : reader.GetString(12),
+            StartDate = reader.GetDateTime(13),
+            EndDate = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+            Note = reader.IsDBNull(15) ? null : reader.GetString(15),
+            CreatedAt = reader.GetDateTime(16),
+            UpdatedAt = reader.GetDateTime(17)
         };
     }
 }

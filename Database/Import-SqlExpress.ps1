@@ -34,7 +34,7 @@ function Invoke-SqlFile {
         throw "File not found: $Path"
     }
 
-    $content = Get-Content -LiteralPath $Path -Raw
+    $content = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
     $lines = $content -split "`r?`n"
     $builder = New-Object System.Text.StringBuilder
     $batchIndex = 1
@@ -56,6 +56,8 @@ function Invoke-SqlFile {
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $createPath = Join-Path $scriptRoot "01_CreateTables.sql"
 $seedPath = Join-Path $scriptRoot "02_SeedData.sql"
+$assetsPath = Join-Path $scriptRoot "04_AddAssetsMaintenance.sql"
+$demoSeedPath = Join-Path $scriptRoot "05_SeedDemoData.sql"
 $verifyPath = Join-Path $scriptRoot "03_VerifySetup.sql"
 
 $connectionString = "Server=$ServerInstance;Database=master;Trusted_Connection=True;Encrypt=False;TrustServerCertificate=True;"
@@ -67,6 +69,8 @@ $connection.Open()
 try {
     Invoke-SqlFile -Connection $connection -Path $createPath
     Invoke-SqlFile -Connection $connection -Path $seedPath
+    Invoke-SqlFile -Connection $connection -Path $assetsPath
+    Invoke-SqlFile -Connection $connection -Path $demoSeedPath
     Invoke-SqlFile -Connection $connection -Path $verifyPath
     Write-Host "Import completed successfully."
 }

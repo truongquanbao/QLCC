@@ -219,6 +219,121 @@ public class UserDAL
     }
 
     /// <summary>
+    /// Update user profile information
+    /// </summary>
+    public static bool UpdateUser(int userID, string username, string fullName, string email, string phone,
+                                  int roleID, string status, bool isApproved, string? avatarPath = null, int? approvedBy = null)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Users
+                SET Username = @Username,
+                    FullName = @FullName,
+                    Email = @Email,
+                    Phone = @Phone,
+                    RoleID = @RoleID,
+                    Status = @Status,
+                    AvatarPath = @AvatarPath,
+                    IsApproved = @IsApproved,
+                    ApprovedAt = CASE WHEN @IsApproved = 1 THEN ISNULL(ApprovedAt, GETDATE()) ELSE NULL END,
+                    ApprovedBy = CASE WHEN @IsApproved = 1 THEN COALESCE(@ApprovedBy, ApprovedBy) ELSE NULL END,
+                    UpdatedAt = GETDATE()
+                WHERE UserID = @UserID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                command.Parameters.AddWithValue("@Username", username);
+                command.Parameters.AddWithValue("@FullName", fullName);
+                command.Parameters.AddWithValue("@Email", email);
+                command.Parameters.AddWithValue("@Phone", phone);
+                command.Parameters.AddWithValue("@RoleID", roleID);
+                command.Parameters.AddWithValue("@Status", status);
+                command.Parameters.AddWithValue("@AvatarPath", string.IsNullOrWhiteSpace(avatarPath) ? (object)DBNull.Value : avatarPath);
+                command.Parameters.AddWithValue("@IsApproved", isApproved);
+                command.Parameters.AddWithValue("@ApprovedBy", approvedBy.HasValue ? approvedBy.Value : (object)DBNull.Value);
+
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                Log.Information("User updated: {UserID}", userID);
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating user: {UserID}", userID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Update account status / lock state
+    /// </summary>
+    public static bool UpdateUserStatus(int userID, string status, DateTime? lockedUntil = null)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Users
+                SET Status = @Status,
+                    LockedUntil = @LockedUntil,
+                    UpdatedAt = GETDATE()
+                WHERE UserID = @UserID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                command.Parameters.AddWithValue("@Status", status);
+                command.Parameters.AddWithValue("@LockedUntil", lockedUntil.HasValue ? lockedUntil.Value : (object)DBNull.Value);
+
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                Log.Information("User status updated: {UserID} -> {Status}", userID, status);
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating user status: {UserID}", userID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Delete user
+    /// </summary>
+    public static bool DeleteUser(int userID)
+    {
+        try
+        {
+            const string query = "DELETE FROM Users WHERE UserID = @UserID";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                Log.Information("User deleted: {UserID}", userID);
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error deleting user: {UserID}", userID);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Update user login attempt
     /// </summary>
     public static void UpdateLoginAttempt(int userID, bool success, int? lockDurationMinutes = null)
