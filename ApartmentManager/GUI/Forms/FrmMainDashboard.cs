@@ -74,7 +74,33 @@ public partial class FrmMainDashboard : Form
         InitSampleData();
         InitializeComponent();
         BuildShell();
-        Shown += (_, _) => Navigate(GetDefaultPage());
+        Shown += (_, _) =>
+        {
+            Navigate(GetDefaultPage());
+            StartAutoRefresh();
+        };
+    }
+
+    private Timer? _autoRefreshTimer;
+    private const int AutoRefreshIntervalSeconds = 10;
+
+    private void StartAutoRefresh()
+    {
+        if (_autoRefreshTimer != null)
+            return;
+
+        _autoRefreshTimer = new Timer
+        {
+            Interval = AutoRefreshIntervalSeconds * 1000
+        };
+        _autoRefreshTimer.Tick += (_, _) =>
+        {
+            if (!IsDisposed && IsHandleCreated)
+            {
+                ReloadCurrentPage();
+            }
+        };
+        _autoRefreshTimer.Start();
     }
 
     private void InitializeComponent()
@@ -241,52 +267,76 @@ public partial class FrmMainDashboard : Form
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             Padding = new Padding(12, 13, 12, 0),
-            AutoScroll = false,
+            AutoScroll = true,
             BackColor = _sidebar.BackColor
         };
         _sidebar.Controls.Add(menu);
 
+        string? currentGroup = null;
         foreach (var item in MenuItemsForRole())
         {
+            // Add group header if group changed
+            if (item.Group != currentGroup && !string.IsNullOrEmpty(item.Group))
+            {
+                currentGroup = item.Group;
+                var groupHeader = new Label
+                {
+                    Text = item.Group,
+                    Width = SidebarWidth - 24,
+                    Height = 32,
+                    Margin = new Padding(0, item.Group == MenuItemsForRole().First().Group ? 0 : 8, 0, 4),
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding = new Padding(8, 0, 0, 0),
+                    Font = ModernUi.Font(8.4f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(148, 163, 184),
+                    BackColor = _sidebar.BackColor
+                };
+                menu.Controls.Add(groupHeader);
+            }
+            else if (string.IsNullOrEmpty(item.Group) && currentGroup != null)
+            {
+                currentGroup = null;
+            }
+
             var button = new Button
             {
                 Text = $"{item.Icon}   {item.Text}",
                 Tag = item.Key,
                 Width = SidebarWidth - 24,
-                Height = 50,
-                Margin = new Padding(0, 0, 0, 5),
+                Height = 44,
+                Margin = new Padding(0, 0, 0, 4),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(16, 0, 0, 0),
-                Font = ModernUi.Font(10.5f, FontStyle.Bold),
+                Font = ModernUi.Font(9.8f, FontStyle.Regular),
                 BackColor = _sidebar.BackColor,
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(226, 232, 240),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = ModernUi.Navy2;
+            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(15, 23, 42);
             button.Click += (_, _) => Navigate(item.Key);
             _navButtons[item.Key] = button;
             menu.Controls.Add(button);
         }
     }
 
-    private IEnumerable<(string Key, string Text, string Icon)> MenuItemsForRole()
+    private IEnumerable<(string? Group, string Key, string Text, string Icon)> MenuItemsForRole()
     {
         if (IsResident)
         {
             return new[]
             {
-                ("dashboard", "Dashboard cá nhân", "⌂"),
-                ("profile", "Hồ sơ cá nhân", "●"),
-                ("apartment-info", "Thông tin căn hộ", "▦"),
-                ("my-invoices", "Hóa đơn của tôi", "▤"),
-                ("payment", "Thanh toán / Lịch sử", "▰"),
-                ("send-complaint", "Gửi phản ánh", "■"),
-                ("notifications", "Thông báo", "◆"),
-                ("vehicles", "Xe của tôi", "▣"),
-                ("visitors", "Khách của tôi", "♙"),
-                ("password", "Đổi mật khẩu", "□")
+                (null, "dashboard", "Dashboard cá nhân", "⌂"),
+                (null, "profile", "Hồ sơ cá nhân", "●"),
+                ("Thông tin", "apartment-info", "Thông tin căn hộ", "▦"),
+                ("Thông tin", "my-invoices", "Hóa đơn của tôi", "▤"),
+                ("Thông tin", "payment", "Thanh toán / Lịch sử", "▰"),
+                ("Hỗ trợ", "send-complaint", "Gửi phản ánh", "■"),
+                ("Hỗ trợ", "notifications", "Thông báo", "◆"),
+                ("Hỗ trợ", "vehicles", "Xe của tôi", "▣"),
+                ("Hỗ trợ", "visitors", "Khách của tôi", "♙"),
+                ("Cài đặt", "password", "Đổi mật khẩu", "□")
             };
         }
 
@@ -294,35 +344,35 @@ public partial class FrmMainDashboard : Form
         {
             return new[]
             {
-                ("dashboard", "Dashboard", "◉"),
-                ("apartments", "Căn hộ", "▦"),
-                ("residents", "Cư dân", "●"),
-                ("invoices", "Hóa đơn / phí", "▤"),
-                ("complaints", "Phản ánh", "■"),
-                ("vehicles", "Phương tiện", "▣"),
-                ("visitors", "Khách ra vào", "♙"),
-                ("assets", "Tài sản", "◇"),
-                ("notifications", "Thông báo", "◆"),
-                ("reports", "Báo cáo", "▥"),
-                ("profile", "Hồ sơ cá nhân", "●")
+                (null, "dashboard", "Dashboard", "◉"),
+                ("Quản lý", "apartments", "Căn hộ", "▦"),
+                ("Quản lý", "residents", "Cư dân", "●"),
+                ("Quản lý", "invoices", "Hóa đơn / phí", "▤"),
+                ("Vận hành", "complaints", "Phản ánh", "■"),
+                ("Vận hành", "vehicles", "Phương tiện", "▣"),
+                ("Vận hành", "visitors", "Khách ra vào", "♙"),
+                ("Vận hành", "assets", "Tài sản", "◇"),
+                ("Hỗ trợ", "notifications", "Thông báo", "◆"),
+                ("Hỗ trợ", "reports", "Báo cáo", "▥"),
+                ("Cài đặt", "profile", "Hồ sơ cá nhân", "●")
             };
         }
 
         return new[]
         {
-            ("dashboard", "Dashboard", "◉"),
-            ("accounts", "Quản lý tài khoản", "●"),
-            ("permissions", "Phân quyền", "□"),
-            ("apartments", "Tòa nhà / căn hộ", "▦"),
-            ("residents", "Cư dân", "●"),
-            ("invoices", "Hóa đơn / phí", "▤"),
-            ("complaints", "Phản ánh", "■"),
-            ("vehicles", "Phương tiện", "▣"),
-            ("visitors", "Khách ra vào", "♙"),
-            ("assets", "Tài sản", "◇"),
-            ("reports", "Báo cáo", "▥"),
-            ("logs", "Log hệ thống", "▤"),
-            ("settings", "Cấu hình hệ thống", "⚙")
+            (null, "dashboard", "Dashboard", "◉"),
+            ("Quản lý", "accounts", "Quản lý tài khoản", "●"),
+            ("Quản lý", "permissions", "Phân quyền", "□"),
+            ("Quản lý", "apartments", "Tòa nhà / căn hộ", "▦"),
+            ("Quản lý", "residents", "Cư dân", "●"),
+            ("Quản lý", "invoices", "Hóa đơn / phí", "▤"),
+            ("Vận hành", "complaints", "Phản ánh", "■"),
+            ("Vận hành", "vehicles", "Phương tiện", "▣"),
+            ("Vận hành", "visitors", "Khách ra vào", "♙"),
+            ("Vận hành", "assets", "Tài sản", "◇"),
+            ("Hệ thống", "reports", "Báo cáo", "▥"),
+            ("Hệ thống", "logs", "Log hệ thống", "▤"),
+            ("Hệ thống", "settings", "Cấu hình hệ thống", "⚙")
         };
     }
 
@@ -1101,13 +1151,14 @@ END";
         bool backupOverdue = IsBackupOverdue(lastBackupAt, backupWarningDays);
         string backupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : "Chưa có dữ liệu";
 
+        // Reorganized stat cards with emphasis on revenue
         AddRow(page, y, gap,
-            ModernUi.StatCard("Tổng số tài khoản", users.Count.ToString("N0"), "Tài khoản", ModernUi.Blue, "●", $"{users.Count(u => IsActiveStatus(u.Status))} đang hoạt động", cardW),
-            ModernUi.StatCard("Số cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Green, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW),
-            ModernUi.StatCard("Số căn hộ", apartments.Count.ToString("N0"), "Căn hộ", ModernUi.Purple, "▦", $"{apartments.Count(a => ViStatus(a.Status) == "Bảo trì")} đang bảo trì", cardW),
-            ModernUi.StatCard("Căn hộ đang ở / còn trống", $"{occupied:N0} / {vacant:N0}", "Đang ở / Còn trống", ModernUi.Teal, "⌂", $"{occupancyRate}% tỷ lệ lấp đầy", cardW),
-            ModernUi.StatCard("Doanh thu tháng", Money(monthRevenue), "VNĐ", ModernUi.Orange, "$", latestInvoice == null ? "Chưa có hóa đơn" : $"Kỳ {latestInvoice.Month:00}/{latestInvoice.Year}", cardW),
-            ModernUi.StatCard("Hóa đơn chưa thanh toán", unpaid.Count.ToString("N0"), "Hóa đơn", ModernUi.Red, "▤", $"{Money(unpaidAmount)} VNĐ", cardW));
+            ModernUi.StatCard("Số tài khoản", users.Count.ToString("N0"), "Tài khoản", ModernUi.Blue, "●", $"{users.Count(u => IsActiveStatus(u.Status))} hoạt động", cardW),
+            ModernUi.StatCard("Số cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW),
+            ModernUi.StatCard("Số căn hộ", apartments.Count.ToString("N0"), "Căn hộ", ModernUi.Blue, "▦", $"{occupied:N0} đang ở", cardW),
+            ModernUi.StatCard("Lấp đầy", $"{occupancyRate}%", "Đơn vị", Color.FromArgb(6, 182, 212), "◔", $"{occupied:N0} / {apartments.Count:N0}", cardW),
+            ModernUi.StatCard("Doanh thu", Money(monthRevenue), "VNĐ", Color.FromArgb(34, 197, 94), "$", latestInvoice == null ? "Chưa có" : $"Kỳ {latestInvoice.Month:00}/{latestInvoice.Year}", cardW),
+            ModernUi.StatCard("Nợ chưa thu", unpaid.Count.ToString("N0"), "Hóa đơn", ModernUi.Red, "▤", $"{Money(unpaidAmount)} VNĐ", cardW));
 
         y += 144;
 
@@ -1154,7 +1205,7 @@ END";
         alert.Location = new Point(occupancy.Right + gap, y);
         var alertIcon = new WarningTriangleControl
         {
-            TriangleColor = backupOverdue ? ModernUi.Orange : ModernUi.Green,
+            TriangleColor = backupOverdue ? ModernUi.Orange : Color.FromArgb(34, 197, 94),
             Size = new Size(82, 72),
             Location = new Point((alert.Width - 82) / 2, 54)
         };
@@ -1220,12 +1271,12 @@ END";
         const int columns = 3;
         const int padX = 18;
         const int gapX = 12;
-        const int tileH = 78;
+        const int tileH = 72;
         int tileW = Math.Max(1, (actions.Width - padX * 2 - gapX * (columns - 1)) / columns);
         int row1 = 54;
-        int row2 = 156;
+        int row2 = 150;
 
-        var addTile = AddActionTile(actions, "⊕", "Thêm mới", "Tạo dữ liệu mới", ModernUi.Green, padX, row1, width: tileW, height: tileH);
+        var addTile = AddActionTile(actions, "⊕", "Thêm mới", "Tạo dữ liệu", Color.FromArgb(34, 197, 94), padX, row1, width: tileW, height: tileH);
         BindTileClick(addTile, (_, _) => ShowQuickActionMenu(addTile,
             ("Thêm tài khoản", () => Navigate("accounts")),
             ("Thêm cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
@@ -1233,7 +1284,7 @@ END";
             ("Thêm hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
             ("Thêm phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
 
-        var editTile = AddActionTile(actions, "✎", "Sửa dữ liệu", "Chỉnh sửa dữ liệu", ModernUi.Orange, padX + (tileW + gapX), row1, width: tileW, height: tileH);
+        var editTile = AddActionTile(actions, "✎", "Sửa dữ liệu", "Chỉnh sửa", Color.FromArgb(249, 115, 22), padX + (tileW + gapX), row1, width: tileW, height: tileH);
         BindTileClick(editTile, (_, _) => ShowQuickActionMenu(editTile,
             ("Sửa tài khoản", () => Navigate("accounts")),
             ("Sửa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
@@ -1241,7 +1292,7 @@ END";
             ("Sửa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
             ("Sửa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
 
-        var deleteTile = AddActionTile(actions, "▥", "Xóa dữ liệu", "Xóa dữ liệu", ModernUi.Red, padX + (tileW + gapX) * 2, row1, width: tileW, height: tileH);
+        var deleteTile = AddActionTile(actions, "▥", "Xóa dữ liệu", "Xóa bỏ", Color.FromArgb(239, 68, 68), padX + (tileW + gapX) * 2, row1, width: tileW, height: tileH);
         BindTileClick(deleteTile, (_, _) => ShowQuickActionMenu(deleteTile,
             ("Xóa tài khoản", () => Navigate("accounts")),
             ("Xóa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
@@ -1252,10 +1303,10 @@ END";
         var saveTile = AddActionTile(actions, "▣", "Lưu dữ liệu", "Lưu thay đổi", ModernUi.Blue, padX, row2, width: tileW, height: tileH);
         BindTileClick(saveTile, (_, _) => SaveDashboardSnapshot());
 
-        var cancelTile = AddActionTile(actions, "×", "Hủy thao tác", "Làm mới dữ liệu", Color.FromArgb(107, 116, 128), padX + (tileW + gapX), row2, width: tileW, height: tileH);
+        var cancelTile = AddActionTile(actions, "×", "Làm mới", "Tải lại dữ liệu", Color.FromArgb(100, 116, 139), padX + (tileW + gapX), row2, width: tileW, height: tileH);
         BindTileClick(cancelTile, (_, _) => ReloadCurrentPage());
 
-        var reportTile = AddActionTile(actions, "▤", "Báo cáo nhanh", "Xuất báo cáo", Color.FromArgb(250, 252, 255), padX + (tileW + gapX) * 2, row2, ModernUi.Navy, tileW, tileH);
+        var reportTile = AddActionTile(actions, "▤", "Báo cáo", "Xuất dữ liệu", Color.FromArgb(51, 65, 85), padX + (tileW + gapX) * 2, row2, width: tileW, height: tileH);
         BindTileClick(reportTile, (_, _) => ShowQuickActionMenu(reportTile,
             ("Xuất báo cáo lấp đầy (.xlsx)", () => SaveGeneratedFile(
                 ReportsBLL.GenerateOccupancyReport(),
@@ -1310,13 +1361,16 @@ END";
         int unpaidInvoices = invoices.Count(i => ViStatus(i.PaymentStatus) != "Đã thanh toán");
         int todayVisitors = visitors.Count(v => ((DateTime)v.ArrivalTime).Date == DateTime.Today);
 
+        decimal debtAmount = invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+        bool hasDebt = unpaidInvoices > 0 && debtAmount > 0;
+
         AddRowAt(page, x, y, gap,
             ModernUi.StatCard("Số cư dân hiện tại", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW, 162),
-            ModernUi.StatCard("Phản ánh mới", complaints.Count(c => ViStatus(c.Status) == "Mới").ToString("N0"), "Phản ánh", ModernUi.Green, "▤", $"{complaints.Count:N0} tổng phiếu", cardW, 162),
-            ModernUi.StatCard("Hóa đơn chưa thanh toán", unpaidInvoices.ToString("N0"), "Hóa đơn", Color.FromArgb(237, 59, 25), "$", $"{Money(invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount)))} VNĐ", cardW, 162),
-            ModernUi.StatCard("Lịch bảo trì sắp tới", schedules.Count(s => s.ScheduledDate <= DateTime.Today.AddDays(7)).ToString("N0"), "Lịch", ModernUi.Purple, "⚒", "Trong 7 ngày tới", cardW, 162),
-            ModernUi.StatCard("Khách đăng ký hôm nay", todayVisitors.ToString("N0"), "Khách", ModernUi.Teal, "●", $"{visitors.Count:N0} tổng lượt", cardW, 162),
-            ModernUi.StatCard("Tỷ lệ lấp đầy căn hộ", $"{occupancyRate}%", "Đang ở", ModernUi.Green, "◔", $"{occupied:N0}/{apartments.Count:N0}", cardW, 162));
+            ModernUi.StatCard("Phản ánh mới", complaints.Count(c => ViStatus(c.Status) == "Mới").ToString("N0"), "Phản ánh", Color.FromArgb(34, 197, 94), "▤", $"{complaints.Count:N0} tổng phiếu", cardW, 162),
+            CreateDebtCard(unpaidInvoices, debtAmount, cardW, hasDebt),
+            ModernUi.StatCard("Bảo trì sắp tới", schedules.Count(s => s.ScheduledDate <= DateTime.Today.AddDays(7)).ToString("N0"), "Lịch", Color.FromArgb(6, 182, 212), "⚒", "Trong 7 ngày tới", cardW, 162),
+            ModernUi.StatCard("Khách hôm nay", todayVisitors.ToString("N0"), "Khách", ModernUi.Blue, "●", $"{visitors.Count:N0} tổng lượt", cardW, 162),
+            ModernUi.StatCard("Lấp đầy căn hộ", $"{occupancyRate}%", "Đơn vị", Color.FromArgb(34, 197, 94), "◔", $"{occupied:N0}/{apartments.Count:N0}", cardW, 162));
 
         y += 176;
 
@@ -1481,11 +1535,11 @@ END";
 
         AddRow(page, y, gap,
             ResidentCard("Thông tin cá nhân", Display(resident?.FullName, CurrentDisplayName()), $"{Display(resident?.Phone)}\r\n{Display(resident?.Email)}", ModernUi.Blue, "●", "Xem chi tiết", cardW),
-            ResidentCard("Căn hộ đang ở", Display(resident?.ApartmentCode), $"{Display(apartment?.BuildingName)} - Tầng {apartment?.FloorNumber?.ToString() ?? "-"}\r\nDiện tích: {(apartment == null ? "-" : apartment.Area.ToString("N1", CultureInfo.InvariantCulture))} m²", ModernUi.Green, "⌂", "Xem chi tiết", cardW),
-            ResidentCard("Hóa đơn mới nhất", latestInvoice == null ? "Chưa có" : $"Tháng {latestInvoice.Month:00}/{latestInvoice.Year}", latestInvoice == null ? "Không có dữ liệu\r\n-" : $"{Money(latestInvoice.TotalAmount)} VNĐ\r\nNgày phát hành: {DateText(latestInvoice.CreatedAt)}", ModernUi.Orange, "▤", "Xem hóa đơn", cardW),
-            ResidentCard("Trạng thái thanh toán", latestInvoice == null ? "-" : ViStatus(latestInvoice.PaymentStatus), latestInvoice == null ? "Không có hóa đơn\r\n-" : $"Đã thu: {Money(latestInvoice.PaidAmount)} VNĐ\r\nHạn: {DateText(latestInvoice.DueDate)}", ModernUi.Green, "✓", "Xem lịch sử", cardW),
+            ResidentCard("Căn hộ đang ở", Display(resident?.ApartmentCode), $"{Display(apartment?.BuildingName)} - Tầng {apartment?.FloorNumber?.ToString() ?? "-"}\r\nDiện tích: {(apartment == null ? "-" : apartment.Area.ToString("N1", CultureInfo.InvariantCulture))} m²", Color.FromArgb(34, 197, 94), "⌂", "Xem chi tiết", cardW),
+            ResidentCard("Hóa đơn mới nhất", latestInvoice == null ? "Chưa có" : $"Tháng {latestInvoice.Month:00}/{latestInvoice.Year}", latestInvoice == null ? "Không có dữ liệu\r\n-" : $"{Money(latestInvoice.TotalAmount)} VNĐ\r\nNgày phát hành: {DateText(latestInvoice.CreatedAt)}", Color.FromArgb(249, 115, 22), "▤", "Xem hóa đơn", cardW),
+            ResidentCard("Trạng thái thanh toán", latestInvoice == null ? "-" : ViStatus(latestInvoice.PaymentStatus), latestInvoice == null ? "Không có hóa đơn\r\n-" : $"Đã thu: {Money(latestInvoice.PaidAmount)} VNĐ\r\nHạn: {DateText(latestInvoice.DueDate)}", Color.FromArgb(34, 197, 94), "✓", "Xem lịch sử", cardW),
             ResidentCard("Thông báo chưa đọc", unreadCount.ToString("N0"), "Thông báo mới", ModernUi.Blue, "◆", "Xem tất cả", cardW),
-            ResidentCard("Phản ánh đang xử lý", openComplaintCount.ToString("N0"), "Phản ánh đang xử lý", ModernUi.Purple, "■", "Xem chi tiết", cardW));
+            ResidentCard("Phản ánh đang xử lý", openComplaintCount.ToString("N0"), "Phản ánh đang xử lý", Color.FromArgb(6, 182, 212), "■", "Xem chi tiết", cardW));
 
         y += 142;
 
@@ -1547,6 +1601,85 @@ END";
         note.Size = new Size(qr.Width - 220, 26);
         qr.Controls.Add(note);
         page.Controls.Add(qr);
+    }
+
+    private RoundedPanel CreateDebtCard(int unpaidCount, decimal debtAmount, int width, bool hasDebt)
+    {
+        var card = ModernUi.CardPanel();
+        card.Size = new Size(width, 126);
+
+        Color accentColor = hasDebt ? ModernUi.Red : Color.FromArgb(249, 115, 22);
+        var titleLabel = ModernUi.Label("NỢ CHƯA THU", 8.5f, FontStyle.Bold, accentColor);
+        titleLabel.Location = new Point(14, 12);
+        titleLabel.Size = new Size(width - 28, 22);
+        titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+        card.Controls.Add(titleLabel);
+
+        var circle = new CircleLabel
+        {
+            Text = "!",
+            CircleColor = accentColor,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(22f, FontStyle.Bold),
+            Size = new Size(58, 58),
+            Location = new Point(18, 44)
+        };
+        card.Controls.Add(circle);
+
+        // Add warning icon/badge if there's debt
+        if (hasDebt)
+        {
+            var badge = new CircleLabel
+            {
+                Text = "⚠",
+                CircleColor = ModernUi.Red,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(12f, FontStyle.Bold),
+                Size = new Size(28, 28),
+                Location = new Point(62, 42)
+            };
+            card.Controls.Add(badge);
+        }
+
+        var valueLabel = ModernUi.Label(unpaidCount.ToString("N0"), 13f, FontStyle.Bold, ModernUi.Navy);
+        valueLabel.Location = new Point(86, 40);
+        valueLabel.Size = new Size(width - 98, 30);
+        valueLabel.TextAlign = ContentAlignment.MiddleCenter;
+        card.Controls.Add(valueLabel);
+
+        var detailLabel = ModernUi.Label($"{Money(debtAmount)} VNĐ\r\n{unpaidCount} Hóa đơn", 8.4f, FontStyle.Regular, ModernUi.Text);
+        detailLabel.Location = new Point(86, 70);
+        detailLabel.Size = new Size(width - 98, 40);
+        detailLabel.TextAlign = ContentAlignment.MiddleCenter;
+        card.Controls.Add(detailLabel);
+
+        Color badgeColor = hasDebt ? ModernUi.Red : Color.FromArgb(249, 115, 22);
+        var actionLabel = ModernUi.Badge("Cần xử lý", badgeColor);
+        actionLabel.Location = new Point(14, 92);
+        actionLabel.Size = new Size(width - 28, 24);
+        card.Controls.Add(actionLabel);
+
+        return card;
+    }
+
+    private static ComboBox AddInvoiceStatusFilter(Control parent, string label, string selected, int x, int y = 8)
+    {
+        var lbl = ModernUi.Label(label, 8.7f, FontStyle.Bold, ModernUi.Text);
+        lbl.Location = new Point(x, y);
+        lbl.Size = new Size(170, 18);
+        parent.Controls.Add(lbl);
+        var combo = ModernUi.ComboBox(new[] 
+        { 
+            selected, 
+            "Tất cả",
+            "Đã thanh toán",
+            "Chưa thanh toán",
+            "Thanh toán một phần",
+            "Quá hạn"
+        }, 210);
+        combo.Location = new Point(x, y + 22);
+        parent.Controls.Add(combo);
+        return combo;
     }
 
     private void RenderApartments()
@@ -3166,7 +3299,7 @@ END";
         AddFilter(filters, "Tháng:", "05/2024", 14);
         AddFilter(filters, "Năm:", "2024", 236);
         AddFilter(filters, "Căn hộ:", "Tất cả", 458);
-        AddFilter(filters, "Trạng thái thanh toán:", "Tất cả", 680);
+        var statusFilterCombo = AddInvoiceStatusFilter(filters, "Trạng thái thanh toán:", "Tất cả", 680);
         var search = ModernUi.TextBox("Tìm kiếm nhanh...", 300);
         search.Location = new Point(14, 60);
         filters.Controls.Add(search);
