@@ -1361,10 +1361,13 @@ END";
         int unpaidInvoices = invoices.Count(i => ViStatus(i.PaymentStatus) != "Đã thanh toán");
         int todayVisitors = visitors.Count(v => ((DateTime)v.ArrivalTime).Date == DateTime.Today);
 
+        decimal debtAmount = invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+        bool hasDebt = unpaidInvoices > 0 && debtAmount > 0;
+
         AddRowAt(page, x, y, gap,
             ModernUi.StatCard("Số cư dân hiện tại", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW, 162),
             ModernUi.StatCard("Phản ánh mới", complaints.Count(c => ViStatus(c.Status) == "Mới").ToString("N0"), "Phản ánh", Color.FromArgb(34, 197, 94), "▤", $"{complaints.Count:N0} tổng phiếu", cardW, 162),
-            ModernUi.StatCard("Nợ chưa thu", unpaidInvoices.ToString("N0"), "Hóa đơn", ModernUi.Red, "$", $"{Money(invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount)))} VNĐ", cardW, 162),
+            CreateDebtCard(unpaidInvoices, debtAmount, cardW, hasDebt),
             ModernUi.StatCard("Bảo trì sắp tới", schedules.Count(s => s.ScheduledDate <= DateTime.Today.AddDays(7)).ToString("N0"), "Lịch", Color.FromArgb(6, 182, 212), "⚒", "Trong 7 ngày tới", cardW, 162),
             ModernUi.StatCard("Khách hôm nay", todayVisitors.ToString("N0"), "Khách", ModernUi.Blue, "●", $"{visitors.Count:N0} tổng lượt", cardW, 162),
             ModernUi.StatCard("Lấp đầy căn hộ", $"{occupancyRate}%", "Đơn vị", Color.FromArgb(34, 197, 94), "◔", $"{occupied:N0}/{apartments.Count:N0}", cardW, 162));
@@ -1598,6 +1601,85 @@ END";
         note.Size = new Size(qr.Width - 220, 26);
         qr.Controls.Add(note);
         page.Controls.Add(qr);
+    }
+
+    private RoundedPanel CreateDebtCard(int unpaidCount, decimal debtAmount, int width, bool hasDebt)
+    {
+        var card = ModernUi.CardPanel();
+        card.Size = new Size(width, 126);
+
+        Color accentColor = hasDebt ? ModernUi.Red : Color.FromArgb(249, 115, 22);
+        var titleLabel = ModernUi.Label("NỢ CHƯA THU", 8.5f, FontStyle.Bold, accentColor);
+        titleLabel.Location = new Point(14, 12);
+        titleLabel.Size = new Size(width - 28, 22);
+        titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+        card.Controls.Add(titleLabel);
+
+        var circle = new CircleLabel
+        {
+            Text = "!",
+            CircleColor = accentColor,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(22f, FontStyle.Bold),
+            Size = new Size(58, 58),
+            Location = new Point(18, 44)
+        };
+        card.Controls.Add(circle);
+
+        // Add warning icon/badge if there's debt
+        if (hasDebt)
+        {
+            var badge = new CircleLabel
+            {
+                Text = "⚠",
+                CircleColor = ModernUi.Red,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(12f, FontStyle.Bold),
+                Size = new Size(28, 28),
+                Location = new Point(62, 42)
+            };
+            card.Controls.Add(badge);
+        }
+
+        var valueLabel = ModernUi.Label(unpaidCount.ToString("N0"), 13f, FontStyle.Bold, ModernUi.Navy);
+        valueLabel.Location = new Point(86, 40);
+        valueLabel.Size = new Size(width - 98, 30);
+        valueLabel.TextAlign = ContentAlignment.MiddleCenter;
+        card.Controls.Add(valueLabel);
+
+        var detailLabel = ModernUi.Label($"{Money(debtAmount)} VNĐ\r\n{unpaidCount} Hóa đơn", 8.4f, FontStyle.Regular, ModernUi.Text);
+        detailLabel.Location = new Point(86, 70);
+        detailLabel.Size = new Size(width - 98, 40);
+        detailLabel.TextAlign = ContentAlignment.MiddleCenter;
+        card.Controls.Add(detailLabel);
+
+        Color badgeColor = hasDebt ? ModernUi.Red : Color.FromArgb(249, 115, 22);
+        var actionLabel = ModernUi.Badge("Cần xử lý", badgeColor);
+        actionLabel.Location = new Point(14, 92);
+        actionLabel.Size = new Size(width - 28, 24);
+        card.Controls.Add(actionLabel);
+
+        return card;
+    }
+
+    private static ComboBox AddInvoiceStatusFilter(Control parent, string label, string selected, int x, int y = 8)
+    {
+        var lbl = ModernUi.Label(label, 8.7f, FontStyle.Bold, ModernUi.Text);
+        lbl.Location = new Point(x, y);
+        lbl.Size = new Size(170, 18);
+        parent.Controls.Add(lbl);
+        var combo = ModernUi.ComboBox(new[] 
+        { 
+            selected, 
+            "Tất cả",
+            "Đã thanh toán",
+            "Chưa thanh toán",
+            "Thanh toán một phần",
+            "Quá hạn"
+        }, 210);
+        combo.Location = new Point(x, y + 22);
+        parent.Controls.Add(combo);
+        return combo;
     }
 
     private void RenderApartments()
@@ -3217,7 +3299,7 @@ END";
         AddFilter(filters, "Tháng:", "05/2024", 14);
         AddFilter(filters, "Năm:", "2024", 236);
         AddFilter(filters, "Căn hộ:", "Tất cả", 458);
-        AddFilter(filters, "Trạng thái thanh toán:", "Tất cả", 680);
+        var statusFilterCombo = AddInvoiceStatusFilter(filters, "Trạng thái thanh toán:", "Tất cả", 680);
         var search = ModernUi.TextBox("Tìm kiếm nhanh...", 300);
         search.Location = new Point(14, 60);
         filters.Controls.Add(search);
