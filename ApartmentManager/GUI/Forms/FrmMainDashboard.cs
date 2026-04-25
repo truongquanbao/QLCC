@@ -58,7 +58,7 @@ public partial class FrmMainDashboard : Form
     private readonly List<CuDan> _residents = new();
     private readonly List<PhiDichVu> _fees = new();
     private readonly Dictionary<string, Button> _navButtons = new();
-    private readonly UserSession? _session;
+    private UserSession? _session;
 
     private Panel _sidebar = null!;
     private Panel _content = null!;
@@ -67,6 +67,8 @@ public partial class FrmMainDashboard : Form
     private string _activePage = "dashboard";
     private Timer _clockTimer = null!;
     private ContextMenuStrip? _quickActionMenu;
+    private string? _quickActionMenuKey;
+    private Control? _quickActionAnchor;
 
     public FrmMainDashboard()
     {
@@ -77,30 +79,7 @@ public partial class FrmMainDashboard : Form
         Shown += (_, _) =>
         {
             Navigate(GetDefaultPage());
-            StartAutoRefresh();
         };
-    }
-
-    private Timer? _autoRefreshTimer;
-    private const int AutoRefreshIntervalSeconds = 10;
-
-    private void StartAutoRefresh()
-    {
-        if (_autoRefreshTimer != null)
-            return;
-
-        _autoRefreshTimer = new Timer
-        {
-            Interval = AutoRefreshIntervalSeconds * 1000
-        };
-        _autoRefreshTimer.Tick += (_, _) =>
-        {
-            if (!IsDisposed && IsHandleCreated)
-            {
-                ReloadCurrentPage();
-            }
-        };
-        _autoRefreshTimer.Start();
     }
 
     private void InitializeComponent()
@@ -114,6 +93,20 @@ public partial class FrmMainDashboard : Form
 
     private void BuildShell()
     {
+        if (_clockTimer != null)
+        {
+            _clockTimer.Stop();
+            _clockTimer.Dispose();
+        }
+
+        if (_quickActionMenu is { IsDisposed: false })
+        {
+            _quickActionMenu.Close();
+            _quickActionMenu = null;
+            _quickActionMenuKey = null;
+            _quickActionAnchor = null;
+        }
+
         Controls.Clear();
 
         var shell = new TableLayoutPanel
@@ -424,11 +417,21 @@ public partial class FrmMainDashboard : Form
             case "send-complaint":
                 RenderComplaints();
                 break;
+            case "notifications":
+                RenderNotificationsPage();
+                break;
             case "vehicles":
                 RenderVehicles();
                 break;
             case "visitors":
                 RenderVisitors();
+                break;
+            case "profile":
+                RenderProfilePage();
+                break;
+            case "password":
+                ShowChangePasswordDialog();
+                RenderProfilePage();
                 break;
             case "assets":
                 RenderAssets();
@@ -514,6 +517,7 @@ public partial class FrmMainDashboard : Form
             var bell = ModernUi.IconButton("🔔", 36);
             bell.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             bell.Location = new Point(header.Width - 176, 12);
+            bell.Cursor = Cursors.Hand;
             header.Controls.Add(bell);
 
             var badge = new CircleLabel
@@ -526,6 +530,7 @@ public partial class FrmMainDashboard : Form
                 Size = new Size(19, 19)
             };
             badge.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            badge.Cursor = Cursors.Hand;
             header.Controls.Add(badge);
 
             var avatar = new CircleLabel
@@ -538,13 +543,52 @@ public partial class FrmMainDashboard : Form
                 Size = new Size(34, 34),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
+            avatar.Cursor = Cursors.Hand;
             header.Controls.Add(avatar);
 
             var userName = ModernUi.Label($"{CurrentUsername()} ▾", 9f, FontStyle.Bold, ModernUi.Text);
             userName.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             userName.Location = new Point(header.Width - 83, 16);
             userName.Size = new Size(78, 28);
+            userName.Cursor = Cursors.Hand;
             header.Controls.Add(userName);
+
+            void ToggleNotificationDropdown()
+            {
+                try
+                {
+                    ShowNotificationMenu(bell);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this,
+                        $"Không thể tải danh sách thông báo.\nChi tiết: {ex.Message}",
+                        "Thông báo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+
+            void ToggleAccountDropdown()
+            {
+                try
+                {
+                    ShowAccountMenu(userName);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this,
+                        $"Không thể mở menu tài khoản.\nChi tiết: {ex.Message}",
+                        "Tài khoản",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+
+            bell.Click += (_, _) => ToggleNotificationDropdown();
+            badge.Click += (_, _) => ToggleNotificationDropdown();
+            avatar.Click += (_, _) => ToggleAccountDropdown();
+            userName.Click += (_, _) => ToggleAccountDropdown();
         }
 
         return page;
@@ -863,7 +907,147 @@ public partial class FrmMainDashboard : Form
         Navigate(_activePage);
     }
 
+    private bool TryToggleQuickMenu(Control anchor, string menuKey)
+    {
+        if (_quickActionMenu is { IsDisposed: false } &&
+            _quickActionMenu.Visible &&
+            ReferenceEquals(_quickActionAnchor, anchor) &&
+            string.Equals(_quickActionMenuKey, menuKey, StringComparison.Ordinal))
+        {
+            _quickActionMenu.Close();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ShowAccountMenu(Control anchor)
+    {
+        if (TryToggleQuickMenu(anchor, "account"))
+        {
+            return;
+        }
+
+        ShowQuickActionMenu(anchor, "account",
+            ("Thông tin tài khoản / Hồ sơ cá nhân", () => Navigate("profile")),
+            ("Đổi mật khẩu", () => ShowChangePasswordDialog()),
+            ("Cài đặt", OpenAccountSettings),
+            ("Đăng xuất", PerformLogout),
+            ("Thoát chương trình", ConfirmExitApplication));
+    }
+
+    private void ShowNotificationMenu(Control anchor)
+    {
+        if (anchor.IsDisposed || !anchor.IsHandleCreated)
+        {
+            return;
+        }
+
+        if (TryToggleQuickMenu(anchor, "notification"))
+        {
+            return;
+        }
+
+        if (_quickActionMenu is { IsDisposed: false })
+        {
+            _quickActionMenu.Close();
+            _quickActionMenu = null;
+        }
+
+        var notifications = GetHeaderNotifications().Take(6).ToList();
+        var menu = new ContextMenuStrip
+        {
+            ShowImageMargin = false,
+            Font = new Font("Segoe UI", 9.2f, FontStyle.Regular)
+        };
+
+        _quickActionMenu = menu;
+        _quickActionMenuKey = "notification";
+        _quickActionAnchor = anchor;
+
+        var titleItem = new ToolStripMenuItem("Thông báo gần đây")
+        {
+            Enabled = false,
+            Font = new Font("Segoe UI", 9.4f, FontStyle.Bold)
+        };
+        menu.Items.Add(titleItem);
+        menu.Items.Add(new ToolStripSeparator());
+
+        foreach (var notification in notifications)
+        {
+            string caption = BuildNotificationCaption(notification);
+            var item = new ToolStripMenuItem(caption)
+            {
+                AutoToolTip = true,
+                ToolTipText = BuildNotificationTooltip(notification)
+            };
+
+            if (!notification.IsRead)
+            {
+                item.Font = new Font("Segoe UI", 9.2f, FontStyle.Bold);
+            }
+
+            item.Click += (_, _) =>
+            {
+                try
+                {
+                    OpenNotificationDetail(notification);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this,
+                        $"Không thể mở thông báo.\nChi tiết: {ex.Message}",
+                        "Thông báo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            };
+            menu.Items.Add(item);
+        }
+
+        menu.Items.Add(new ToolStripSeparator());
+
+        var viewAllItem = new ToolStripMenuItem("Xem tất cả thông báo");
+        viewAllItem.Click += (_, _) => Navigate("notifications");
+        menu.Items.Add(viewAllItem);
+
+        var markAllReadItem = new ToolStripMenuItem("Đánh dấu đã đọc");
+        markAllReadItem.Click += (_, _) =>
+        {
+            try
+            {
+                MarkAllNotificationsAsRead();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    $"Không thể cập nhật thông báo.\nChi tiết: {ex.Message}",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        };
+        menu.Items.Add(markAllReadItem);
+
+        menu.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_quickActionMenu, menu))
+            {
+                _quickActionMenu = null;
+                _quickActionMenuKey = null;
+                _quickActionAnchor = null;
+            }
+        };
+
+        menu.Show(anchor, new Point(0, anchor.Height));
+    }
+
     private void ShowQuickActionMenu(Control anchor, params (string Text, Action Handler)[] items)
+    {
+        ShowQuickActionMenu(anchor, "quick-action", items);
+    }
+
+    private void ShowQuickActionMenu(Control anchor, string menuKey, params (string Text, Action Handler)[] items)
     {
         if (anchor.IsDisposed || !anchor.IsHandleCreated)
         {
@@ -879,9 +1063,11 @@ public partial class FrmMainDashboard : Form
         var menu = new ContextMenuStrip
         {
             ShowImageMargin = false,
-            Font = ModernUi.Font(9.2f)
+            Font = new Font("Segoe UI", 9.2f, FontStyle.Regular)
         };
         _quickActionMenu = menu;
+        _quickActionMenuKey = menuKey;
+        _quickActionAnchor = anchor;
 
         foreach (var (text, handler) in items)
         {
@@ -909,6 +1095,8 @@ public partial class FrmMainDashboard : Form
             if (ReferenceEquals(_quickActionMenu, menu))
             {
                 _quickActionMenu = null;
+                _quickActionMenuKey = null;
+                _quickActionAnchor = null;
             }
         };
         menu.Show(anchor, new Point(0, anchor.Height));
@@ -5079,6 +5267,94 @@ END";
         return combo;
     }
 
+    private void RenderProfilePage()
+    {
+        var page = BeginPage("Hồ sơ cá nhân", "Dashboard / Tài khoản");
+        int width = Math.Min(PageWorkWidth(760), 900);
+
+        var profileCard = ModernUi.Section("Thông tin tài khoản", width, 290);
+        profileCard.Location = new Point(18, 88);
+        page.Controls.Add(profileCard);
+
+        var avatar = new CircleLabel
+        {
+            // Dùng ký tự đầu nếu chưa có ảnh đại diện để không phụ thuộc dữ liệu file.
+            Text = GetUserInitials(),
+            CircleColor = ModernUi.Blue,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(26f, FontStyle.Bold),
+            Location = new Point(28, 66),
+            Size = new Size(110, 110)
+        };
+        profileCard.Controls.Add(avatar);
+
+        AddProfileField(profileCard, "Tên đăng nhập", CurrentUsername(), 180, 58, 300);
+        AddProfileField(profileCard, "Họ và tên", CurrentDisplayName(), 180, 96, 300);
+        AddProfileField(profileCard, "Email", Display(_session?.Email, "-"), 180, 134, 300);
+        AddProfileField(profileCard, "Số điện thoại", Display(_session?.Phone, "-"), 180, 172, 300);
+        AddProfileField(profileCard, "Vai trò", RoleDisplay(), 520, 58, 280);
+        AddProfileField(profileCard, "Mã người dùng", (_session?.UserID ?? 0).ToString(), 520, 96, 280);
+        AddProfileField(profileCard, "Trạng thái", Display(_session?.Status, "Đang hoạt động"), 520, 134, 280);
+        AddProfileField(profileCard, "Đăng nhập lúc", _session?.LoginTime.ToString("dd/MM/yyyy HH:mm:ss") ?? "-", 520, 172, 280);
+
+        var changePasswordButton = ModernUi.Button("Đổi mật khẩu", ModernUi.Blue, 150, 36);
+        changePasswordButton.Location = new Point(180, 228);
+        changePasswordButton.Click += (_, _) => ShowChangePasswordDialog();
+        profileCard.Controls.Add(changePasswordButton);
+
+        var settingsButton = ModernUi.OutlineButton("Mở cài đặt", 150, 36);
+        settingsButton.Location = new Point(344, 228);
+        settingsButton.Click += (_, _) => OpenAccountSettings();
+        profileCard.Controls.Add(settingsButton);
+    }
+
+    private void RenderNotificationsPage()
+    {
+        var page = BeginPage("Thông báo", "Dashboard / Thông báo");
+        int width = Math.Min(PageWorkWidth(760), 960);
+
+        var card = ModernUi.Section("Danh sách thông báo", width, 380);
+        card.Location = new Point(18, 88);
+        page.Controls.Add(card);
+
+        var notifications = GetHeaderNotifications();
+        if (notifications.Count == 0)
+        {
+            notifications = CreateSampleNotifications();
+        }
+
+        for (int i = 0; i < notifications.Count && i < 8; i++)
+        {
+            var notification = notifications[i];
+            var row = new RoundedPanel
+            {
+                Radius = 6,
+                BorderColor = Color.FromArgb(226, 232, 240),
+                BackColor = notification.IsRead ? Color.White : Color.FromArgb(239, 246, 255),
+                Location = new Point(18, 48 + i * 40),
+                Size = new Size(card.Width - 36, 34)
+            };
+
+            var text = ModernUi.Label(BuildNotificationCaption(notification), 9f,
+                notification.IsRead ? FontStyle.Regular : FontStyle.Bold,
+                ModernUi.Text);
+            text.Location = new Point(12, 7);
+            text.Size = new Size(row.Width - 24, 20);
+            row.Controls.Add(text);
+
+            row.Cursor = Cursors.Hand;
+            text.Cursor = Cursors.Hand;
+            row.Click += (_, _) => OpenNotificationDetail(notification);
+            text.Click += (_, _) => OpenNotificationDetail(notification);
+            card.Controls.Add(row);
+        }
+
+        var markAllReadButton = ModernUi.Button("Đánh dấu tất cả đã đọc", ModernUi.Blue, 180, 34);
+        markAllReadButton.Location = new Point(18, card.Bottom + 12);
+        markAllReadButton.Click += (_, _) => MarkAllNotificationsAsRead();
+        page.Controls.Add(markAllReadButton);
+    }
+
     private void RenderPlaceholder(string pageKey)
     {
         string title = MenuItemsForRole().FirstOrDefault(m => m.Key == pageKey).Text ?? "Chức năng";
@@ -5790,6 +6066,302 @@ END";
         parent.Controls.Add(text);
     }
 
+    private static void AddProfileField(Control parent, string label, string value, int x, int y, int width)
+    {
+        var caption = ModernUi.Label(label.ToUpperInvariant(), 8.1f, FontStyle.Bold, ModernUi.Muted);
+        caption.Location = new Point(x, y);
+        caption.Size = new Size(width, 16);
+        parent.Controls.Add(caption);
+
+        var text = ModernUi.Label(value, 9.4f, FontStyle.Bold, ModernUi.Text);
+        text.Location = new Point(x, y + 16);
+        text.Size = new Size(width, 22);
+        parent.Controls.Add(text);
+    }
+
+    private string GetUserInitials()
+    {
+        string source = CurrentDisplayName();
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return "U";
+        }
+
+        var letters = source
+            .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(part => char.ToUpperInvariant(part[0]))
+            .ToArray();
+
+        return letters.Length == 0 ? "U" : new string(letters);
+    }
+
+    private List<NotificationDTO> GetHeaderNotifications()
+    {
+        try
+        {
+            List<NotificationDTO> notifications;
+            if (_session?.UserID > 0)
+            {
+                notifications = NotificationDAL.GetUserNotifications(_session.UserID);
+                if (notifications.Count > 0)
+                {
+                    return notifications;
+                }
+            }
+
+            notifications = NotificationDAL.GetAllNotifications();
+            if (notifications.Count > 0)
+            {
+                return notifications;
+            }
+        }
+        catch
+        {
+            // Fallback về dữ liệu mẫu nếu database chưa sẵn sàng.
+        }
+
+        return CreateSampleNotifications();
+    }
+
+    private List<NotificationDTO> CreateSampleNotifications()
+    {
+        return new List<NotificationDTO>
+        {
+            new NotificationDTO
+            {
+                NotificationID = 0,
+                Title = "Hệ thống",
+                Message = "Đã tải dashboard thành công.",
+                CreatedAt = DateTime.Now.AddMinutes(-10),
+                IsRead = false
+            },
+            new NotificationDTO
+            {
+                NotificationID = 0,
+                Title = "Nhắc việc",
+                Message = "Có hóa đơn cần kiểm tra trạng thái thanh toán.",
+                CreatedAt = DateTime.Now.AddHours(-2),
+                IsRead = false
+            },
+            new NotificationDTO
+            {
+                NotificationID = 0,
+                Title = "Thông báo chung",
+                Message = "Chức năng thông báo đang dùng dữ liệu mẫu.",
+                CreatedAt = DateTime.Now.AddDays(-1),
+                IsRead = true
+            }
+        };
+    }
+
+    private string BuildNotificationCaption(NotificationDTO notification)
+    {
+        string title = Display(notification.Title, Display(notification.Subject, "Thông báo"));
+        string body = Display(notification.Message, Display(notification.Body, ""));
+        string time = notification.CreatedAt == DateTime.MinValue ? "Mới" : notification.CreatedAt.ToString("dd/MM HH:mm");
+        string prefix = notification.IsRead ? "" : "[Mới] ";
+        return $"{prefix}{title} - {body} ({time})";
+    }
+
+    private string BuildNotificationTooltip(NotificationDTO notification)
+    {
+        return $"{Display(notification.Title, "Thông báo")}\n{Display(notification.Message, Display(notification.Body, ""))}";
+    }
+
+    private void OpenNotificationDetail(NotificationDTO notification)
+    {
+        if (notification.NotificationID > 0 && !notification.IsRead)
+        {
+            NotificationDAL.MarkAsRead(notification.NotificationID);
+        }
+
+        MessageBox.Show(this,
+            BuildNotificationTooltip(notification),
+            Display(notification.Title, "Thông báo"),
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+
+        ReloadCurrentPage();
+    }
+
+    private void MarkAllNotificationsAsRead()
+    {
+        if (_session?.UserID > 0)
+        {
+            NotificationDAL.MarkAllAsRead(_session.UserID);
+        }
+
+        ReloadCurrentPage();
+    }
+
+    private void OpenAccountSettings()
+    {
+        if (!IsResident)
+        {
+            Navigate("settings");
+            return;
+        }
+
+        MessageBox.Show(this,
+            "Tài khoản cư dân hiện chưa có màn hình cài đặt riêng.",
+            "Cài đặt",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+    }
+
+    private void ConfirmExitApplication()
+    {
+        if (MessageBox.Show(this,
+                "Bạn có chắc muốn thoát chương trình?",
+                "Thoát chương trình",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.Yes)
+        {
+            Close();
+        }
+    }
+
+    private void PerformLogout()
+    {
+        if (MessageBox.Show(this,
+                "Bạn có chắc muốn đăng xuất khỏi hệ thống?",
+                "Đăng xuất",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) != DialogResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            AuthenticationBLL.Logout(); // Clear session trước khi quay về đăng nhập.
+            Hide();
+
+            using var loginForm = new FrmLogin();
+            if (loginForm.ShowDialog() == DialogResult.OK && SessionManager.GetSession() != null)
+            {
+                _session = SessionManager.GetSession();
+                BuildShell();
+                Navigate(GetDefaultPage());
+                Show();
+                Activate();
+                return;
+            }
+
+            Close();
+        }
+        catch (Exception ex)
+        {
+            Show();
+            MessageBox.Show(this,
+                $"Đăng xuất không thành công.\nChi tiết: {ex.Message}",
+                "Đăng xuất",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private bool ShowChangePasswordDialog()
+    {
+        if (_session?.UserID <= 0)
+        {
+            MessageBox.Show(this,
+                "Không tìm thấy thông tin người dùng hiện tại.",
+                "Đổi mật khẩu",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return false;
+        }
+
+        using var dialog = new Form
+        {
+            Text = "Đổi mật khẩu",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            ClientSize = new Size(420, 250)
+        };
+
+        var lblCurrent = ModernUi.Label("Mật khẩu hiện tại", 9f, FontStyle.Bold, ModernUi.Text);
+        lblCurrent.Location = new Point(24, 24);
+        lblCurrent.Size = new Size(160, 24);
+        dialog.Controls.Add(lblCurrent);
+
+        var txtCurrent = new TextBox
+        {
+            Location = new Point(24, 48),
+            Size = new Size(372, 27),
+            UseSystemPasswordChar = true
+        };
+        dialog.Controls.Add(txtCurrent);
+
+        var lblNew = ModernUi.Label("Mật khẩu mới", 9f, FontStyle.Bold, ModernUi.Text);
+        lblNew.Location = new Point(24, 84);
+        lblNew.Size = new Size(160, 24);
+        dialog.Controls.Add(lblNew);
+
+        var txtNew = new TextBox
+        {
+            Location = new Point(24, 108),
+            Size = new Size(372, 27),
+            UseSystemPasswordChar = true
+        };
+        dialog.Controls.Add(txtNew);
+
+        var lblConfirm = ModernUi.Label("Xác nhận mật khẩu mới", 9f, FontStyle.Bold, ModernUi.Text);
+        lblConfirm.Location = new Point(24, 144);
+        lblConfirm.Size = new Size(180, 24);
+        dialog.Controls.Add(lblConfirm);
+
+        var txtConfirm = new TextBox
+        {
+            Location = new Point(24, 168),
+            Size = new Size(372, 27),
+            UseSystemPasswordChar = true
+        };
+        dialog.Controls.Add(txtConfirm);
+
+        var btnSave = ModernUi.Button("Lưu", ModernUi.Blue, 100, 34);
+        btnSave.Location = new Point(192, 206);
+        dialog.Controls.Add(btnSave);
+
+        var btnCancel = ModernUi.OutlineButton("Hủy", 100, 34);
+        btnCancel.Location = new Point(296, 206);
+        btnCancel.Click += (_, _) => dialog.Close();
+        dialog.Controls.Add(btnCancel);
+
+        bool isSuccess = false;
+        btnSave.Click += (_, _) =>
+        {
+            try
+            {
+                var result = AuthenticationBLL.ChangePassword(_session.UserID, txtCurrent.Text, txtNew.Text, txtConfirm.Text);
+                if (!result.success)
+                {
+                    MessageBox.Show(dialog, result.message, "Đổi mật khẩu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                MessageBox.Show(dialog, result.message, "Đổi mật khẩu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                isSuccess = true;
+                dialog.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(dialog,
+                    $"Không thể đổi mật khẩu.\nChi tiết: {ex.Message}",
+                    "Đổi mật khẩu",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        };
+
+        dialog.ShowDialog(this);
+        return isSuccess;
+    }
+
     private string GetDefaultPage() => "dashboard";
     private bool IsResident => RoleName().Contains("resident", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("cư dân", StringComparison.OrdinalIgnoreCase) || CurrentUsername().StartsWith("resident", StringComparison.OrdinalIgnoreCase);
     private bool IsManager => !IsResident && (RoleName().Contains("manager", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("quản lý", StringComparison.OrdinalIgnoreCase) || CurrentUsername().StartsWith("manager", StringComparison.OrdinalIgnoreCase));
@@ -5799,7 +6371,38 @@ END";
     private string FooterDisplayName() => IsManager ? CurrentUsername() : CurrentDisplayName();
     private string RoleDisplay() => IsResident ? "Cư dân" : IsManager ? "Quản lý khu chung cư" : "Super Admin";
     private string RoleFooterLabel() => IsResident ? "Cư dân" : IsManager ? "Người dùng" : "Tên người dùng";
-    private int NotificationCount() => IsResident ? 5 : IsManager ? 8 : 5;
+    private int NotificationCount()
+    {
+        try
+        {
+            if (_session?.UserID > 0)
+            {
+                int unread = NotificationDAL.GetUnreadNotificationCount(_session.UserID);
+                if (unread > 0)
+                {
+                    return unread;
+                }
+
+                int total = NotificationDAL.GetUserNotifications(_session.UserID).Count;
+                if (total > 0)
+                {
+                    return total;
+                }
+            }
+
+            int fallbackTotal = NotificationDAL.GetAllNotifications().Count;
+            if (fallbackTotal > 0)
+            {
+                return fallbackTotal;
+            }
+        }
+        catch
+        {
+            // Giữ fallback an toàn nếu DB chưa sẵn sàng.
+        }
+
+        return CreateSampleNotifications().Count;
+    }
 
     private void UpdateClock()
     {

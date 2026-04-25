@@ -13,7 +13,6 @@ namespace ApartmentManager.GUI
     /// </summary>
     public partial class FrmAdvancedDashboard : Form
     {
-        private Timer refreshTimer;
 
         public FrmAdvancedDashboard()
         {
@@ -25,7 +24,6 @@ namespace ApartmentManager.GUI
         {
             InitializeUI();
             LoadDashboardData();
-            SetupAutoRefresh();
             Log.Information("Advanced Dashboard loaded");
         }
 
@@ -509,25 +507,6 @@ namespace ApartmentManager.GUI
             catch (Exception ex)
             {
                 Log.Error(ex, "Error loading system health");
-            }
-        }
-
-        private void SetupAutoRefresh()
-        {
-            refreshTimer = new Timer
-            {
-                Interval = 300000 // 5 minutes
-            };
-            refreshTimer.Tick += (s, e) => LoadDashboardData();
-            refreshTimer.Start();
-        }
-
-        private void FrmAdvancedDashboard_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            if (refreshTimer != null)
-            {
-                refreshTimer.Stop();
-                refreshTimer.Dispose();
             }
         }
     }
