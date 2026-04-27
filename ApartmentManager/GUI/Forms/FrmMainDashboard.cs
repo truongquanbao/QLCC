@@ -70,6 +70,42 @@ public partial class FrmMainDashboard : Form
     private string? _quickActionMenuKey;
     private Control? _quickActionAnchor;
 
+    private sealed class PaginationState
+    {
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; private set; } = 10;
+        public int TotalRecords { get; set; }
+        public int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalRecords / (double)Math.Max(1, PageSize)));
+        public int StartIndex => TotalRecords == 0 ? 0 : (CurrentPage - 1) * PageSize;
+
+        public void SetPageSize(int pageSize)
+        {
+            PageSize = pageSize > 0 ? pageSize : 10;
+            CurrentPage = 1;
+        }
+
+        public void ClampCurrentPage()
+        {
+            CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages));
+        }
+
+        public void MoveToFirstPage() => CurrentPage = 1;
+        public void MoveToPreviousPage() => CurrentPage = Math.Max(1, CurrentPage - 1);
+        public void MoveToNextPage() => CurrentPage = Math.Min(TotalPages, CurrentPage + 1);
+        public void MoveToLastPage() => CurrentPage = TotalPages;
+    }
+
+    private sealed class PaginationControls
+    {
+        public Label SummaryLabel { get; init; } = null!;
+        public Button FirstButton { get; init; } = null!;
+        public Button PreviousButton { get; init; } = null!;
+        public Button PageButton { get; init; } = null!;
+        public Button NextButton { get; init; } = null!;
+        public Button LastButton { get; init; } = null!;
+        public ComboBox PageSizeCombo { get; init; } = null!;
+    }
+
     public FrmMainDashboard()
     {
         _session = SessionManager.GetSession();
@@ -220,6 +256,100 @@ public partial class FrmMainDashboard : Form
         button.FlatAppearance.BorderSize = 0;
         button.FlatAppearance.MouseOverBackColor = ModernUi.Navy2;
         return button;
+    }
+
+    private static PaginationControls AddPaginationControls(Control parent, int summaryX, int summaryY, int buttonsX, int buttonsY, int pageSizeX, int pageSizeY, int summaryWidth)
+    {
+        var summaryLabel = ModernUi.Label("", 9f, FontStyle.Regular, ModernUi.Text);
+        summaryLabel.Location = new Point(summaryX, summaryY);
+        summaryLabel.Size = new Size(summaryWidth, 26);
+        parent.Controls.Add(summaryLabel);
+
+        var firstButton = ModernUi.OutlineButton("«", 32, 30);
+        firstButton.Location = new Point(buttonsX, buttonsY);
+        parent.Controls.Add(firstButton);
+
+        var previousButton = ModernUi.OutlineButton("‹", 32, 30);
+        previousButton.Location = new Point(buttonsX + 38, buttonsY);
+        parent.Controls.Add(previousButton);
+
+        var pageButton = ModernUi.Button("1", ModernUi.Blue, 32, 30);
+        pageButton.Location = new Point(buttonsX + 76, buttonsY);
+        pageButton.Enabled = false; // Nút giữa chỉ hiển thị trang hiện tại.
+        parent.Controls.Add(pageButton);
+
+        var nextButton = ModernUi.OutlineButton("›", 32, 30);
+        nextButton.Location = new Point(buttonsX + 114, buttonsY);
+        parent.Controls.Add(nextButton);
+
+        var lastButton = ModernUi.OutlineButton("»", 32, 30);
+        lastButton.Location = new Point(buttonsX + 152, buttonsY);
+        parent.Controls.Add(lastButton);
+
+        var pageSizeCombo = ModernUi.ComboBox(new[] { "10", "20", "50" }, 66);
+        pageSizeCombo.Location = new Point(pageSizeX, pageSizeY);
+        pageSizeCombo.SelectedItem = "10";
+        parent.Controls.Add(pageSizeCombo);
+
+        return new PaginationControls
+        {
+            SummaryLabel = summaryLabel,
+            FirstButton = firstButton,
+            PreviousButton = previousButton,
+            PageButton = pageButton,
+            NextButton = nextButton,
+            LastButton = lastButton,
+            PageSizeCombo = pageSizeCombo
+        };
+    }
+
+    private static IReadOnlyList<T> Paginate<T>(IReadOnlyList<T> source, PaginationState state)
+    {
+        state.TotalRecords = source.Count;
+        state.ClampCurrentPage();
+        return source
+            .Skip(state.StartIndex)
+            .Take(state.PageSize)
+            .ToList();
+    }
+
+    private static int FindPageForIndex(int index, int pageSize)
+    {
+        if (index < 0 || pageSize <= 0)
+        {
+            return 1;
+        }
+
+        return (index / pageSize) + 1;
+    }
+
+    private static int ParsePageSize(object? selectedItem, int fallback = 10)
+    {
+        return int.TryParse(selectedItem?.ToString(), out int pageSize) && pageSize > 0
+            ? pageSize
+            : fallback;
+    }
+
+    private static string BuildPaginationSummary(PaginationState state, string itemLabel)
+    {
+        if (state.TotalRecords == 0)
+        {
+            return $"Hiển thị 0 - 0 / 0 {itemLabel}";
+        }
+
+        int start = state.StartIndex + 1;
+        int end = Math.Min(state.StartIndex + state.PageSize, state.TotalRecords);
+        return $"Hiển thị {start} - {end} / {state.TotalRecords:N0} {itemLabel}";
+    }
+
+    private static void UpdatePaginationControls(PaginationState state, PaginationControls controls, string itemLabel)
+    {
+        controls.SummaryLabel.Text = BuildPaginationSummary(state, itemLabel);
+        controls.PageButton.Text = state.TotalRecords == 0 ? "0" : state.CurrentPage.ToString(CultureInfo.InvariantCulture);
+        controls.FirstButton.Enabled = state.CurrentPage > 1;
+        controls.PreviousButton.Enabled = state.CurrentPage > 1;
+        controls.LastButton.Enabled = state.CurrentPage < state.TotalPages && state.TotalRecords > 0;
+        controls.NextButton.Enabled = state.CurrentPage < state.TotalPages && state.TotalRecords > 0;
     }
 
     private void BuildFooter()
@@ -929,6 +1059,14 @@ public partial class FrmMainDashboard : Form
         }
 
         ShowQuickActionMenu(anchor, "account",
+            ("Hồ sơ cá nhân", () => Navigate("profile")),
+            ("Đổi mật khẩu", () => ShowChangePasswordDialog()),
+            ("Cài đặt", OpenAccountSettings),
+            ("Đăng xuất", PerformLogout),
+            ("Thoát chương trình", ConfirmExitApplication));
+        return;
+
+        ShowQuickActionMenu(anchor, "account",
             ("Thông tin tài khoản / Hồ sơ cá nhân", () => Navigate("profile")),
             ("Đổi mật khẩu", () => ShowChangePasswordDialog()),
             ("Cài đặt", OpenAccountSettings),
@@ -971,6 +1109,7 @@ public partial class FrmMainDashboard : Form
             Font = new Font("Segoe UI", 9.4f, FontStyle.Bold)
         };
         menu.Items.Add(titleItem);
+        titleItem.Text = "Thông báo gần đây";
         menu.Items.Add(new ToolStripSeparator());
 
         foreach (var notification in notifications)
@@ -1008,10 +1147,12 @@ public partial class FrmMainDashboard : Form
         menu.Items.Add(new ToolStripSeparator());
 
         var viewAllItem = new ToolStripMenuItem("Xem tất cả thông báo");
+        viewAllItem.Text = "Xem tất cả thông báo";
         viewAllItem.Click += (_, _) => Navigate("notifications");
         menu.Items.Add(viewAllItem);
 
         var markAllReadItem = new ToolStripMenuItem("Đánh dấu đã đọc");
+        markAllReadItem.Text = "Đánh dấu đã đọc";
         markAllReadItem.Click += (_, _) =>
         {
             try
@@ -1969,7 +2110,15 @@ END";
         }
 
         list.Controls.Add(grid);
-        var apartmentTotalLabel = AddApartmentPager(list, sectionH, list.Width, 0);
+        var apartmentPager = AddPaginationControls(
+            list,
+            18,
+            sectionH - 36,
+            Math.Max(220, list.Width - 320),
+            sectionH - 38,
+            list.Width - 80,
+            sectionH - 38,
+            Math.Max(190, list.Width - 360));
         content.Controls.Add(list);
 
         var details = ModernUi.Section("Thông tin căn hộ", detailW, 438);
@@ -2446,6 +2595,8 @@ END";
                 .ToList();
         }
 
+        var apartmentPagination = new PaginationState();
+
         void PopulateApartmentGrid(IReadOnlyList<ApartmentDTO> source)
         {
             grid.SuspendLayout();
@@ -2703,9 +2854,18 @@ END";
         void RefreshApartmentView(int? preferredApartmentId = null, bool keepCreateMode = false)
         {
             displayApartments = FilterApartments();
-            apartmentTotalLabel.Text = $"Tổng số: {displayApartments.Count:N0} căn hộ";
-            PopulateApartmentGrid(displayApartments);
+            if (preferredApartmentId.HasValue)
+            {
+                int preferredIndex = displayApartments.FindIndex(apartment => apartment.ApartmentID == preferredApartmentId.Value);
+                if (preferredIndex >= 0)
+                {
+                    apartmentPagination.CurrentPage = FindPageForIndex(preferredIndex, apartmentPagination.PageSize);
+                }
+            }
+
+            PopulateApartmentGrid(Paginate(displayApartments, apartmentPagination));
             PopulateApartmentTree(displayApartments);
+            UpdatePaginationControls(apartmentPagination, apartmentPager, "căn hộ");
 
             if (keepCreateMode)
             {
@@ -2904,7 +3064,37 @@ END";
             SelectApartment(FirstApartmentInNode(e.Node), fromTree: true);
         };
 
-        apartmentSearch.TextChanged += (_, _) => RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        apartmentPager.FirstButton.Click += (_, _) =>
+        {
+            apartmentPagination.MoveToFirstPage();
+            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        };
+        apartmentPager.PreviousButton.Click += (_, _) =>
+        {
+            apartmentPagination.MoveToPreviousPage();
+            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        };
+        apartmentPager.NextButton.Click += (_, _) =>
+        {
+            apartmentPagination.MoveToNextPage();
+            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        };
+        apartmentPager.LastButton.Click += (_, _) =>
+        {
+            apartmentPagination.MoveToLastPage();
+            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        };
+        apartmentPager.PageSizeCombo.SelectedIndexChanged += (_, _) =>
+        {
+            apartmentPagination.SetPageSize(ParsePageSize(apartmentPager.PageSizeCombo.SelectedItem, apartmentPagination.PageSize));
+            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        };
+
+        apartmentSearch.TextChanged += (_, _) =>
+        {
+            apartmentPagination.MoveToFirstPage();
+            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+        };
         buildingFilter.SelectedIndexChanged += (_, _) =>
         {
             if (suppressFilterEvents)
@@ -2913,6 +3103,7 @@ END";
             }
 
             RefreshFilterOptions(buildingFilter.SelectedItem?.ToString(), blockFilter.SelectedItem?.ToString(), floorFilter.SelectedItem?.ToString(), statusFilter.SelectedItem?.ToString());
+            apartmentPagination.MoveToFirstPage();
             RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
         };
         blockFilter.SelectedIndexChanged += (_, _) =>
@@ -2923,12 +3114,14 @@ END";
             }
 
             RefreshFilterOptions(buildingFilter.SelectedItem?.ToString(), blockFilter.SelectedItem?.ToString(), floorFilter.SelectedItem?.ToString(), statusFilter.SelectedItem?.ToString());
+            apartmentPagination.MoveToFirstPage();
             RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
         };
         floorFilter.SelectedIndexChanged += (_, _) =>
         {
             if (!suppressFilterEvents)
             {
+                apartmentPagination.MoveToFirstPage();
                 RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
             }
         };
@@ -2936,6 +3129,7 @@ END";
         {
             if (!suppressFilterEvents)
             {
+                apartmentPagination.MoveToFirstPage();
                 RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
             }
         };
@@ -3227,6 +3421,7 @@ END";
         listHint.Location = new Point(18, 504);
         listHint.Size = new Size(list.Width - 36, 22);
         list.Controls.Add(listHint);
+        var residentPager = AddPaginationControls(list, 18, 452, list.Width - 270, 450, list.Width - 80, 450, list.Width - 300);
         page.Controls.Add(list);
 
         var details = ModernUi.Section("Thông tin cư dân và căn hộ", rightW, 536);
@@ -3241,6 +3436,7 @@ END";
         page.Controls.Add(details);
 
         bool suppressFilterEvents = false;
+        var residentPagination = new PaginationState();
 
         void SetFilterItems(ComboBox combo, IEnumerable<string> items, string preferred)
         {
@@ -3332,9 +3528,10 @@ END";
                 return;
             }
 
-            for (int i = 0; i < displayResidents.Count && i < grid.Rows.Count; i++)
+            for (int i = 0; i < grid.Rows.Count; i++)
             {
-                if (displayResidents[i].ResidentID == resident.ResidentID)
+                if (residentPagination.StartIndex + i < displayResidents.Count &&
+                    displayResidents[residentPagination.StartIndex + i].ResidentID == resident.ResidentID)
                 {
                     grid.Rows[i].Selected = true;
                     grid.CurrentCell = grid.Rows[i].Cells[0];
@@ -3403,20 +3600,22 @@ END";
                 .ThenBy(resident => Display(resident.FullName, ""))
                 .ToList();
 
-            BindResidentGrid(displayResidents);
+            IReadOnlyList<ResidentDTO> pageResidents = Paginate(displayResidents, residentPagination);
+            BindResidentGrid(pageResidents);
+            UpdatePaginationControls(residentPagination, residentPager, "cư dân");
 
             int apartmentCount = displayResidents
                 .Select(resident => resident.ApartmentID)
                 .Distinct()
                 .Count();
-            listSummary.Text = $"Hiển thị {displayResidents.Count:N0} / {allResidents.Count:N0} cư dân - {apartmentCount:N0} căn hộ có cư dân.";
+            listSummary.Text = $"Lọc được {displayResidents.Count:N0} / {allResidents.Count:N0} cư dân - {apartmentCount:N0} căn hộ có cư dân.";
             filterSummary.Text = selectedBuilding == "Tất cả"
                 ? "Danh sách đang đồng bộ theo căn hộ thực tế trong database."
                 : $"Đang lọc theo {selectedBuilding} và các căn hộ liên quan.";
 
             ResidentDTO? residentToSelect = preferredResident != null
-                ? displayResidents.FirstOrDefault(r => r.ResidentID == preferredResident.ResidentID)
-                : displayResidents.FirstOrDefault();
+                ? pageResidents.FirstOrDefault(r => r.ResidentID == preferredResident.ResidentID)
+                : pageResidents.FirstOrDefault();
             SelectResident(residentToSelect);
         }
 
@@ -3436,12 +3635,14 @@ END";
             }
 
             RefreshApartmentFilter();
+            residentPagination.MoveToFirstPage();
             ApplyFilters();
         };
         apartmentFilter.SelectedIndexChanged += (_, _) =>
         {
             if (!suppressFilterEvents)
             {
+                residentPagination.MoveToFirstPage();
                 ApplyFilters();
             }
         };
@@ -3449,6 +3650,7 @@ END";
         {
             if (!suppressFilterEvents)
             {
+                residentPagination.MoveToFirstPage();
                 ApplyFilters();
             }
         };
@@ -3456,16 +3658,48 @@ END";
         {
             if (!suppressFilterEvents)
             {
+                residentPagination.MoveToFirstPage();
                 ApplyFilters();
             }
         };
-        search.TextChanged += (_, _) => ApplyFilters();
+        search.TextChanged += (_, _) =>
+        {
+            residentPagination.MoveToFirstPage();
+            ApplyFilters();
+        };
         grid.CellClick += (_, e) =>
         {
-            if (e.RowIndex >= 0 && e.RowIndex < displayResidents.Count)
+            int absoluteIndex = residentPagination.StartIndex + e.RowIndex;
+            if (e.RowIndex >= 0 && absoluteIndex >= 0 && absoluteIndex < displayResidents.Count)
             {
-                SelectResident(displayResidents[e.RowIndex]);
+                SelectResident(displayResidents[absoluteIndex]);
             }
+        };
+
+        residentPager.FirstButton.Click += (_, _) =>
+        {
+            residentPagination.MoveToFirstPage();
+            ApplyFilters();
+        };
+        residentPager.PreviousButton.Click += (_, _) =>
+        {
+            residentPagination.MoveToPreviousPage();
+            ApplyFilters();
+        };
+        residentPager.NextButton.Click += (_, _) =>
+        {
+            residentPagination.MoveToNextPage();
+            ApplyFilters();
+        };
+        residentPager.LastButton.Click += (_, _) =>
+        {
+            residentPagination.MoveToLastPage();
+            ApplyFilters();
+        };
+        residentPager.PageSizeCombo.SelectedIndexChanged += (_, _) =>
+        {
+            residentPagination.SetPageSize(ParsePageSize(residentPager.PageSizeCombo.SelectedItem, residentPagination.PageSize));
+            ApplyFilters();
         };
 
         ApplyFilters(allResidents.FirstOrDefault());
@@ -3529,6 +3763,152 @@ END";
         residentsByApartment.TryGetValue(selectedInvoice?.ApartmentID ?? 0, out var selectedInvoiceResident);
         AddInvoiceDetail(detail, selectedInvoice, selectedInvoiceResident);
         page.Controls.Add(detail);
+
+        var invoicePager = AddPaginationControls(list, 16, 386, list.Width - 270, 382, list.Width - 80, 382, list.Width - 300);
+        paging.Visible = false; // Dùng pager động bên dưới thay cho label tĩnh ban đầu.
+        var invoicePagination = new PaginationState();
+        List<InvoiceDTO> displayInvoices = new();
+
+        void SelectInvoice(InvoiceDTO? invoice)
+        {
+            selectedInvoice = invoice;
+            detail.Controls.Clear();
+            residentsByApartment.TryGetValue(invoice?.ApartmentID ?? 0, out var detailResident);
+            AddInvoiceDetail(detail, invoice, detailResident);
+
+            grid.ClearSelection();
+            if (invoice == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < grid.Rows.Count; i++)
+            {
+                if (invoicePagination.StartIndex + i < displayInvoices.Count &&
+                    displayInvoices[invoicePagination.StartIndex + i].InvoiceID == invoice.InvoiceID)
+                {
+                    grid.Rows[i].Selected = true;
+                    grid.CurrentCell = grid.Rows[i].Cells[0];
+                    break;
+                }
+            }
+        }
+
+        void ApplyInvoiceFilters(int? preferredInvoiceId = null)
+        {
+            string keyword = (search.Text ?? string.Empty).Trim();
+            string statusText = statusFilterCombo.Text.Trim();
+
+            displayInvoices = invoices
+                .Where(invoice =>
+                {
+                    residentsByApartment.TryGetValue(invoice.ApartmentID, out var resident);
+                    if (!string.IsNullOrWhiteSpace(statusText) &&
+                        !string.Equals(statusText, "Tất cả", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ViStatus(invoice.PaymentStatus), statusText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    if (keyword.Length == 0)
+                    {
+                        return true;
+                    }
+
+                    string haystack = string.Join(" ",
+                        InvoiceCode(invoice),
+                        Display(invoice.ApartmentCode, ""),
+                        Display(resident?.FullName, ""),
+                        $"{invoice.Month:00}/{invoice.Year}",
+                        ViStatus(invoice.PaymentStatus));
+                    return haystack.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase) >= 0;
+                })
+                .OrderByDescending(invoice => invoice.Year)
+                .ThenByDescending(invoice => invoice.Month)
+                .ThenBy(invoice => Display(invoice.ApartmentCode, ""))
+                .ToList();
+
+            if (preferredInvoiceId.HasValue)
+            {
+                int preferredIndex = displayInvoices.FindIndex(invoice => invoice.InvoiceID == preferredInvoiceId.Value);
+                if (preferredIndex >= 0)
+                {
+                    invoicePagination.CurrentPage = FindPageForIndex(preferredIndex, invoicePagination.PageSize);
+                }
+            }
+
+            IReadOnlyList<InvoiceDTO> pageInvoices = Paginate(displayInvoices, invoicePagination);
+            SetGridData(
+                grid,
+                new[] { "", "Mã hóa đơn", "Tháng/Năm", "Căn hộ", "Chủ hộ", "Tổng tiền (VNĐ)", "Trạng thái thanh toán", "Ngày thanh toán" },
+                RowsOrEmpty(pageInvoices, 8, (invoice, index) =>
+                {
+                    residentsByApartment.TryGetValue(invoice.ApartmentID, out var resident);
+                    return new object[]
+                    {
+                        index == 0 ? "›" : "",
+                        InvoiceCode(invoice),
+                        $"{invoice.Month:00}/{invoice.Year}",
+                        Display(invoice.ApartmentCode),
+                        Display(resident?.FullName),
+                        Money(invoice.TotalAmount),
+                        ViStatus(invoice.PaymentStatus),
+                        invoice.PaidAmount > 0 ? DateText(invoice.UpdatedAt) : "-"
+                    };
+                }, "Không có hóa đơn phù hợp"));
+            UpdatePaginationControls(invoicePagination, invoicePager, "hóa đơn");
+
+            InvoiceDTO? invoiceToSelect = preferredInvoiceId.HasValue
+                ? pageInvoices.FirstOrDefault(invoice => invoice.InvoiceID == preferredInvoiceId.Value)
+                : pageInvoices.FirstOrDefault();
+            SelectInvoice(invoiceToSelect);
+        }
+
+        invoicePager.FirstButton.Click += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+        };
+        invoicePager.PreviousButton.Click += (_, _) =>
+        {
+            invoicePagination.MoveToPreviousPage();
+            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+        };
+        invoicePager.NextButton.Click += (_, _) =>
+        {
+            invoicePagination.MoveToNextPage();
+            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+        };
+        invoicePager.LastButton.Click += (_, _) =>
+        {
+            invoicePagination.MoveToLastPage();
+            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+        };
+        invoicePager.PageSizeCombo.SelectedIndexChanged += (_, _) =>
+        {
+            invoicePagination.SetPageSize(ParsePageSize(invoicePager.PageSizeCombo.SelectedItem, invoicePagination.PageSize));
+            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+        };
+        statusFilterCombo.SelectedIndexChanged += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+        search.TextChanged += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+        grid.CellClick += (_, e) =>
+        {
+            int absoluteIndex = invoicePagination.StartIndex + e.RowIndex;
+            if (e.RowIndex >= 0 && absoluteIndex >= 0 && absoluteIndex < displayInvoices.Count)
+            {
+                SelectInvoice(displayInvoices[absoluteIndex]);
+            }
+        };
+
+        ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
 
         y += 446;
 
@@ -4393,6 +4773,84 @@ END";
         headerUser.Size = new Size(136, 30);
         page.Controls.Add(headerUser);
 
+        // Đồng bộ header của module tài khoản/phân quyền với Dashboard chính.
+        title.Text = "QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN";
+        headerBell.Visible = false;
+        headerBadge.Visible = false;
+        headerUser.Visible = false;
+
+        var syncedHeaderBell = ModernUi.IconButton("🔔", 36);
+        syncedHeaderBell.Location = new Point(w - 188, 10);
+        syncedHeaderBell.Cursor = Cursors.Hand;
+        page.Controls.Add(syncedHeaderBell);
+
+        var syncedHeaderBadge = new CircleLabel
+        {
+            Text = NotificationCount().ToString(CultureInfo.InvariantCulture),
+            CircleColor = ModernUi.Red,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(7.5f, FontStyle.Bold),
+            Size = new Size(16, 16),
+            Location = new Point(w - 166, 8)
+        };
+        syncedHeaderBadge.Cursor = Cursors.Hand;
+        page.Controls.Add(syncedHeaderBadge);
+
+        var syncedHeaderAvatar = new CircleLabel
+        {
+            Text = "●",
+            CircleColor = Color.FromArgb(226, 236, 248),
+            ForeColor = ModernUi.Navy,
+            Font = ModernUi.Font(13f, FontStyle.Bold),
+            Location = new Point(w - 128, 11),
+            Size = new Size(34, 34)
+        };
+        syncedHeaderAvatar.Cursor = Cursors.Hand;
+        page.Controls.Add(syncedHeaderAvatar);
+
+        var syncedHeaderUser = ModernUi.Label($"{CurrentUsername()} ▾", 9.5f, FontStyle.Bold, ModernUi.Navy);
+        syncedHeaderUser.Location = new Point(w - 88, 14);
+        syncedHeaderUser.Size = new Size(92, 30);
+        syncedHeaderUser.Cursor = Cursors.Hand;
+        page.Controls.Add(syncedHeaderUser);
+
+        void ToggleNotificationDropdown()
+        {
+            try
+            {
+                ShowNotificationMenu(syncedHeaderBell);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    $"Không thể tải danh sách thông báo.\nChi tiết: {ex.Message}",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        void ToggleAccountDropdown()
+        {
+            try
+            {
+                ShowAccountMenu(syncedHeaderUser);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    $"Không thể mở menu tài khoản.\nChi tiết: {ex.Message}",
+                    "Tài khoản",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        syncedHeaderBell.Click += (_, _) => ToggleNotificationDropdown();
+        syncedHeaderBadge.Click += (_, _) => ToggleNotificationDropdown();
+        syncedHeaderAvatar.Click += (_, _) => ToggleAccountDropdown();
+        syncedHeaderUser.Click += (_, _) => ToggleAccountDropdown();
+
         var toolbar = new Panel
         {
             Location = new Point(margin, 58),
@@ -4451,14 +4909,9 @@ END";
         users.Controls.Add(userGrid);
 
         int totalUsers = UserDAL.GetAllUsers().Count;
-        var paging = ModernUi.Label($"Hiển thị 1 - {Math.Min(8, totalUsers)} / {totalUsers} tài khoản", 9f, FontStyle.Regular, ModernUi.Text);
-        paging.Location = new Point(14, 352);
-        paging.Size = new Size(250, 26);
-        users.Controls.Add(paging);
-        AddMiniPager(users, users.Width - 710, 344);
-        var perPage = ModernUi.ComboBox(new[] { "20", "10", "50" }, 78);
-        perPage.Location = new Point(users.Width - 520, 344);
-        users.Controls.Add(perPage);
+        var accountPager = AddPaginationControls(users, 14, 352, users.Width - 710, 344, users.Width - 520, 344, 250);
+        var paging = accountPager.SummaryLabel; // Giữ tương thích với hàm refresh cũ trong cùng scope.
+        var perPage = accountPager.PageSizeCombo;
         var perPageText = ModernUi.Label("mục/trang", 9f, FontStyle.Regular, ModernUi.Text);
         perPageText.Location = new Point(users.Width - 430, 347);
         perPageText.Size = new Size(100, 26);
@@ -4580,10 +5033,7 @@ END";
         UserDTO? selectedUser = null;
         string? selectedAvatarPath = null;
 
-        if (perPage.Items.Count > 0)
-        {
-            perPage.SelectedItem = "20";
-        }
+        var accountPagination = new PaginationState();
 
         bool IsResidentRole(string? roleName)
             => string.Equals(roleName, "Resident", StringComparison.OrdinalIgnoreCase);
@@ -4710,6 +5160,51 @@ END";
                 userGrid.Rows[0].Selected = true;
                 userGrid.CurrentCell = userGrid.Rows[0].Cells[0];
                 PopulateAccountForm(filteredUsers[0]);
+            }
+            else
+            {
+                PopulateAccountForm(null);
+            }
+
+            RefreshAuditLog();
+        }
+
+        void RefreshUsersWithPaging(int? selectUserId = null)
+        {
+            var filteredUsers = FilterUsers();
+            if (selectUserId.HasValue)
+            {
+                int selectedIndex = filteredUsers.FindIndex(user => user.UserID == selectUserId.Value);
+                if (selectedIndex >= 0)
+                {
+                    accountPagination.CurrentPage = FindPageForIndex(selectedIndex, accountPagination.PageSize);
+                }
+            }
+
+            IReadOnlyList<UserDTO> pageUsers = Paginate(filteredUsers, accountPagination);
+            PopulateAccountUsersGrid(userGrid, pageUsers);
+            UpdatePaginationControls(accountPagination, accountPager, "tài khoản");
+
+            if (selectUserId.HasValue)
+            {
+                foreach (DataGridViewRow row in userGrid.Rows)
+                {
+                    if (row.Tag is UserDTO rowUser && rowUser.UserID == selectUserId.Value)
+                    {
+                        row.Selected = true;
+                        userGrid.CurrentCell = row.Cells[0];
+                        PopulateAccountForm(rowUser);
+                        RefreshAuditLog();
+                        return;
+                    }
+                }
+            }
+
+            if (pageUsers.Count > 0)
+            {
+                userGrid.Rows[0].Selected = true;
+                userGrid.CurrentCell = userGrid.Rows[0].Cells[0];
+                PopulateAccountForm(pageUsers[0]);
             }
             else
             {
@@ -4853,7 +5348,7 @@ END";
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                RefreshUsers(newUserId);
+                RefreshUsersWithPaging(newUserId);
                 return;
             }
 
@@ -4893,7 +5388,7 @@ END";
             AuditLogDAL.LogAction(_session?.UserID, "Update_User", "User", selectedUser.UserID, $"Cập nhật tài khoản: {username}");
             MessageBox.Show(this, "Đã lưu thay đổi tài khoản.",
                 "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            RefreshUsers(selectedUser.UserID);
+            RefreshUsersWithPaging(selectedUser.UserID);
         }
 
         void DeleteSelectedUser()
@@ -4932,7 +5427,7 @@ END";
             }
 
             AuditLogDAL.LogAction(_session?.UserID, "Delete_User", "User", selectedUser.UserID, $"Xóa tài khoản: {selectedUser.Username}");
-            RefreshUsers();
+            RefreshUsersWithPaging();
         }
 
         void ToggleSelectedUserLock()
@@ -4977,7 +5472,7 @@ END";
             }
 
             AuditLogDAL.LogAction(_session?.UserID, actionName, "User", selectedUser.UserID, $"{actionName}: {selectedUser.Username}");
-            RefreshUsers(selectedUser.UserID);
+            RefreshUsersWithPaging(selectedUser.UserID);
         }
 
         void ResetSelectedUserPassword()
@@ -5007,9 +5502,46 @@ END";
             RefreshAuditLog();
         }
 
-        search.TextChanged += (_, _) => RefreshUsers(selectedUser?.UserID);
-        role.SelectedIndexChanged += (_, _) => RefreshUsers(selectedUser?.UserID);
-        status.SelectedIndexChanged += (_, _) => RefreshUsers(selectedUser?.UserID);
+        accountPager.FirstButton.Click += (_, _) =>
+        {
+            accountPagination.MoveToFirstPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        accountPager.PreviousButton.Click += (_, _) =>
+        {
+            accountPagination.MoveToPreviousPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        accountPager.NextButton.Click += (_, _) =>
+        {
+            accountPagination.MoveToNextPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        accountPager.LastButton.Click += (_, _) =>
+        {
+            accountPagination.MoveToLastPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        perPage.SelectedIndexChanged += (_, _) =>
+        {
+            accountPagination.SetPageSize(ParsePageSize(perPage.SelectedItem, accountPagination.PageSize));
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        search.TextChanged += (_, _) =>
+        {
+            accountPagination.MoveToFirstPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        role.SelectedIndexChanged += (_, _) =>
+        {
+            accountPagination.MoveToFirstPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
+        status.SelectedIndexChanged += (_, _) =>
+        {
+            accountPagination.MoveToFirstPage();
+            RefreshUsersWithPaging(selectedUser?.UserID);
+        };
 
         userGrid.SelectionChanged += (_, _) =>
         {
@@ -5035,7 +5567,7 @@ END";
         lockButton.Click += (_, _) => ToggleSelectedUserLock();
         resetPasswordButton.Click += (_, _) => ResetSelectedUserPassword();
         save.Click += (_, _) => SaveAccountChanges();
-        cancel.Click += (_, _) => RefreshUsers(selectedUser?.UserID);
+        cancel.Click += (_, _) => RefreshUsersWithPaging(selectedUser?.UserID);
         choose.Click += (_, _) =>
         {
             using var dialog = new OpenFileDialog
@@ -5052,7 +5584,7 @@ END";
             }
         };
 
-        RefreshUsers();
+        RefreshUsersWithPaging();
 
         static Button AddToolbarButton(Control parent, string text, Color color, int x, int y, int width)
         {
