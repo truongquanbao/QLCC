@@ -17,12 +17,15 @@ public class InvoiceDTO
     public int Year { get; set; }
     public decimal TotalAmount { get; set; }
     public decimal PaidAmount { get; set; }
+    public decimal RemainingAmount { get; set; }
     public string? Status { get; set; }
     public string? PaymentStatus { get; set; }
     public DateTime? PaidAt { get; set; }
     public DateTime? DueDate { get; set; }
     public DateTime CreatedDate => CreatedAt;
     public string? Note { get; set; }
+    public string? CancelReason { get; set; }
+    public string? AdjustmentNote { get; set; }
     public int? ConfirmedBy { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

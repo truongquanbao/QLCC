@@ -37,6 +37,12 @@ namespace ApartmentManager
                     return;
                 }
 
+                if (!EnsureDatabaseConnection())
+                {
+                    Log.Warning("Application stopped because database connection is not available");
+                    return;
+                }
+
                 // Check if user is logged in, otherwise show login form
                 UserSession session = SessionManager.GetSession();
                 if (session == null)
@@ -71,6 +77,41 @@ namespace ApartmentManager
             finally
             {
                 Log.CloseAndFlush();
+            }
+        }
+
+        private static bool EnsureDatabaseConnection()
+        {
+            var ensureResult = DatabaseHelper.EnsureActiveConnection();
+            if (ensureResult.success)
+            {
+                return true;
+            }
+
+            while (true)
+            {
+                var dialogResult = MessageBox.Show(
+                    $"Không thể kết nối cơ sở dữ liệu.\n\n{ensureResult.message}\n\nChọn Yes để cấu hình lại kết nối, hoặc No để thoát ứng dụng.",
+                    "Kết nối cơ sở dữ liệu",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (dialogResult != DialogResult.Yes)
+                {
+                    return false;
+                }
+
+                using var databaseSetup = new FrmDatabaseSetup();
+                if (databaseSetup.ShowDialog() != DialogResult.OK)
+                {
+                    return false;
+                }
+
+                ensureResult = DatabaseHelper.EnsureActiveConnection();
+                if (ensureResult.success)
+                {
+                    return true;
+                }
             }
         }
     }

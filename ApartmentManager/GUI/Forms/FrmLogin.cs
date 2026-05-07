@@ -30,6 +30,7 @@ public partial class FrmLogin : Form
 
         ConfigureUI();
         LoadRememberedUsername();
+        Shown += FrmLogin_Shown;
     }
 
     private void ConfigureUI()
@@ -454,8 +455,12 @@ public partial class FrmLogin : Form
         }
     }
 
-    private void BtnLogin_Click(object? sender, EventArgs e)
+    private async void BtnLogin_Click(object? sender, EventArgs e)
     {
+        await ExecuteLoginAsync();
+        return;
+
+        /*
         string username = _txtUsername.Text.Trim();
         string password = _txtPassword.Text;
 
@@ -490,6 +495,7 @@ public partial class FrmLogin : Form
             _txtPassword.Clear();
             _txtPassword.Focus();
         }
+        */
     }
 
     private void LinkForgotPassword_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)

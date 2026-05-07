@@ -79,7 +79,9 @@ public class InvoiceBLL
 
             return InvoiceDAL.GetInvoicesByResident(residentID)
                 .Where(i => string.Equals(i.PaymentStatus, "Unpaid", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(i.PaymentStatus, "PartiallyPaid", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(i.PaymentStatus, "Partial", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(i.PaymentStatus, "Overdue", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(i.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
@@ -210,15 +212,18 @@ public class InvoiceBLL
                 return (false, "Invoice not found");
 
             decimal newPaidAmount = invoice.PaidAmount + amountPaid;
+            decimal remainingBeforePayment = invoice.RemainingAmount > 0
+                ? invoice.RemainingAmount
+                : Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
 
-            if (newPaidAmount > invoice.TotalAmount)
-                return (false, $"Payment exceeds invoice total. Remaining: {invoice.TotalAmount - invoice.PaidAmount}");
+            if (amountPaid > remainingBeforePayment || newPaidAmount > invoice.TotalAmount)
+                return (false, $"Payment exceeds invoice total. Remaining: {remainingBeforePayment}");
 
             string newStatus = "Unpaid";
             if (newPaidAmount >= invoice.TotalAmount)
                 newStatus = "Paid";
             else if (newPaidAmount > 0)
-                newStatus = "Partial";
+                newStatus = "PartiallyPaid";
 
             bool success = InvoiceDAL.UpdatePaymentStatus(invoiceID, newStatus, newPaidAmount);
 
@@ -315,7 +320,9 @@ public class InvoiceBLL
             int paidInvoices = invoices.Count(i => string.Equals(i.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase));
             int unpaidInvoices = invoices.Count(i =>
                 string.Equals(i.PaymentStatus, "Unpaid", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(i.PaymentStatus, "PartiallyPaid", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(i.PaymentStatus, "Partial", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(i.PaymentStatus, "Overdue", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(i.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase));
 
             decimal collectionRate = totalInvoices > 0
@@ -347,15 +354,15 @@ public class InvoiceBLL
             var allInvoices = InvoiceDAL.GetUnpaidInvoices();
             var paidInvoices = InvoiceDAL.GetInvoicesByStatus("Paid");
 
-            decimal totalOutstanding = allInvoices.Sum(i => (decimal)(i.TotalAmount - i.PaidAmount));
+            decimal totalOutstanding = allInvoices.Sum(i => i.RemainingAmount > 0 ? i.RemainingAmount : (decimal)(i.TotalAmount - i.PaidAmount));
             decimal totalCollected = paidInvoices.Sum(i => (decimal)i.TotalAmount);
 
             var stats = new
             {
                 TotalInvoices = allInvoices.Count + paidInvoices.Count,
                 PaidInvoices = paidInvoices.Count,
-                UnpaidInvoices = allInvoices.Count(i => i.PaymentStatus == "Unpaid" || i.PaymentStatus == "Pending"),
-                PartialPayments = allInvoices.Count(i => i.PaymentStatus == "Partial"),
+                UnpaidInvoices = allInvoices.Count(i => i.PaymentStatus == "Unpaid" || i.PaymentStatus == "Pending" || i.PaymentStatus == "Overdue"),
+                PartialPayments = allInvoices.Count(i => i.PaymentStatus == "PartiallyPaid" || i.PaymentStatus == "Partial"),
                 TotalOutstanding = totalOutstanding.ToString("F2"),
                 TotalCollected = totalCollected.ToString("F2"),
                 CollectionRate = (allInvoices.Count + paidInvoices.Count) > 0 

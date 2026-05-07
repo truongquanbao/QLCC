@@ -25,7 +25,7 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeSplashScreen()
         {
-            Text = "Quản lý khu chung cư";
+            Text = "Quáº£n lÃ½ khu chung cÆ°";
             Size = new Size(600, 300);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(33, 86, 155);
@@ -36,7 +36,7 @@ namespace ApartmentManager.GUI.Forms
 
             var lblTitle = new Label
             {
-                Text = "Quản lý khu chung cư",
+                Text = "Quáº£n lÃ½ khu chung cÆ°",
                 Font = new Font("Arial", 20, FontStyle.Bold),
                 ForeColor = Color.White,
                 Left = 50,
@@ -49,7 +49,7 @@ namespace ApartmentManager.GUI.Forms
 
             var lblSubtitle = new Label
             {
-                Text = "Hệ thống quản lý cư dân và vận hành",
+                Text = "Há»‡ thá»‘ng quáº£n lÃ½ cÆ° dÃ¢n vÃ  váº­n hÃ nh",
                 Font = new Font("Arial", 12, FontStyle.Italic),
                 ForeColor = Color.LightGray,
                 Left = 50,
@@ -72,7 +72,7 @@ namespace ApartmentManager.GUI.Forms
 
             _lblStatus = new Label
             {
-                Text = "Đang khởi tạo...",
+                Text = "Äang khá»Ÿi táº¡o...",
                 Font = new Font("Arial", 10),
                 ForeColor = Color.White,
                 Left = 50,
@@ -85,7 +85,7 @@ namespace ApartmentManager.GUI.Forms
 
             _lblVersion = new Label
             {
-                Text = "Phiên bản 1.0.0",
+                Text = "PhiÃªn báº£n 1.0.0",
                 Font = new Font("Arial", 8),
                 ForeColor = Color.LightGray,
                 Left = 50,
@@ -110,7 +110,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error initializing application");
-                MessageBox.Show($"Khởi tạo thất bại: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Khá»Ÿi táº¡o tháº¥t báº¡i: {ex.Message}", "Lá»—i", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 DialogResult = DialogResult.Cancel;
                 Close();
             }
@@ -118,31 +118,31 @@ namespace ApartmentManager.GUI.Forms
 
         private async Task InitializeApplication()
         {
-            UpdateProgress("Đang khởi tạo hệ thống ghi log...", 10);
+            UpdateProgress("Äang khá»Ÿi táº¡o há»‡ thá»‘ng ghi log...", 10);
             await Task.Delay(500);
 
-            UpdateProgress("Đang tải cấu hình...", 25);
+            UpdateProgress("Äang táº£i cáº¥u hÃ¬nh...", 25);
             await Task.Delay(500);
 
-            UpdateProgress("Đang kết nối cơ sở dữ liệu...", 40);
-            try
+            UpdateProgress("Äang káº¿t ná»‘i cÆ¡ sá»Ÿ dá»¯ liá»‡u...", 40);
+            var connectionResult = await Task.Run(DatabaseHelper.EnsureActiveConnection);
+            if (connectionResult.success)
             {
-                await Task.Delay(500);
-                UpdateProgress("Đã kết nối cơ sở dữ liệu", 55);
+                UpdateProgress("ÄÃ£ káº¿t ná»‘i cÆ¡ sá»Ÿ dá»¯ liá»‡u", 55);
             }
-            catch (Exception ex)
+            else
             {
-                Log.Error(ex, "Database connection failed");
-                throw;
+                Log.Warning("Database connection is not ready during splash screen: {Message}", connectionResult.message);
+                UpdateProgress("ChÆ°a káº¿t ná»‘i Ä‘Æ°á»£c cÆ¡ sá»Ÿ dá»¯ liá»‡u", 55);
             }
 
-            UpdateProgress("Đang khởi tạo quản lý phiên...", 70);
+            UpdateProgress("Äang khá»Ÿi táº¡o quáº£n lÃ½ phiÃªn...", 70);
             await Task.Delay(300);
 
-            UpdateProgress("Đang tải tài nguyên giao diện...", 85);
+            UpdateProgress("Äang táº£i tÃ i nguyÃªn giao diá»‡n...", 85);
             await Task.Delay(300);
 
-            UpdateProgress("Hệ thống sẵn sàng", 100);
+            UpdateProgress("Há»‡ thá»‘ng sáºµn sÃ ng", 100);
             await Task.Delay(500);
         }
 

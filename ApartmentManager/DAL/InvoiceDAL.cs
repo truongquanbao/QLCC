@@ -21,7 +21,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -63,7 +64,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -105,7 +107,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -147,11 +150,12 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
-                WHERE i.PaymentStatus IN ('Unpaid', 'Partial', 'Pending')
+                WHERE i.PaymentStatus IN ('Unpaid', 'PartiallyPaid', 'Overdue', 'Pending')
                 ORDER BY i.DueDate ASC
             ";
 
@@ -188,13 +192,14 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
                 INNER JOIN Residents r ON a.ApartmentID = r.ApartmentID
                 WHERE r.ResidentID = @ResidentID
-                AND i.PaymentStatus IN ('Unpaid', 'Partial', 'Pending')
+                AND i.PaymentStatus IN ('Unpaid', 'PartiallyPaid', 'Overdue', 'Pending')
                 AND r.Status = 'Active'
                 ORDER BY i.DueDate ASC
             ";
@@ -233,7 +238,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -276,7 +282,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -316,8 +323,8 @@ public class InvoiceDAL
         try
         {
             const string query = @"
-                INSERT INTO Invoices (ApartmentID, Month, Year, DueDate, PaymentStatus, TotalAmount, PaidAmount, Note)
-                VALUES (@ApartmentID, @Month, @Year, @DueDate, 'Unpaid', @TotalAmount, 0, @Note)
+                INSERT INTO Invoices (ApartmentID, Month, Year, DueDate, PaymentStatus, TotalAmount, PaidAmount, RemainingAmount, Note)
+                VALUES (@ApartmentID, @Month, @Year, @DueDate, 'Unpaid', @TotalAmount, 0, @TotalAmount, @Note)
                 SELECT SCOPE_IDENTITY()
             ";
 
@@ -372,7 +379,7 @@ public class InvoiceDAL
             int invoiceID = CreateInvoice(resident.ApartmentID, month, year, dueDate, totalAmount, note);
 
             if (invoiceID > 0)
-                UpdatePaymentStatus(invoiceID, "Pending", 0m);
+                UpdatePaymentStatus(invoiceID, "Unpaid", 0m);
 
             return invoiceID;
         }
@@ -392,7 +399,14 @@ public class InvoiceDAL
         {
             const string query = @"
                 UPDATE Invoices
-                SET DueDate = @DueDate, TotalAmount = @TotalAmount, Note = @Note, UpdatedAt = GETDATE()
+                SET DueDate = @DueDate,
+                    TotalAmount = @TotalAmount,
+                    RemainingAmount = CASE
+                        WHEN @TotalAmount - PaidAmount < 0 THEN 0
+                        ELSE @TotalAmount - PaidAmount
+                    END,
+                    Note = @Note,
+                    UpdatedAt = GETDATE()
                 WHERE InvoiceID = @InvoiceID
             ";
 
@@ -450,7 +464,14 @@ public class InvoiceDAL
         {
             const string query = @"
                 UPDATE Invoices
-                SET PaymentStatus = @PaymentStatus, PaidAmount = @PaidAmount, UpdatedAt = GETDATE()
+                SET PaymentStatus = @PaymentStatus,
+                    PaidAmount = @PaidAmount,
+                    RemainingAmount = CASE
+                        WHEN TotalAmount - @PaidAmount < 0 THEN 0
+                        ELSE TotalAmount - @PaidAmount
+                    END,
+                    PaidAt = CASE WHEN @PaymentStatus = 'Paid' THEN GETDATE() ELSE PaidAt END,
+                    UpdatedAt = GETDATE()
                 WHERE InvoiceID = @InvoiceID
             ";
 
@@ -544,9 +565,9 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT 
-                    COUNT(CASE WHEN PaymentStatus IN ('Unpaid', 'Partial', 'Pending') THEN 1 END) as UnpaidInvoiceCount,
-                    SUM(CASE WHEN PaymentStatus IN ('Unpaid', 'Pending') THEN TotalAmount ELSE 0 END) as TotalUnpaidAmount,
-                    SUM(CASE WHEN PaymentStatus = 'Partial' THEN (TotalAmount - PaidAmount) ELSE 0 END) as TotalPartialAmount,
+                    COUNT(CASE WHEN PaymentStatus IN ('Unpaid', 'PartiallyPaid', 'Overdue', 'Pending') THEN 1 END) as UnpaidInvoiceCount,
+                    SUM(CASE WHEN PaymentStatus IN ('Unpaid', 'Overdue', 'Pending') THEN RemainingAmount ELSE 0 END) as TotalUnpaidAmount,
+                    SUM(CASE WHEN PaymentStatus = 'PartiallyPaid' THEN RemainingAmount ELSE 0 END) as TotalPartialAmount,
                     SUM(TotalAmount) as TotalInvoiceAmount,
                     SUM(PaidAmount) as TotalPaidAmount
                 FROM Invoices
@@ -595,7 +616,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -635,7 +657,8 @@ public class InvoiceDAL
         {
             const string query = @"
                 SELECT i.InvoiceID, i.ApartmentID, a.ApartmentCode, i.Month, i.Year,
-                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount,
+                       i.DueDate, i.PaymentStatus, i.TotalAmount, i.PaidAmount, i.RemainingAmount,
+                       i.PaidAt, i.ConfirmedBy, i.CancelReason, i.AdjustmentNote,
                        i.CreatedAt, i.UpdatedAt, i.Note
                 FROM Invoices i
                 INNER JOIN Apartments a ON i.ApartmentID = a.ApartmentID
@@ -686,9 +709,14 @@ public class InvoiceDAL
             Status = reader.GetString(6),
             TotalAmount = reader.GetDecimal(7),
             PaidAmount = reader.GetDecimal(8),
-            CreatedAt = reader.GetDateTime(9),
-            UpdatedAt = reader.GetDateTime(10),
-            Note = reader.IsDBNull(11) ? null : reader.GetString(11)
+            RemainingAmount = reader.GetDecimal(9),
+            PaidAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+            ConfirmedBy = reader.IsDBNull(11) ? null : reader.GetInt32(11),
+            CancelReason = reader.IsDBNull(12) ? null : reader.GetString(12),
+            AdjustmentNote = reader.IsDBNull(13) ? null : reader.GetString(13),
+            CreatedAt = reader.GetDateTime(14),
+            UpdatedAt = reader.GetDateTime(15),
+            Note = reader.IsDBNull(16) ? null : reader.GetString(16)
         };
     }
 }

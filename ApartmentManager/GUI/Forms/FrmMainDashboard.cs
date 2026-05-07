@@ -1454,7 +1454,9 @@ END";
     private void RenderAdminDashboard()
     {
         var page = BeginPage("Dashboard", "Trang chủ / Tổng quan hệ thống");
-        int w = PageWorkWidth(1150);
+        int contentLeft = 18;
+        int w = Math.Max(980, page.ClientSize.Width - 54 - SystemInformation.VerticalScrollBarWidth);
+        int maxRight = contentLeft + w;
         int y = 76;
         int gap = 12;
         int cardW = (w - gap * 5) / 6;
@@ -1481,7 +1483,7 @@ END";
         string backupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : "Chưa có dữ liệu";
 
         // Reorganized stat cards with emphasis on revenue
-        AddRow(page, y, gap,
+        y = AddRow(page, y, gap,
             ModernUi.StatCard("Số tài khoản", users.Count.ToString("N0"), "Tài khoản", ModernUi.Blue, "●", $"{users.Count(u => IsActiveStatus(u.Status))} hoạt động", cardW),
             ModernUi.StatCard("Số cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW),
             ModernUi.StatCard("Số căn hộ", apartments.Count.ToString("N0"), "Căn hộ", ModernUi.Blue, "▦", $"{occupied:N0} đang ở", cardW),
@@ -1489,7 +1491,7 @@ END";
             ModernUi.StatCard("Doanh thu", Money(monthRevenue), "VNĐ", Color.FromArgb(34, 197, 94), "$", latestInvoice == null ? "Chưa có" : $"Kỳ {latestInvoice.Month:00}/{latestInvoice.Year}", cardW),
             ModernUi.StatCard("Nợ chưa thu", unpaid.Count.ToString("N0"), "Hóa đơn", ModernUi.Red, "▤", $"{Money(unpaidAmount)} VNĐ", cardW));
 
-        y += 144;
+        y += 16;
 
         int alertW = Math.Max(260, (int)(w * 0.18));
         int occupancyW = Math.Max(320, (int)(w * 0.24));
@@ -1555,7 +1557,7 @@ END";
         alert.Controls.Add(backup);
         page.Controls.Add(alert);
 
-        y += 260;
+        y = ReflowRow(page, y, gap, revenue, occupancy, alert) + 16;
 
         int actionsW = Math.Max(360, (int)(w * 0.38));
         int complaintsW = w - actionsW - gap;
@@ -1593,6 +1595,7 @@ END";
         actions.Location = new Point(complaints.Right + gap, y);
         AddAdminQuickActions(actions);
         page.Controls.Add(actions);
+        _ = ReflowRow(page, y, gap, complaints, actions);
     }
 
     private void AddAdminQuickActions(Control actions)
@@ -4650,7 +4653,7 @@ END";
         int gap = 12;
         int colW = (w - gap) / 2;
         var systemConfigs = GetSystemConfigs();
-        var connectionBuilder = new SqlConnectionStringBuilder(ConfigurationHelper.GetConnectionString("ApartmentManagerDB"));
+        var connectionBuilder = new SqlConnectionStringBuilder(DatabaseHelper.GetConnectionString());
         int backupWarningDays = int.TryParse(ConfigValue(systemConfigs, "BackupWarningDays", "7"), out var parsedWarningDays) ? Math.Max(1, parsedWarningDays) : 7;
         string lastBackupRaw = ConfigValue(systemConfigs, "LastBackupAt", "");
         DateTime? lastBackupAt = ParseDashboardDate(lastBackupRaw);
@@ -5900,15 +5903,44 @@ END";
         page.Controls.Add(card);
     }
 
-    private static void AddRow(Control parent, int y, int gap, params Control[] controls)
+    private static int AddRow(Control parent, int y, int gap, params Control[] controls)
     {
-        int x = 18;
+        return LayoutWrappedControls(parent, 18, y, gap, 12, true, controls);
+    }
+
+    private static int ReflowRow(Control parent, int y, int gap, params Control[] controls)
+    {
+        return LayoutWrappedControls(parent, 18, y, gap, 12, false, controls);
+    }
+
+    private static int LayoutWrappedControls(Control parent, int startX, int top, int gapX, int gapY, bool attachToParent, params Control[] controls)
+    {
+        int viewportWidth = parent.ClientSize.Width > 0 ? parent.ClientSize.Width : parent.Width;
+        int maxRight = Math.Max(startX, viewportWidth - 18 - SystemInformation.VerticalScrollBarWidth);
+        int x = startX;
+        int y = top;
+        int rowHeight = 0;
+
         foreach (var control in controls)
         {
+            if (x > startX && x + control.Width > maxRight)
+            {
+                x = startX;
+                y += rowHeight + gapY;
+                rowHeight = 0;
+            }
+
             control.Location = new Point(x, y);
-            parent.Controls.Add(control);
-            x += control.Width + gap;
+            if (attachToParent && control.Parent != parent)
+            {
+                parent.Controls.Add(control);
+            }
+
+            x += control.Width + gapX;
+            rowHeight = Math.Max(rowHeight, control.Height);
         }
+
+        return y + rowHeight;
     }
 
     private static RoundedPanel ResidentCard(string title, string value, string detail, Color accent, string icon, string action, int width)
