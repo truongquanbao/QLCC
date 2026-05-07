@@ -95,6 +95,49 @@ public class UserDAL
     }
 
     /// <summary>
+    /// Get user by phone number
+    /// </summary>
+    public static UserDTO? GetUserByPhone(string phone)
+    {
+        try
+        {
+            const string query = @"
+                SELECT u.UserID, u.Username, u.PasswordHash, u.FullName, u.Email, u.Phone, 
+                       u.RoleID, r.RoleName, u.Status, u.AvatarPath, u.LastLoginAt, 
+                       u.FailedLoginCount, u.LockedUntil, u.IsApproved, u.ApprovedAt, 
+                       u.CreatedAt, u.UpdatedAt
+                FROM Users u
+                INNER JOIN Roles r ON u.RoleID = r.RoleID
+                WHERE REPLACE(REPLACE(REPLACE(REPLACE(u.Phone, ' ', ''), '-', ''), '(', ''), ')', '') = @Phone
+            ";
+
+            var normalizedPhone = NormalizePhone(phone);
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Phone", normalizedPhone);
+                    connection.Open();
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                            return MapUserDTO(reader);
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting user by phone: {Phone}", phone);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Get user by ID
     /// </summary>
     public static UserDTO? GetUserByID(int userID)
@@ -543,6 +586,20 @@ public class UserDAL
             CreatedAt = reader.GetDateTime(15),
             UpdatedAt = reader.GetDateTime(16)
         };
+    }
+
+    private static string NormalizePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return string.Empty;
+        }
+
+        return phone.Replace(" ", string.Empty)
+            .Replace("-", string.Empty)
+            .Replace("(", string.Empty)
+            .Replace(")", string.Empty)
+            .Trim();
     }
 }
 

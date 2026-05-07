@@ -1,4 +1,3 @@
-using ApartmentManager.BLL;
 using ApartmentManager.Utilities;
 using Serilog;
 using System;
@@ -67,15 +66,17 @@ public partial class FrmLogin : Form
             BackColor = ModernUi.Navy
         };
 
-        var version = ModernUi.Label("▰  Phiên bản: 1.0.0.0", 11f, FontStyle.Regular, Color.White);
+        var version = ModernUi.Label("Phiên bản: 1.0.0.0", 11f, FontStyle.Regular, Color.White);
+        version.Name = "lblVersion";
         version.Location = new Point(24, 10);
         version.Size = new Size(260, 34);
         footer.Controls.Add(version);
 
-        var connection = ModernUi.Label("●  Kết nối: Đã kết nối", 11f, FontStyle.Bold, Color.FromArgb(95, 220, 88));
+        var connection = ModernUi.Label("● Kết nối: Đang kiểm tra...", 11f, FontStyle.Bold, Color.Gold);
+        connection.Name = "lblConnectionStatus";
         connection.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        connection.Location = new Point(footer.Width - 300, 10);
-        connection.Size = new Size(230, 34);
+        connection.Location = new Point(footer.Width - 320, 10);
+        connection.Size = new Size(250, 34);
         footer.Controls.Add(connection);
 
         var divider = new Panel
@@ -88,6 +89,7 @@ public partial class FrmLogin : Form
         footer.Controls.Add(divider);
 
         var gear = ModernUi.Label("⚙", 17f, FontStyle.Bold, Color.White);
+        gear.Name = "btnSettings";
         gear.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         gear.Location = new Point(footer.Width - 52, 10);
         gear.Size = new Size(34, 34);
@@ -96,7 +98,7 @@ public partial class FrmLogin : Form
 
         footer.Resize += (_, _) =>
         {
-            connection.Left = footer.ClientSize.Width - 300;
+            connection.Left = footer.ClientSize.Width - 320;
             divider.Left = footer.ClientSize.Width - 70;
             gear.Left = footer.ClientSize.Width - 52;
         };
@@ -130,7 +132,7 @@ public partial class FrmLogin : Form
         var dot = new CircleLabel
         {
             CircleColor = Color.White,
-            Text = ""
+            Text = string.Empty
         };
         hero.Controls.Add(dot);
 
@@ -220,7 +222,8 @@ public partial class FrmLogin : Form
         var surface = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = ModernUi.Surface
+            BackColor = ModernUi.Surface,
+            AutoScroll = true
         };
 
         var card = ModernUi.CardPanel(8);
@@ -230,7 +233,7 @@ public partial class FrmLogin : Form
 
         var lockIcon = new CircleLabel
         {
-            Text = "□",
+            Text = "▣",
             CircleColor = ModernUi.Blue,
             ForeColor = Color.White,
             Font = ModernUi.Font(25f, FontStyle.Bold),
@@ -256,7 +259,7 @@ public partial class FrmLogin : Form
         _lblPasswordError = CreateValidationLabel("Vui lòng nhập mật khẩu.");
         _lblPasswordError.Visible = false;
         card.Controls.Add(_lblPasswordError);
-        _txtPassword = AddInputShell(card, "▣", "Nhập mật khẩu", true, false);
+        _txtPassword = AddInputShell(card, "◧", "Nhập mật khẩu", true, false);
 
         _chkRemember = new CheckBox
         {
@@ -279,14 +282,14 @@ public partial class FrmLogin : Form
         forgot.LinkClicked += LinkForgotPassword_LinkClicked;
         card.Controls.Add(forgot);
 
-        var login = ModernUi.Button("↪  Đăng nhập", ModernUi.Blue, 100, 48);
+        var login = ModernUi.Button("Đăng nhập", ModernUi.Blue, 100, 48);
         login.Name = "btnLogin";
         login.Font = ModernUi.Font(12f, FontStyle.Bold);
         login.Click += BtnLogin_Click;
         card.Controls.Add(login);
         AcceptButton = login;
 
-        var register = ModernUi.OutlineButton("♙  Đăng ký tài khoản", 100, 48);
+        var register = ModernUi.OutlineButton("Đăng ký tài khoản", 100, 48);
         register.Font = ModernUi.Font(12f, FontStyle.Bold);
         register.Click += LinkRegister_LinkClicked;
         card.Controls.Add(register);
@@ -315,16 +318,18 @@ public partial class FrmLogin : Form
         note.Controls.Add(noteText);
         card.Controls.Add(note);
 
-        _lblStatus = ModernUi.Label("", 9.5f, FontStyle.Bold, ModernUi.Red);
+        _lblStatus = ModernUi.Label(string.Empty, 9.5f, FontStyle.Bold, ModernUi.Red);
         _lblStatus.Name = "lblStatus";
         card.Controls.Add(_lblStatus);
 
         surface.Resize += (_, _) =>
         {
-            int cardWidth = Math.Min(620, surface.ClientSize.Width - 72);
-            int cardHeight = Math.Min(650, surface.ClientSize.Height - 86);
+            int cardWidth = Math.Min(620, Math.Max(430, surface.ClientSize.Width - 60 - SystemInformation.VerticalScrollBarWidth));
+            const int cardHeight = 700;
+
             card.Size = new Size(cardWidth, cardHeight);
-            card.Location = new Point((surface.ClientSize.Width - cardWidth) / 2, Math.Max(28, (surface.ClientSize.Height - cardHeight) / 2));
+            card.Location = new Point(Math.Max(24, (surface.ClientSize.Width - cardWidth - SystemInformation.VerticalScrollBarWidth) / 2), 24);
+            surface.AutoScrollMinSize = new Size(cardWidth + 48, cardHeight + 48);
 
             int x = 46;
             int fieldWidth = card.Width - 92;
@@ -366,10 +371,10 @@ public partial class FrmLogin : Form
             register.Size = new Size(fieldWidth, 50);
 
             note.Location = new Point(x, y + 318);
-            note.Size = new Size(fieldWidth, 64);
+            note.Size = new Size(fieldWidth, 74);
             noteIcon.Location = new Point(22, 15);
             noteText.Location = new Point(70, 10);
-            noteText.Size = new Size(note.Width - 92, 44);
+            noteText.Size = new Size(note.Width - 92, 54);
 
             _lblStatus.Location = new Point(x, note.Bottom + 10);
             _lblStatus.Size = new Size(fieldWidth, 24);
@@ -458,49 +463,12 @@ public partial class FrmLogin : Form
     private async void BtnLogin_Click(object? sender, EventArgs e)
     {
         await ExecuteLoginAsync();
-        return;
-
-        /*
-        string username = _txtUsername.Text.Trim();
-        string password = _txtPassword.Text;
-
-        _lblUsernameError.Visible = string.IsNullOrWhiteSpace(username);
-        _lblPasswordError.Visible = string.IsNullOrWhiteSpace(password);
-
-        if (_lblUsernameError.Visible || _lblPasswordError.Visible)
-        {
-            _lblStatus.Text = "Vui lòng nhập tên đăng nhập và mật khẩu";
-            _lblStatus.ForeColor = ModernUi.Red;
-            return;
-        }
-
-        var (success, message, session) = AuthenticationBLL.Login(username, password);
-        if (success && session != null)
-        {
-            if (_chkRemember.Checked)
-            {
-                RememberUsername(username);
-            }
-
-            _lblStatus.Text = message;
-            _lblStatus.ForeColor = ModernUi.Green;
-            Log.Information("User logged in: {Username}", username);
-            DialogResult = DialogResult.OK;
-            Close();
-        }
-        else
-        {
-            _lblStatus.Text = message;
-            _lblStatus.ForeColor = ModernUi.Red;
-            _txtPassword.Clear();
-            _txtPassword.Focus();
-        }
-        */
     }
 
     private void LinkForgotPassword_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
     {
-        MessageBox.Show("Tính năng đặt lại mật khẩu sẽ được cập nhật sớm.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        using var forgotPassword = new FrmForgotPassword(_txtUsername.Text.Trim());
+        forgotPassword.ShowDialog(this);
     }
 
     private void LinkRegister_LinkClicked(object? sender, EventArgs e)

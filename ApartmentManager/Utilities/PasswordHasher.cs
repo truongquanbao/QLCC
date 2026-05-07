@@ -44,23 +44,23 @@ public static class PasswordHasher
     public static (bool isValid, string message) ValidatePasswordStrength(string password)
     {
         if (string.IsNullOrWhiteSpace(password))
-            return (false, "Password cannot be empty");
+            return (false, "Mật khẩu không được để trống");
 
         if (password.Length < 8)
-            return (false, "Password must be at least 8 characters long");
+            return (false, "Mật khẩu phải có ít nhất 8 ký tự");
 
         if (!Regex.IsMatch(password, "[A-Z]"))
-            return (false, "Password must contain at least one uppercase letter");
+            return (false, "Mật khẩu phải có ít nhất 1 chữ in hoa");
 
         if (!Regex.IsMatch(password, "[a-z]"))
-            return (false, "Password must contain at least one lowercase letter");
+            return (false, "Mật khẩu phải có ít nhất 1 chữ thường");
 
         if (!Regex.IsMatch(password, "[0-9]"))
-            return (false, "Password must contain at least one digit");
+            return (false, "Mật khẩu phải có ít nhất 1 chữ số");
 
         if (!Regex.IsMatch(password, "[!@#$%^&*]"))
-            return (false, "Password must contain at least one special character (!@#$%^&*)");
+            return (false, "Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*)");
 
-        return (true, "Password is strong");
+        return (true, "Mật khẩu hợp lệ");
     }
 }

@@ -12,7 +12,9 @@ namespace ApartmentManager.GUI.Forms;
 public partial class FrmLogin
 {
     private Label? _connectionStatusLabel;
+    private Label? _settingsLabel;
     private Control? _loginButton;
+    private ToolTip? _loginToolTip;
     private bool _loginUiInitialized;
     private bool _isLoggingIn;
 
@@ -37,25 +39,31 @@ public partial class FrmLogin
 
         if (footer != null)
         {
-            _connectionStatusLabel = footer.Controls
-                .OfType<Label>()
-                .FirstOrDefault(label => label.Size.Width >= 200 && label.Size.Width <= 240);
+            _connectionStatusLabel = footer.Controls["lblConnectionStatus"] as Label;
+            _settingsLabel = footer.Controls["btnSettings"] as Label;
 
             if (_connectionStatusLabel != null)
             {
                 _connectionStatusLabel.Cursor = Cursors.Hand;
-                _connectionStatusLabel.Click += OpenDatabaseSetup_Click;
+                _connectionStatusLabel.Click += RefreshConnectionStatus_Click;
             }
 
-            var settingsControl = footer.Controls
-                .OfType<Label>()
-                .FirstOrDefault(label => label.TextAlign == ContentAlignment.MiddleCenter && label.Size.Width <= 40);
-
-            if (settingsControl != null)
+            if (_settingsLabel != null)
             {
-                settingsControl.Cursor = Cursors.Hand;
-                settingsControl.Click += OpenDatabaseSetup_Click;
+                _settingsLabel.Cursor = Cursors.Hand;
+                _settingsLabel.Click += OpenDatabaseSetup_Click;
             }
+        }
+
+        _loginToolTip ??= new ToolTip();
+        if (_connectionStatusLabel != null)
+        {
+            _loginToolTip.SetToolTip(_connectionStatusLabel, "Kiểm tra lại trạng thái kết nối");
+        }
+
+        if (_settingsLabel != null)
+        {
+            _loginToolTip.SetToolTip(_settingsLabel, "Mở cấu hình kết nối cơ sở dữ liệu");
         }
 
         _loginUiInitialized = true;
@@ -76,12 +84,12 @@ public partial class FrmLogin
 
         if (_lblUsernameError.Visible || _lblPasswordError.Visible)
         {
-            _lblStatus.Text = "Vui lÃ²ng nháº­p tÃªn Ä‘Äƒng nháº­p vÃ  máº­t kháº©u";
+            _lblStatus.Text = "Vui lòng nhập tên đăng nhập và mật khẩu";
             _lblStatus.ForeColor = ModernUi.Red;
             return;
         }
 
-        SetLoginBusy(true, "Äang kiá»ƒm tra káº¿t ná»‘i...");
+        SetLoginBusy(true, "Đang kiểm tra kết nối...");
 
         try
         {
@@ -97,7 +105,7 @@ public partial class FrmLogin
                 return;
             }
 
-            SetLoginBusy(true, "Äang Ä‘Äƒng nháº­p...");
+            SetLoginBusy(true, "Đang đăng nhập...");
 
             var (success, message, session) = await Task.Run(() => AuthenticationBLL.Login(username, password));
             if (success && session != null)
@@ -138,6 +146,11 @@ public partial class FrmLogin
         UpdateConnectionStatus(result.success);
     }
 
+    private async void RefreshConnectionStatus_Click(object? sender, EventArgs e)
+    {
+        await RefreshConnectionStatusAsync();
+    }
+
     private async void OpenDatabaseSetup_Click(object? sender, EventArgs e)
     {
         using var databaseSetup = new FrmDatabaseSetup();
@@ -156,14 +169,14 @@ public partial class FrmLogin
 
         if (!isConnected.HasValue)
         {
-            _connectionStatusLabel.Text = "â—  Káº¿t ná»‘i: Äang kiá»ƒm tra...";
+            _connectionStatusLabel.Text = "● Kết nối: Đang kiểm tra...";
             _connectionStatusLabel.ForeColor = Color.Gold;
             return;
         }
 
         _connectionStatusLabel.Text = isConnected.Value
-            ? "â—  Káº¿t ná»‘i: ÄÃ£ káº¿t ná»‘i"
-            : "â—  Káº¿t ná»‘i: ChÆ°a káº¿t ná»‘i";
+            ? "● Kết nối: Đã kết nối"
+            : "● Kết nối: Chưa kết nối";
         _connectionStatusLabel.ForeColor = isConnected.Value
             ? Color.FromArgb(95, 220, 88)
             : ModernUi.Red;
