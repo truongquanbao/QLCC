@@ -481,7 +481,6 @@ internal sealed class DonutChartPanel : Control
         e.Graphics.DrawArc(accentPen, rect, -90, Math.Max(0, Math.Min(100, Percent)) * 360 / 100f);
 
         using var textBrush = new SolidBrush(ModernUi.Text);
-        using var mutedBrush = new SolidBrush(ModernUi.Muted);
         var center = rect;
         e.Graphics.DrawString(CenterText, ModernUi.Font(18f, FontStyle.Bold), new SolidBrush(AccentColor), center, CenterFormat());
         var subRect = new Rectangle(center.Left, center.Top + 28, center.Width, 24);
