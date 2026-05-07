@@ -355,28 +355,35 @@ public partial class FrmMainDashboard : Form
     private void BuildFooter()
     {
         _footer.Controls.Clear();
+        _footer.Padding = new Padding(0, 6, 0, 6);
 
         var user = ModernUi.Label($"●  {RoleFooterLabel()}: {FooterDisplayName()}", 10f, FontStyle.Regular, Color.White);
-        user.Location = new Point(30, 15);
-        user.Size = new Size(280, 34);
+        user.Size = new Size(300, 28);
         _footer.Controls.Add(user);
 
         var role = ModernUi.Label($"◆  Vai trò: {RoleDisplay()}", 10f, FontStyle.Regular, Color.White);
-        role.Location = new Point(345, 15);
-        role.Size = new Size(300, 34);
+        role.Size = new Size(300, 28);
         _footer.Controls.Add(role);
 
         _clockLabel = ModernUi.Label("", 10f, FontStyle.Regular, Color.White);
-        _clockLabel.Location = new Point(645, 15);
-        _clockLabel.Size = new Size(420, 34);
+        _clockLabel.Size = new Size(420, 28);
         _footer.Controls.Add(_clockLabel);
 
         var db = ModernUi.Label("▰  Trạng thái kết nối:  Đã kết nối SQL Server", 10f, FontStyle.Regular, Color.White);
-        db.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        db.Location = new Point(Width - 435, 15);
-        db.Size = new Size(410, 34);
+        db.Size = new Size(390, 28);
         _footer.Controls.Add(db);
-        _footer.Resize += (_, _) => db.Left = _footer.ClientSize.Width - 435;
+
+        void LayoutFooter()
+        {
+            int top = Math.Max(10, (_footer.ClientSize.Height - 28) / 2);
+            user.Location = new Point(30, top);
+            role.Location = new Point(345, top);
+            _clockLabel.Location = new Point(645, top);
+            db.Location = new Point(Math.Max(1068, _footer.ClientSize.Width - 410), top);
+        }
+
+        _footer.Resize += (_, _) => LayoutFooter();
+        LayoutFooter();
     }
 
     private void BuildSidebar()
@@ -592,14 +599,17 @@ public partial class FrmMainDashboard : Form
             BackColor = ModernUi.Surface,
             Padding = Padding.Empty
         };
+        page.HorizontalScroll.Enabled = false;
+        page.HorizontalScroll.Visible = false;
         _content.Controls.Add(page);
 
         var header = new Panel
         {
-            Location = Point.Empty,
-            Size = new Size(Math.Max(1120, _content.ClientSize.Width), 64),
+            Dock = DockStyle.Top,
+            Height = 74,
             BackColor = Color.White,
-            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
         };
         page.Controls.Add(header);
 
@@ -637,12 +647,33 @@ public partial class FrmMainDashboard : Form
         crumb.Size = new Size(Math.Max(0, header.Width - crumb.Left - rightReserved), 24);
         header.Controls.Add(crumb);
 
+        void LayoutHeaderBase(int rightEdge)
+        {
+            headerIcon.Location = new Point(22, 23);
+
+            int titleLeft = 63;
+            int titleMaxWidth = Math.Max(150, rightEdge - titleLeft - 24);
+            int desiredTitleWidth = Math.Max(130, TextRenderer.MeasureText(title, label.Font).Width + 10);
+            label.SetBounds(titleLeft, 20, Math.Min(titleMaxWidth, desiredTitleWidth), 30);
+
+            divider.Visible = !string.IsNullOrWhiteSpace(breadcrumb);
+            crumb.Visible = divider.Visible;
+            divider.Location = new Point(label.Right + 16, 19);
+            crumb.Location = new Point(divider.Right + 16, 22);
+            crumb.Size = new Size(Math.Max(0, rightEdge - crumb.Left), 22);
+        }
+
         if (!IsResident)
         {
-            var search = ModernUi.SearchBox("Tìm kiếm nhanh...", 255, 36);
+            var search = ModernUi.SearchBox("Tìm kiếm nhanh...", 270, 42);
             search.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             search.Location = new Point(header.Width - 455, 12);
             header.Controls.Add(search);
+            var searchInput = search.Controls.OfType<TextBox>().FirstOrDefault();
+            if (searchInput != null)
+            {
+                searchInput.PlaceholderText = "Tìm kiếm nhanh...";
+            }
 
             var bell = ModernUi.IconButton("🔔", 36);
             bell.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -655,9 +686,9 @@ public partial class FrmMainDashboard : Form
                 Text = NotificationCount().ToString(),
                 CircleColor = ModernUi.Red,
                 ForeColor = Color.White,
-                Font = ModernUi.Font(8f, FontStyle.Bold),
+                Font = ModernUi.Font(7.2f, FontStyle.Bold),
                 Location = new Point(header.Width - 160, 6),
-                Size = new Size(19, 19)
+                Size = new Size(16, 16)
             };
             badge.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             badge.Cursor = Cursors.Hand;
@@ -680,6 +711,7 @@ public partial class FrmMainDashboard : Form
             userName.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             userName.Location = new Point(header.Width - 83, 16);
             userName.Size = new Size(78, 28);
+            userName.AutoEllipsis = true;
             userName.Cursor = Cursors.Hand;
             header.Controls.Add(userName);
 
@@ -719,6 +751,33 @@ public partial class FrmMainDashboard : Form
             badge.Click += (_, _) => ToggleNotificationDropdown();
             avatar.Click += (_, _) => ToggleAccountDropdown();
             userName.Click += (_, _) => ToggleAccountDropdown();
+
+            void LayoutInteractiveHeader()
+            {
+                int rightEdge = Math.Max(0, header.ClientSize.Width - 18);
+                userName.SetBounds(Math.Max(0, rightEdge - 104), 23, 104, 24);
+                rightEdge = userName.Left - 8;
+
+                avatar.SetBounds(Math.Max(0, rightEdge - 34), 19, 34, 34);
+                rightEdge = avatar.Left - 12;
+
+                bell.SetBounds(Math.Max(0, rightEdge - 36), 19, 36, 36);
+                badge.SetBounds(bell.Right - 7, bell.Top - 3, 16, 16);
+                rightEdge = bell.Left - 18;
+
+                int searchWidth = Math.Clamp(header.ClientSize.Width / 5, 240, 300);
+                search.SetBounds(Math.Max(0, rightEdge - searchWidth), 16, searchWidth, 42);
+                LayoutHeaderBase(search.Left - 18);
+            }
+
+            header.Resize += (_, _) => LayoutInteractiveHeader();
+            LayoutInteractiveHeader();
+        }
+
+        if (IsResident)
+        {
+            header.Resize += (_, _) => LayoutHeaderBase(header.ClientSize.Width - 24);
+            LayoutHeaderBase(header.ClientSize.Width - 24);
         }
 
         return page;
@@ -1451,7 +1510,7 @@ END";
         }
     }
 
-    private void RenderAdminDashboard()
+    private void RenderAdminDashboard_Legacy()
     {
         var page = BeginPage("Dashboard", "Trang chủ / Tổng quan hệ thống");
         int contentLeft = 18;
@@ -1598,7 +1657,680 @@ END";
         _ = ReflowRow(page, y, gap, complaints, actions);
     }
 
-    private void AddAdminQuickActions(Control actions)
+    private void RenderAdminDashboard_PreLayoutRefresh()
+    {
+        var page = BeginPage("Dashboard", "Trang chủ / Tổng quan hệ thống");
+        const int margin = 18;
+        const int gap = 12;
+        int y = 76;
+        int w = Math.Max(720, page.ClientSize.Width - margin * 2 - SystemInformation.VerticalScrollBarWidth);
+        int cardW = Math.Max(180, (w - gap * 2) / 3);
+
+        var users = UserDAL.GetAllUsers();
+        var residents = ResidentDAL.GetAllResidents();
+        var apartments = ApartmentDAL.GetAllApartments();
+        var invoices = InvoiceDAL.GetAllInvoices();
+        var complaintsData = ComplaintDAL.GetAllComplaints();
+        var configs = GetSystemConfigs();
+        int occupied = apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
+        int occupancyRate = apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / apartments.Count);
+        var latestInvoice = invoices.OrderByDescending(i => i.Year).ThenByDescending(i => i.Month).FirstOrDefault();
+        var periodInvoices = latestInvoice == null
+            ? new List<InvoiceDTO>()
+            : invoices.Where(i => i.Year == latestInvoice.Year && i.Month == latestInvoice.Month).ToList();
+        decimal monthRevenue = periodInvoices.Sum(i => i.PaidAmount);
+        var unpaid = invoices.Where(i => ViStatus(i.PaymentStatus) != "Đã thanh toán").ToList();
+        decimal unpaidAmount = unpaid.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+        int backupWarningDays = int.TryParse(ConfigValue(configs, "BackupWarningDays", "7"), out var parsedWarningDays) ? Math.Max(1, parsedWarningDays) : 7;
+        string lastBackupRaw = ConfigValue(configs, "LastBackupAt", "");
+        DateTime? lastBackupAt = ParseDashboardDate(lastBackupRaw);
+        bool backupOverdue = IsBackupOverdue(lastBackupAt, backupWarningDays);
+        string backupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : "Chưa có dữ liệu";
+
+        var statCards = new[]
+        {
+            ModernUi.StatCard("Số tài khoản", users.Count.ToString("N0"), "Tài khoản", ModernUi.Blue, "●", $"{users.Count(u => IsActiveStatus(u.Status))} hoạt động", cardW),
+            ModernUi.StatCard("Số cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW),
+            ModernUi.StatCard("Số căn hộ", apartments.Count.ToString("N0"), "Căn hộ", ModernUi.Blue, "▦", $"{occupied:N0} đang ở", cardW),
+            ModernUi.StatCard("Lấp đầy", $"{occupancyRate}%", "Đơn vị", Color.FromArgb(6, 182, 212), "◔", $"{occupied:N0} / {apartments.Count:N0}", cardW),
+            ModernUi.StatCard("Doanh thu", Money(monthRevenue), "VNĐ", Color.FromArgb(34, 197, 94), "$", latestInvoice == null ? "Chưa có" : $"Kỳ {latestInvoice.Month:00}/{latestInvoice.Year}", cardW),
+            ModernUi.StatCard("Nợ chưa thu", unpaid.Count.ToString("N0"), "Hóa đơn", ModernUi.Red, "▤", $"{Money(unpaidAmount)} VNĐ", cardW)
+        };
+
+        y = AddRow(page, y, gap, statCards[0], statCards[1], statCards[2]) + 12;
+        y = AddRow(page, y, gap, statCards[3], statCards[4], statCards[5]) + 16;
+
+        int occupancyW = Math.Max(340, (int)(w * 0.30));
+        int revenueW = w - occupancyW - gap;
+
+        var revenue = ModernUi.Section("Doanh thu theo tháng (VNĐ)", revenueW, 252);
+        revenue.Location = new Point(margin, y);
+        var revenueChart = new BarChartPanel
+        {
+            Location = new Point(12, 40),
+            Size = new Size(revenue.Width - 24, 194),
+            BarColor = ModernUi.Blue,
+            AxisMax = 1_500_000_000,
+            SeriesLabel = "Doanh thu (VNĐ)"
+        };
+        var monthlyRevenue = invoices
+            .GroupBy(i => new DateTime(i.Year, i.Month, 1))
+            .OrderBy(g => g.Key)
+            .TakeLast(12)
+            .Select(g => (Label: $"T{g.Key.Month}", Value: ChartValue(g.Sum(i => i.PaidAmount))))
+            .ToList();
+        revenueChart.AxisMax = Math.Max(1, monthlyRevenue.Count == 0 ? 1 : (int)(monthlyRevenue.Max(m => m.Value) * 1.2m));
+        revenueChart.Bars.AddRange(monthlyRevenue);
+        revenue.Controls.Add(revenueChart);
+        page.Controls.Add(revenue);
+
+        var occupancy = ModernUi.Section("Tỷ lệ lấp đầy căn hộ", occupancyW, 252);
+        occupancy.Location = new Point(revenue.Right + gap, y);
+        occupancy.Controls.Add(new DonutChartPanel
+        {
+            Percent = occupancyRate,
+            CenterText = $"{occupancyRate}%",
+            SubText = "Đang ở",
+            Location = new Point(12, 40),
+            Size = new Size(occupancy.Width - 24, 184)
+        });
+        page.Controls.Add(occupancy);
+
+        y = ReflowRow(page, y, gap, revenue, occupancy) + 16;
+
+        int alertW = Math.Max(200, (int)(w * 0.16));
+        int actionsW = Math.Max(492, (int)(w * 0.33));
+        int complaintsW = w - alertW - actionsW - gap * 2;
+        if (complaintsW < 430)
+        {
+            complaintsW = 430;
+            actionsW = w - alertW - complaintsW - gap * 2;
+        }
+
+        var alert = ModernUi.Section("Cảnh báo hệ thống", alertW, 220);
+        alert.BackColor = backupOverdue ? Color.FromArgb(255, 249, 235) : Color.FromArgb(239, 251, 244);
+        alert.BorderColor = backupOverdue ? Color.FromArgb(241, 213, 153) : Color.FromArgb(181, 223, 196);
+        alert.Location = new Point(margin, y);
+        var alertIcon = new WarningTriangleControl
+        {
+            TriangleColor = backupOverdue ? ModernUi.Orange : Color.FromArgb(34, 197, 94),
+            Size = new Size(82, 72),
+            Location = new Point((alert.Width - 82) / 2, 40)
+        };
+        alert.Controls.Add(alertIcon);
+        string headline = backupOverdue ? $"CHƯA BACKUP QUÁ {backupWarningDays} NGÀY" : "TRẠNG THÁI BACKUP ỔN ĐỊNH";
+        var alertText = ModernUi.Label(
+            $"{headline}\r\nLần backup gần nhất:\r\n{backupText}",
+            11f,
+            FontStyle.Bold,
+            backupOverdue ? Color.FromArgb(220, 85, 0) : Color.FromArgb(25, 111, 61));
+        alertText.Location = new Point(18, 126);
+        alertText.Size = new Size(alert.Width - 36, 48);
+        alertText.TextAlign = ContentAlignment.MiddleCenter;
+        alert.Controls.Add(alertText);
+        var backup = ModernUi.Button("▤  Backup ngay", ModernUi.Orange, 160, 34);
+        backup.Location = new Point((alert.Width - 160) / 2, alert.Height - 44);
+        backup.Click += (_, _) => RunDatabaseBackup();
+        alert.Controls.Add(backup);
+        page.Controls.Add(alert);
+
+        var complaints = ModernUi.Section("Phản ánh đang xử lý", complaintsW, 272);
+        complaints.Location = new Point(alert.Right + gap, y);
+        var openComplaints = complaintsData
+            .Where(c => ViStatus(c.Status) is not ("Đã xử lý" or "Đã đóng"))
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(5)
+            .ToList();
+        var complaintsGrid = CreateGrid(
+            new[] { "Mã phản ánh", "Nội dung", "Căn hộ", "Ngày tạo", "Ưu tiên", "Trạng thái" },
+            RowsOrEmpty(openComplaints, 6, (c, i) => new object[]
+            {
+                $"PA{c.CreatedAt:yyMMdd}-{c.ComplaintID:000}",
+                c.Title,
+                c.ApartmentCode,
+                DateTimeText(c.CreatedAt),
+                ViStatus(c.Priority),
+                ViStatus(c.Status)
+            }));
+        complaintsGrid.Location = new Point(12, 42);
+        complaintsGrid.Size = new Size(complaints.Width - 24, 182);
+        complaintsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        complaintsGrid.ScrollBars = ScrollBars.Vertical;
+        complaintsGrid.ColumnHeadersHeight = 40;
+        complaintsGrid.RowTemplate.Height = 36;
+        if (complaintsGrid.Columns.Count == 6)
+        {
+            complaintsGrid.Columns[0].FillWeight = 84f;
+            complaintsGrid.Columns[0].MinimumWidth = 90;
+            complaintsGrid.Columns[1].FillWeight = 156f;
+            complaintsGrid.Columns[1].MinimumWidth = 132;
+            complaintsGrid.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            complaintsGrid.Columns[2].FillWeight = 72f;
+            complaintsGrid.Columns[2].MinimumWidth = 70;
+            complaintsGrid.Columns[3].FillWeight = 94f;
+            complaintsGrid.Columns[3].MinimumWidth = 96;
+            complaintsGrid.Columns[4].FillWeight = 68f;
+            complaintsGrid.Columns[4].MinimumWidth = 74;
+            complaintsGrid.Columns[5].FillWeight = 78f;
+            complaintsGrid.Columns[5].MinimumWidth = 82;
+        }
+        complaints.Controls.Add(complaintsGrid);
+        var allComplaints = ModernUi.OutlineButton("Xem tất cả phản ánh  →", 176, 30);
+        allComplaints.Location = new Point(16, 228);
+        allComplaints.Click += (_, _) => Navigate("complaints");
+        complaints.Controls.Add(allComplaints);
+        page.Controls.Add(complaints);
+
+        var actions = ModernUi.Section("Thao tác nhanh", actionsW, 272);
+        actions.Location = new Point(complaints.Right + gap, y);
+        AddAdminQuickActions(actions);
+        page.Controls.Add(actions);
+
+        y = ReflowRow(page, y, gap, alert, complaints, actions);
+        page.AutoScrollMinSize = new Size(0, y + 24);
+    }
+
+    private void RenderAdminDashboard_PreModernResponsive()
+    {
+        var page = BeginPage("Dashboard", "Trang chủ / Tổng quan hệ thống");
+        const int margin = 20;
+        const int gap = 14;
+        const int statCardHeight = 118;
+        const int chartRowHeight = 258;
+        const int bottomRowHeight = 286;
+        const int topOffset = 82;
+
+        var users = UserDAL.GetAllUsers();
+        var residents = ResidentDAL.GetAllResidents();
+        var apartments = ApartmentDAL.GetAllApartments();
+        var invoices = InvoiceDAL.GetAllInvoices();
+        var complaintsData = ComplaintDAL.GetAllComplaints();
+        var configs = GetSystemConfigs();
+        int occupied = apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
+        int vacant = apartments.Count(a => ViStatus(a.Status) == "Đang trống");
+        int occupancyRate = apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / apartments.Count);
+        int vacancyRate = Math.Max(0, 100 - occupancyRate);
+        var latestInvoice = invoices.OrderByDescending(i => i.Year).ThenByDescending(i => i.Month).FirstOrDefault();
+        var periodInvoices = latestInvoice == null
+            ? new List<InvoiceDTO>()
+            : invoices.Where(i => i.Year == latestInvoice.Year && i.Month == latestInvoice.Month).ToList();
+        decimal monthRevenue = periodInvoices.Sum(i => i.PaidAmount);
+        var unpaid = invoices.Where(i => ViStatus(i.PaymentStatus) != "Đã thanh toán").ToList();
+        decimal unpaidAmount = unpaid.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+        int backupWarningDays = int.TryParse(ConfigValue(configs, "BackupWarningDays", "7"), out var parsedWarningDays) ? Math.Max(1, parsedWarningDays) : 7;
+        string lastBackupRaw = ConfigValue(configs, "LastBackupAt", "");
+        DateTime? lastBackupAt = ParseDashboardDate(lastBackupRaw);
+        bool backupOverdue = IsBackupOverdue(lastBackupAt, backupWarningDays);
+        string backupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : "Chưa có dữ liệu";
+
+        var statCards = new[]
+        {
+            DashboardUi.CreateStatCard("Số tài khoản", users.Count.ToString("N0"), "Tài khoản", ModernUi.Blue, "●", $"{users.Count(u => IsActiveStatus(u.Status))} hoạt động", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Số cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Số căn hộ", apartments.Count.ToString("N0"), "Căn hộ", ModernUi.Blue, "▦", $"{occupied:N0} đang ở", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Lấp đầy", $"{occupancyRate}%", "Đơn vị", ModernUi.Teal, "◔", $"{occupied:N0} / {apartments.Count:N0}", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Doanh thu", Money(monthRevenue), "VNĐ", ModernUi.Green, "$", latestInvoice == null ? "Chưa có dữ liệu" : $"Kỳ {latestInvoice.Month:00}/{latestInvoice.Year}", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Nợ chưa thu", Money(unpaidAmount), "VNĐ", ModernUi.Red, "▤", $"{unpaid.Count:N0} hóa đơn", 300, statCardHeight)
+        };
+        foreach (var statCard in statCards)
+        {
+            page.Controls.Add(statCard);
+        }
+
+        var revenue = ModernUi.Section("Doanh thu theo tháng (VNĐ)", 620, chartRowHeight);
+        var revenueChart = new DashboardBarChartPanel
+        {
+            SeriesLabel = "Doanh thu (VNĐ)",
+            EmptyMessage = "Chưa có dữ liệu doanh thu",
+            BarColor = ModernUi.Blue
+        };
+        revenue.Controls.Add(revenueChart);
+        page.Controls.Add(revenue);
+
+        var monthlyRevenue = invoices
+            .GroupBy(i => new DateTime(i.Year, i.Month, 1))
+            .OrderBy(g => g.Key)
+            .TakeLast(12)
+            .Select(g => (Label: $"T{g.Key.Month}", Value: g.Sum(i => i.PaidAmount)))
+            .ToList();
+        revenueChart.AxisMax = monthlyRevenue.Count == 0 ? 0 : Math.Max(1m, monthlyRevenue.Max(m => m.Value) * 1.2m);
+        revenueChart.Bars.AddRange(monthlyRevenue);
+
+        var occupancy = ModernUi.Section("Tỷ lệ lấp đầy căn hộ", 350, chartRowHeight);
+        var occupancyChart = new DashboardDonutChartPanel
+        {
+            Percent = occupancyRate,
+            AccentColor = ModernUi.Green,
+            CenterText = $"{occupancyRate}%",
+            SubText = "Đang ở",
+            PrimaryLabel = "Đang ở",
+            PrimaryValue = $"{occupied:N0} ({occupancyRate}%)",
+            SecondaryLabel = "Còn trống",
+            SecondaryValue = $"{vacant:N0} ({vacancyRate}%)"
+        };
+        occupancy.Controls.Add(occupancyChart);
+        page.Controls.Add(occupancy);
+
+        var alert = ModernUi.Section("Cảnh báo hệ thống", 248, bottomRowHeight);
+        alert.BackColor = backupOverdue ? Color.FromArgb(255, 249, 235) : Color.FromArgb(241, 251, 245);
+        alert.BorderColor = backupOverdue ? Color.FromArgb(241, 213, 153) : Color.FromArgb(193, 230, 208);
+
+        Control alertIcon = backupOverdue
+            ? new CircleLabel
+            {
+                Text = "!",
+                CircleColor = ModernUi.Orange,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(26f, FontStyle.Bold),
+                Size = new Size(76, 76)
+            }
+            : new CircleLabel
+            {
+                Text = "✓",
+                CircleColor = ModernUi.Green,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(26f, FontStyle.Bold),
+                Size = new Size(76, 76)
+            };
+        alert.Controls.Add(alertIcon);
+
+        var alertHeadline = ModernUi.Label(
+            backupOverdue ? $"CHƯA BACKUP QUÁ {backupWarningDays} NGÀY" : "TRẠNG THÁI BACKUP ỔN ĐỊNH",
+            10.6f,
+            FontStyle.Bold,
+            backupOverdue ? Color.FromArgb(180, 88, 10) : Color.FromArgb(22, 101, 52));
+        alertHeadline.TextAlign = ContentAlignment.MiddleCenter;
+        alert.Controls.Add(alertHeadline);
+
+        var alertSub = ModernUi.Label($"Lần backup gần nhất: {backupText}", 9f, FontStyle.Regular, ModernUi.Text);
+        alertSub.TextAlign = ContentAlignment.MiddleCenter;
+        alertSub.AutoEllipsis = true;
+        alert.Controls.Add(alertSub);
+
+        var backup = new RoundedButton
+        {
+            Text = "Backup ngay",
+            BackColor = ModernUi.Orange,
+            HoverBackColor = ControlPaint.Light(ModernUi.Orange, 0.08f),
+            Size = new Size(150, 36),
+            CornerRadius = 10
+        };
+        backup.Click += (_, _) => RunDatabaseBackup();
+        alert.Controls.Add(backup);
+        page.Controls.Add(alert);
+
+        var complaints = ModernUi.Section("Phản ánh đang xử lý", 520, bottomRowHeight);
+        var openComplaints = complaintsData
+            .Where(c => ViStatus(c.Status) is not ("Đã xử lý" or "Đã đóng"))
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(5)
+            .ToList();
+        var complaintsGrid = CreateGrid(
+            new[] { "STT", "Mã phản ánh", "Nội dung", "Cư dân", "Căn hộ", "Ngày tạo", "Trạng thái" },
+            RowsOrEmpty(openComplaints, 7, (c, i) => new object[]
+            {
+                i + 1,
+                $"PA{c.CreatedAt:yyMMdd}-{c.ComplaintID:000}",
+                c.Title,
+                c.ResidentName,
+                c.ApartmentCode,
+                DateTimeText(c.CreatedAt),
+                ViStatus(c.Status)
+            }));
+        DashboardUi.ApplySummaryGridStyle(complaintsGrid);
+        complaintsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        complaintsGrid.ScrollBars = ScrollBars.Vertical;
+        complaintsGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        complaintsGrid.RowTemplate.Height = 36;
+        complaintsGrid.ColumnHeadersHeight = 40;
+        complaintsGrid.DefaultCellStyle.Font = ModernUi.Font(8.1f);
+        complaintsGrid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(8.2f, FontStyle.Bold);
+        if (complaintsGrid.Columns.Count == 7)
+        {
+            complaintsGrid.Columns[0].Width = 50;
+            complaintsGrid.Columns[1].Width = 120;
+            complaintsGrid.Columns[2].Width = 240;
+            complaintsGrid.Columns[3].Width = 150;
+            complaintsGrid.Columns[4].Width = 90;
+            complaintsGrid.Columns[5].Width = 120;
+            complaintsGrid.Columns[6].Width = 110;
+        }
+        complaints.Controls.Add(complaintsGrid);
+
+        var allComplaints = ModernUi.OutlineButton("Xem tất cả phản ánh  →", 176, 30);
+        allComplaints.Click += (_, _) => Navigate("complaints");
+        complaints.Controls.Add(allComplaints);
+        page.Controls.Add(complaints);
+
+        var actions = ModernUi.Section("Thao tác nhanh", 286, bottomRowHeight);
+        page.Controls.Add(actions);
+        AddAdminQuickActions(actions);
+
+        void LayoutDashboard()
+        {
+            int availableWidth = Math.Max(980, page.ClientSize.Width - margin * 2 - SystemInformation.VerticalScrollBarWidth);
+            int statWidth = (availableWidth - gap * 2) / 3;
+            int row1Y = topOffset;
+            int row2Y = row1Y + statCardHeight + gap;
+            int chartsY = row2Y + statCardHeight + 18;
+            int bottomY = chartsY + chartRowHeight + 18;
+
+            for (int i = 0; i < statCards.Length; i++)
+            {
+                int col = i % 3;
+                int row = i / 3;
+                int x = margin + col * (statWidth + gap);
+                int y = row == 0 ? row1Y : row2Y;
+                statCards[i].SetBounds(x, y, statWidth, statCardHeight);
+            }
+
+            int donutWidth = Math.Max(320, (int)Math.Round(availableWidth * 0.36));
+            int revenueWidth = availableWidth - donutWidth - gap;
+            revenue.SetBounds(margin, chartsY, revenueWidth, chartRowHeight);
+            revenueChart.SetBounds(14, 42, revenue.Width - 28, revenue.Height - 58);
+
+            occupancy.SetBounds(revenue.Right + gap, chartsY, donutWidth, chartRowHeight);
+            occupancyChart.SetBounds(12, 40, occupancy.Width - 24, occupancy.Height - 54);
+
+            int alertWidth = 248;
+            int actionsWidth = 286;
+            int complaintsWidth = availableWidth - alertWidth - actionsWidth - gap * 2;
+            if (complaintsWidth < 460)
+            {
+                complaintsWidth = 460;
+                actionsWidth = Math.Max(272, availableWidth - alertWidth - complaintsWidth - gap * 2);
+            }
+
+            alert.SetBounds(margin, bottomY, alertWidth, bottomRowHeight);
+            alertIcon.Location = new Point((alert.Width - alertIcon.Width) / 2, 46);
+            alertHeadline.SetBounds(16, 136, alert.Width - 32, 40);
+            alertSub.SetBounds(16, 178, alert.Width - 32, 34);
+            backup.Location = new Point((alert.Width - backup.Width) / 2, alert.Height - 52);
+
+            complaints.SetBounds(alert.Right + gap, bottomY, complaintsWidth, bottomRowHeight);
+            complaintsGrid.SetBounds(12, 44, complaints.Width - 24, 198);
+            allComplaints.Location = new Point(16, complaints.Height - 42);
+
+            if (complaintsGrid.Columns.Count == 7)
+            {
+                complaintsGrid.Columns[0].FillWeight = 44f;
+                complaintsGrid.Columns[0].MinimumWidth = 44;
+                complaintsGrid.Columns[1].FillWeight = 88f;
+                complaintsGrid.Columns[1].MinimumWidth = 92;
+                complaintsGrid.Columns[2].FillWeight = 182f;
+                complaintsGrid.Columns[2].MinimumWidth = 146;
+                complaintsGrid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                complaintsGrid.Columns[3].FillWeight = 96f;
+                complaintsGrid.Columns[3].MinimumWidth = 92;
+                complaintsGrid.Columns[4].FillWeight = 72f;
+                complaintsGrid.Columns[4].MinimumWidth = 68;
+                complaintsGrid.Columns[5].FillWeight = 98f;
+                complaintsGrid.Columns[5].MinimumWidth = 98;
+                complaintsGrid.Columns[6].FillWeight = 82f;
+                complaintsGrid.Columns[6].MinimumWidth = 88;
+            }
+
+            actions.SetBounds(complaints.Right + gap, bottomY, actionsWidth, bottomRowHeight);
+            AddAdminQuickActions(actions);
+
+            page.AutoScrollMinSize = new Size(0, actions.Bottom + 22);
+        }
+
+        page.Resize += (_, _) => LayoutDashboard();
+        LayoutDashboard();
+    }
+
+    private void RenderAdminDashboard()
+    {
+        var page = BeginPage("Dashboard", "Trang chủ / Tổng quan hệ thống");
+        const int margin = 20;
+        const int gap = 14;
+        const int statCardHeight = 118;
+        const int chartRowHeight = 268;
+        const int bottomRowHeight = 312;
+        const int topOffset = 86;
+
+        var users = UserDAL.GetAllUsers();
+        var residents = ResidentDAL.GetAllResidents();
+        var apartments = ApartmentDAL.GetAllApartments();
+        var invoices = InvoiceDAL.GetAllInvoices();
+        var complaintsData = ComplaintDAL.GetAllComplaints();
+        var configs = GetSystemConfigs();
+
+        int occupied = apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
+        int vacant = apartments.Count(a => ViStatus(a.Status) == "Đang trống");
+        int occupancyRate = apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / apartments.Count);
+        int vacancyRate = Math.Max(0, 100 - occupancyRate);
+
+        var latestInvoice = invoices
+            .OrderByDescending(i => i.Year)
+            .ThenByDescending(i => i.Month)
+            .FirstOrDefault();
+
+        var periodInvoices = latestInvoice == null
+            ? new List<InvoiceDTO>()
+            : invoices.Where(i => i.Year == latestInvoice.Year && i.Month == latestInvoice.Month).ToList();
+
+        decimal monthRevenue = periodInvoices.Sum(i => i.PaidAmount);
+        var unpaidInvoices = invoices.Where(i => ViStatus(i.PaymentStatus) != "Đã thanh toán").ToList();
+        decimal unpaidAmount = unpaidInvoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+
+        int backupWarningDays = int.TryParse(ConfigValue(configs, "BackupWarningDays", "7"), out var parsedWarningDays)
+            ? Math.Max(1, parsedWarningDays)
+            : 7;
+        DateTime? lastBackupAt = ParseDashboardDate(ConfigValue(configs, "LastBackupAt", ""));
+        bool backupOverdue = IsBackupOverdue(lastBackupAt, backupWarningDays);
+        string backupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : "Chưa có dữ liệu";
+
+        var statCards = new[]
+        {
+            DashboardUi.CreateStatCard("Số tài khoản", users.Count.ToString("N0"), "Tài khoản", ModernUi.Blue, "●", $"{users.Count(u => IsActiveStatus(u.Status))} hoạt động", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Số cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "◉", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Số căn hộ", apartments.Count.ToString("N0"), "Căn hộ", ModernUi.Blue, "▦", $"{occupied:N0} đang ở", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Lấp đầy", $"{occupancyRate}%", "Đơn vị", ModernUi.Teal, "◔", $"{occupied:N0} / {apartments.Count:N0}", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Doanh thu", Money(monthRevenue), "VNĐ", ModernUi.Green, "$", latestInvoice == null ? "Chưa có dữ liệu" : $"Kỳ {latestInvoice.Month:00}/{latestInvoice.Year}", 300, statCardHeight),
+            DashboardUi.CreateStatCard("Nợ chưa thu", Money(unpaidAmount), "VNĐ", ModernUi.Red, "▤", $"{unpaidInvoices.Count:N0} hóa đơn", 300, statCardHeight)
+        };
+        foreach (var statCard in statCards)
+        {
+            page.Controls.Add(statCard);
+        }
+
+        var revenue = ModernUi.Section("Doanh thu theo tháng (VNĐ)", 620, chartRowHeight);
+        var revenueChart = new DashboardBarChartPanel
+        {
+            SeriesLabel = "Doanh thu (VNĐ)",
+            EmptyMessage = "Chưa có dữ liệu doanh thu",
+            BarColor = ModernUi.Blue
+        };
+        revenue.Controls.Add(revenueChart);
+        page.Controls.Add(revenue);
+
+        var monthlyRevenue = invoices
+            .GroupBy(i => new DateTime(i.Year, i.Month, 1))
+            .OrderBy(g => g.Key)
+            .TakeLast(12)
+            .Select(g => (Label: $"T{g.Key.Month}", Value: g.Sum(i => i.PaidAmount)))
+            .ToList();
+        revenueChart.AxisMax = monthlyRevenue.Count == 0 ? 0 : Math.Max(1m, monthlyRevenue.Max(m => m.Value) * 1.2m);
+        revenueChart.Bars.AddRange(monthlyRevenue);
+
+        var occupancy = ModernUi.Section("Tỷ lệ lấp đầy căn hộ", 360, chartRowHeight);
+        var occupancyChart = new DashboardDonutChartPanel
+        {
+            Percent = occupancyRate,
+            AccentColor = ModernUi.Green,
+            CenterText = $"{occupancyRate}%",
+            SubText = "Đang ở",
+            PrimaryLabel = "Đang ở",
+            PrimaryValue = $"{occupied:N0} ({occupancyRate}%)",
+            SecondaryLabel = "Còn trống",
+            SecondaryValue = $"{vacant:N0} ({vacancyRate}%)"
+        };
+        occupancy.Controls.Add(occupancyChart);
+        page.Controls.Add(occupancy);
+
+        var alert = ModernUi.Section("Cảnh báo hệ thống", 260, bottomRowHeight);
+        alert.BackColor = backupOverdue ? Color.FromArgb(255, 249, 235) : Color.FromArgb(241, 251, 245);
+        alert.BorderColor = backupOverdue ? Color.FromArgb(241, 213, 153) : Color.FromArgb(193, 230, 208);
+
+        Control alertIcon = backupOverdue
+            ? new CircleLabel
+            {
+                Text = "!",
+                CircleColor = ModernUi.Orange,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(26f, FontStyle.Bold),
+                Size = new Size(76, 76)
+            }
+            : new CircleLabel
+            {
+                Text = "✓",
+                CircleColor = ModernUi.Green,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(26f, FontStyle.Bold),
+                Size = new Size(76, 76)
+            };
+        alert.Controls.Add(alertIcon);
+
+        var alertHeadline = ModernUi.Label(
+            backupOverdue ? $"CHƯA BACKUP QUÁ {backupWarningDays} NGÀY" : "TRẠNG THÁI BACKUP ỔN ĐỊNH",
+            10.1f,
+            FontStyle.Bold,
+            backupOverdue ? Color.FromArgb(180, 88, 10) : Color.FromArgb(22, 101, 52));
+        alertHeadline.TextAlign = ContentAlignment.MiddleCenter;
+        alertHeadline.AutoEllipsis = true;
+        alert.Controls.Add(alertHeadline);
+
+        var alertSub = ModernUi.Label($"Lần backup gần nhất: {backupText}", 8.9f, FontStyle.Regular, ModernUi.Text);
+        alertSub.TextAlign = ContentAlignment.MiddleCenter;
+        alertSub.AutoEllipsis = true;
+        alert.Controls.Add(alertSub);
+
+        var backup = new RoundedButton
+        {
+            Text = "Backup ngay",
+            BackColor = ModernUi.Orange,
+            HoverBackColor = ControlPaint.Light(ModernUi.Orange, 0.08f),
+            Size = new Size(150, 38),
+            CornerRadius = 10
+        };
+        backup.Click += (_, _) => RunDatabaseBackup();
+        alert.Controls.Add(backup);
+        page.Controls.Add(alert);
+
+        var complaints = ModernUi.Section("Phản ánh đang xử lý", 520, bottomRowHeight);
+        var openComplaints = complaintsData
+            .Where(c => ViStatus(c.Status) is not ("Đã xử lý" or "Đã đóng"))
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(5)
+            .ToList();
+
+        var complaintsGrid = CreateGrid(
+            new[] { "STT", "Mã phản ánh", "Nội dung", "Cư dân", "Căn hộ" },
+            RowsOrEmpty(openComplaints, 5, (c, i) => new object[]
+            {
+                i + 1,
+                $"PA{c.CreatedAt:yyMMdd}-{c.ComplaintID:000}",
+                c.Title,
+                c.ResidentName,
+                c.ApartmentCode
+            }));
+        DashboardUi.ApplySummaryGridStyle(complaintsGrid);
+        complaintsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        complaintsGrid.ScrollBars = ScrollBars.Vertical;
+        complaintsGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        complaintsGrid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(7.8f, FontStyle.Bold);
+        complaintsGrid.DefaultCellStyle.Font = ModernUi.Font(7.8f);
+        complaints.Controls.Add(complaintsGrid);
+
+        var allComplaints = ModernUi.OutlineButton("Xem tất cả phản ánh →", 174, 30);
+        allComplaints.Click += (_, _) => Navigate("complaints");
+        complaints.Controls.Add(allComplaints);
+        page.Controls.Add(complaints);
+
+        var actions = ModernUi.Section("Thao tác nhanh", 320, bottomRowHeight);
+        page.Controls.Add(actions);
+        AddAdminQuickActions(actions);
+
+        void LayoutDashboard()
+        {
+            int viewportWidth = Math.Max(540, page.ClientSize.Width - (page.VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0));
+            int availableWidth = Math.Max(480, viewportWidth - margin * 2);
+
+            int statWidth = Math.Max(150, (availableWidth - gap * 2) / 3);
+            int statBlockWidth = statWidth * 3 + gap * 2;
+            int statLeft = margin + Math.Max(0, (availableWidth - statBlockWidth) / 2);
+
+            int row1Y = topOffset;
+            int row2Y = row1Y + statCardHeight + gap;
+            int chartsY = row2Y + statCardHeight + 18;
+            int bottomY = chartsY + chartRowHeight + 18;
+
+            for (int i = 0; i < statCards.Length; i++)
+            {
+                int col = i % 3;
+                int row = i / 3;
+                int x = statLeft + col * (statWidth + gap);
+                int y = row == 0 ? row1Y : row2Y;
+                statCards[i].SetBounds(x, y, statWidth, statCardHeight);
+            }
+
+            int donutWidth = Math.Clamp((int)Math.Round(availableWidth * 0.38), 330, 410);
+            int revenueWidth = Math.Max(420, availableWidth - donutWidth - gap);
+            if (revenueWidth + donutWidth + gap > availableWidth)
+            {
+                donutWidth = Math.Max(300, availableWidth - revenueWidth - gap);
+            }
+            int chartBlockWidth = revenueWidth + donutWidth + gap;
+            int chartLeft = margin + Math.Max(0, (availableWidth - chartBlockWidth) / 2);
+
+            revenue.SetBounds(chartLeft, chartsY, revenueWidth, chartRowHeight);
+            revenueChart.SetBounds(16, 46, revenue.Width - 32, revenue.Height - 60);
+
+            occupancy.SetBounds(revenue.Right + gap, chartsY, donutWidth, chartRowHeight);
+            occupancyChart.SetBounds(12, 40, occupancy.Width - 24, occupancy.Height - 50);
+
+            int alertWidth = availableWidth >= 1220 ? 280 : 260;
+            int actionsWidth = availableWidth >= 1220 ? 320 : 300;
+            int complaintsWidth = availableWidth - alertWidth - actionsWidth - gap * 2;
+
+            int bottomBlockWidth = alertWidth + complaintsWidth + actionsWidth + gap * 2;
+            int bottomLeft = margin + Math.Max(0, (availableWidth - bottomBlockWidth) / 2);
+
+            alert.SetBounds(bottomLeft, bottomY, alertWidth, bottomRowHeight);
+            alertIcon.Location = new Point((alert.Width - alertIcon.Width) / 2, 48);
+            alertHeadline.SetBounds(18, 136, alert.Width - 36, 44);
+            alertSub.SetBounds(18, 182, alert.Width - 36, 42);
+            backup.Location = new Point((alert.Width - backup.Width) / 2, alert.Height - backup.Height - 14);
+
+            complaints.SetBounds(alert.Right + gap, bottomY, complaintsWidth, bottomRowHeight);
+            complaintsGrid.SetBounds(12, 46, complaints.Width - 24, complaints.Height - 94);
+            allComplaints.Location = new Point(16, complaints.Height - 42);
+
+            if (complaintsGrid.Columns.Count == 5)
+            {
+                int fixedWidth = 50 + 120 + 150 + 90;
+                int contentWidth = Math.Max(180, complaintsGrid.ClientSize.Width - fixedWidth - 8);
+                complaintsGrid.Columns[0].Width = 50;
+                complaintsGrid.Columns[1].Width = 120;
+                complaintsGrid.Columns[2].Width = contentWidth;
+                complaintsGrid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                complaintsGrid.Columns[3].Width = 150;
+                complaintsGrid.Columns[4].Width = 90;
+            }
+
+            actions.SetBounds(complaints.Right + gap, bottomY, actionsWidth, bottomRowHeight);
+            AddAdminQuickActions(actions);
+
+            page.AutoScrollMinSize = new Size(0, bottomY + bottomRowHeight + 24);
+        }
+
+        page.Resize += (_, _) => LayoutDashboard();
+        LayoutDashboard();
+    }
+
+    private void AddAdminQuickActions_Legacy(Control actions)
     {
         const int columns = 3;
         const int padX = 18;
@@ -1639,6 +2371,321 @@ END";
         BindTileClick(cancelTile, (_, _) => ReloadCurrentPage());
 
         var reportTile = AddActionTile(actions, "▤", "Báo cáo", "Xuất dữ liệu", Color.FromArgb(51, 65, 85), padX + (tileW + gapX) * 2, row2, width: tileW, height: tileH);
+        BindTileClick(reportTile, (_, _) => ShowQuickActionMenu(reportTile,
+            ("Xuất báo cáo lấp đầy (.xlsx)", () => SaveGeneratedFile(
+                ReportsBLL.GenerateOccupancyReport(),
+                "Excel Workbook (*.xlsx)|*.xlsx",
+                "QuickOccupancyReport")),
+            ("Xuất danh sách cư dân (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("residents"),
+                "CSV (*.csv)|*.csv",
+                "QuickResidentsExport")),
+            ("Xuất danh sách hóa đơn (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("invoices"),
+                "CSV (*.csv)|*.csv",
+                "QuickInvoicesExport")),
+            ("Mở trang báo cáo", () => Navigate("reports"))));
+    }
+
+    private void AddAdminQuickActions_PreModern(Control actions)
+    {
+        const int padX = 18;
+        const int padY = 48;
+        const int gapX = 12;
+        const int gapY = 8;
+
+        int columns = actions.Width < 430 ? 2 : 3;
+        int tileH = columns == 2 ? 64 : 72;
+        int tileW = Math.Max(88, (actions.Width - padX * 2 - gapX * (columns - 1)) / columns);
+
+        Point TilePosition(int index)
+        {
+            int col = index % columns;
+            int row = index / columns;
+            return new Point(padX + col * (tileW + gapX), padY + row * (tileH + gapY));
+        }
+
+        var addPos = TilePosition(0);
+        var addTile = AddActionTile(actions, "⊕", "Thêm mới", "Tạo dữ liệu", Color.FromArgb(34, 197, 94), addPos.X, addPos.Y, width: tileW, height: tileH);
+        BindTileClick(addTile, (_, _) => ShowQuickActionMenu(addTile,
+            ("Thêm tài khoản", () => Navigate("accounts")),
+            ("Thêm cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Thêm căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Thêm hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Thêm phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var editPos = TilePosition(1);
+        var editTile = AddActionTile(actions, "✎", "Sửa dữ liệu", "Chỉnh sửa", Color.FromArgb(249, 115, 22), editPos.X, editPos.Y, width: tileW, height: tileH);
+        BindTileClick(editTile, (_, _) => ShowQuickActionMenu(editTile,
+            ("Sửa tài khoản", () => Navigate("accounts")),
+            ("Sửa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Sửa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Sửa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Sửa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var deletePos = TilePosition(2);
+        var deleteTile = AddActionTile(actions, "▥", "Xóa dữ liệu", "Xóa bỏ", Color.FromArgb(239, 68, 68), deletePos.X, deletePos.Y, width: tileW, height: tileH);
+        BindTileClick(deleteTile, (_, _) => ShowQuickActionMenu(deleteTile,
+            ("Xóa tài khoản", () => Navigate("accounts")),
+            ("Xóa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Xóa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Xóa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Xóa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var savePos = TilePosition(3);
+        var saveTile = AddActionTile(actions, "▣", "Lưu dữ liệu", "Lưu thay đổi", ModernUi.Blue, savePos.X, savePos.Y, width: tileW, height: tileH);
+        BindTileClick(saveTile, (_, _) => SaveDashboardSnapshot());
+
+        var cancelPos = TilePosition(4);
+        var cancelTile = AddActionTile(actions, "×", "Làm mới", "Tải lại dữ liệu", Color.FromArgb(100, 116, 139), cancelPos.X, cancelPos.Y, width: tileW, height: tileH);
+        BindTileClick(cancelTile, (_, _) => ReloadCurrentPage());
+
+        var reportPos = TilePosition(5);
+        var reportTile = AddActionTile(actions, "▤", "Báo cáo", "Xuất dữ liệu", Color.FromArgb(51, 65, 85), reportPos.X, reportPos.Y, width: tileW, height: tileH);
+        BindTileClick(reportTile, (_, _) => ShowQuickActionMenu(reportTile,
+            ("Xuất báo cáo lấp đầy (.xlsx)", () => SaveGeneratedFile(
+                ReportsBLL.GenerateOccupancyReport(),
+                "Excel Workbook (*.xlsx)|*.xlsx",
+                "QuickOccupancyReport")),
+            ("Xuất danh sách cư dân (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("residents"),
+                "CSV (*.csv)|*.csv",
+                "QuickResidentsExport")),
+            ("Xuất danh sách hóa đơn (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("invoices"),
+                "CSV (*.csv)|*.csv",
+                "QuickInvoicesExport")),
+            ("Mở trang báo cáo", () => Navigate("reports"))));
+    }
+
+    private void AddAdminQuickActions_CompactLegacy(Control actions)
+    {
+        foreach (Control control in actions.Controls.Cast<Control>().ToList())
+        {
+            if (control is Label)
+            {
+                continue;
+            }
+
+            actions.Controls.Remove(control);
+            control.Dispose();
+        }
+
+        const int columns = 2;
+        const int padX = 14;
+        const int padY = 44;
+        const int gapX = 12;
+        const int gapY = 10;
+        const int tileH = 64;
+        int tileW = Math.Max(118, (actions.Width - padX * 2 - gapX) / columns);
+
+        Point TilePosition(int index)
+        {
+            int col = index % columns;
+            int row = index / columns;
+            return new Point(padX + col * (tileW + gapX), padY + row * (tileH + gapY));
+        }
+
+        var addPos = TilePosition(0);
+        var addTile = AddActionTile(actions, "⊕", "Thêm mới", "Tạo dữ liệu", Color.FromArgb(34, 197, 94), addPos.X, addPos.Y, width: tileW, height: tileH);
+        BindTileClick(addTile, (_, _) => ShowQuickActionMenu(addTile,
+            ("Thêm tài khoản", () => Navigate("accounts")),
+            ("Thêm cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Thêm căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Thêm hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Thêm phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var editPos = TilePosition(1);
+        var editTile = AddActionTile(actions, "✎", "Sửa dữ liệu", "Chỉnh sửa", Color.FromArgb(249, 115, 22), editPos.X, editPos.Y, width: tileW, height: tileH);
+        BindTileClick(editTile, (_, _) => ShowQuickActionMenu(editTile,
+            ("Sửa tài khoản", () => Navigate("accounts")),
+            ("Sửa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Sửa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Sửa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Sửa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var deletePos = TilePosition(2);
+        var deleteTile = AddActionTile(actions, "▥", "Xóa dữ liệu", "Xóa bỏ", Color.FromArgb(239, 68, 68), deletePos.X, deletePos.Y, width: tileW, height: tileH);
+        BindTileClick(deleteTile, (_, _) => ShowQuickActionMenu(deleteTile,
+            ("Xóa tài khoản", () => Navigate("accounts")),
+            ("Xóa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Xóa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Xóa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Xóa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var savePos = TilePosition(3);
+        var saveTile = AddActionTile(actions, "▣", "Lưu dữ liệu", "Lưu thay đổi", ModernUi.Blue, savePos.X, savePos.Y, width: tileW, height: tileH);
+        BindTileClick(saveTile, (_, _) => SaveDashboardSnapshot());
+
+        var refreshPos = TilePosition(4);
+        var refreshTile = AddActionTile(actions, "↻", "Làm mới", "Tải lại dữ liệu", Color.FromArgb(100, 116, 139), refreshPos.X, refreshPos.Y, width: tileW, height: tileH);
+        BindTileClick(refreshTile, (_, _) => ReloadCurrentPage());
+
+        var reportPos = TilePosition(5);
+        var reportTile = AddActionTile(actions, "▤", "Báo cáo", "Xuất dữ liệu", Color.FromArgb(51, 65, 85), reportPos.X, reportPos.Y, width: tileW, height: tileH);
+        BindTileClick(reportTile, (_, _) => ShowQuickActionMenu(reportTile,
+            ("Xuất báo cáo lấp đầy (.xlsx)", () => SaveGeneratedFile(
+                ReportsBLL.GenerateOccupancyReport(),
+                "Excel Workbook (*.xlsx)|*.xlsx",
+                "QuickOccupancyReport")),
+            ("Xuất danh sách cư dân (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("residents"),
+                "CSV (*.csv)|*.csv",
+                "QuickResidentsExport")),
+            ("Xuất danh sách hóa đơn (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("invoices"),
+                "CSV (*.csv)|*.csv",
+                "QuickInvoicesExport")),
+            ("Mở trang báo cáo", () => Navigate("reports"))));
+    }
+
+    private void AddAdminQuickActions_PriorLayout(Control actions)
+    {
+        foreach (Control control in actions.Controls.Cast<Control>().ToList())
+        {
+            if (control is Label)
+            {
+                continue;
+            }
+
+            actions.Controls.Remove(control);
+            control.Dispose();
+        }
+
+        const int columns = 2;
+        const int padX = 14;
+        const int padY = 46;
+        const int gapX = 12;
+        const int gapY = 12;
+        const int tileH = 66;
+        int tileW = Math.Max(110, (actions.Width - padX * 2 - gapX) / columns);
+
+        Point TilePosition(int index)
+        {
+            int col = index % columns;
+            int row = index / columns;
+            return new Point(padX + col * (tileW + gapX), padY + row * (tileH + gapY));
+        }
+
+        var addPos = TilePosition(0);
+        var addTile = AddActionTile(actions, "+", "Thêm mới", "Tạo dữ liệu", Color.FromArgb(34, 197, 94), addPos.X, addPos.Y, width: tileW, height: tileH);
+        BindTileClick(addTile, (_, _) => ShowQuickActionMenu(addTile,
+            ("Thêm tài khoản", () => Navigate("accounts")),
+            ("Thêm cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Thêm căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Thêm hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Thêm phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var editPos = TilePosition(1);
+        var editTile = AddActionTile(actions, "✎", "Sửa dữ liệu", "Chỉnh sửa", Color.FromArgb(249, 115, 22), editPos.X, editPos.Y, width: tileW, height: tileH);
+        BindTileClick(editTile, (_, _) => ShowQuickActionMenu(editTile,
+            ("Sửa tài khoản", () => Navigate("accounts")),
+            ("Sửa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Sửa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Sửa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Sửa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var deletePos = TilePosition(2);
+        var deleteTile = AddActionTile(actions, "⌦", "Xóa dữ liệu", "Xóa bỏ", Color.FromArgb(239, 68, 68), deletePos.X, deletePos.Y, width: tileW, height: tileH);
+        BindTileClick(deleteTile, (_, _) => ShowQuickActionMenu(deleteTile,
+            ("Xóa tài khoản", () => Navigate("accounts")),
+            ("Xóa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Xóa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Xóa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Xóa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var savePos = TilePosition(3);
+        var saveTile = AddActionTile(actions, "⎘", "Lưu dữ liệu", "Lưu thay đổi", ModernUi.Blue, savePos.X, savePos.Y, width: tileW, height: tileH);
+        BindTileClick(saveTile, (_, _) => SaveDashboardSnapshot());
+
+        var refreshPos = TilePosition(4);
+        var refreshTile = AddActionTile(actions, "↻", "Làm mới", "Tải lại dữ liệu", Color.FromArgb(100, 116, 139), refreshPos.X, refreshPos.Y, width: tileW, height: tileH);
+        BindTileClick(refreshTile, (_, _) => ReloadCurrentPage());
+
+        var reportPos = TilePosition(5);
+        var reportTile = AddActionTile(actions, "▤", "Báo cáo", "Xuất dữ liệu", Color.FromArgb(51, 65, 85), reportPos.X, reportPos.Y, width: tileW, height: tileH);
+        BindTileClick(reportTile, (_, _) => ShowQuickActionMenu(reportTile,
+            ("Xuất báo cáo lấp đầy (.xlsx)", () => SaveGeneratedFile(
+                ReportsBLL.GenerateOccupancyReport(),
+                "Excel Workbook (*.xlsx)|*.xlsx",
+                "QuickOccupancyReport")),
+            ("Xuất danh sách cư dân (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("residents"),
+                "CSV (*.csv)|*.csv",
+                "QuickResidentsExport")),
+            ("Xuất danh sách hóa đơn (.csv)", () => SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("invoices"),
+                "CSV (*.csv)|*.csv",
+                "QuickInvoicesExport")),
+            ("Mở trang báo cáo", () => Navigate("reports"))));
+    }
+
+    private void AddAdminQuickActions(Control actions)
+    {
+        foreach (Control control in actions.Controls.Cast<Control>().ToList())
+        {
+            if (control is Label)
+            {
+                continue;
+            }
+
+            actions.Controls.Remove(control);
+            control.Dispose();
+        }
+
+        const int columns = 2;
+        const int tileH = 78;
+        const int padX = 14;
+        const int gapX = 10;
+        const int gapY = 10;
+        const int top = 46;
+        int tileW = Math.Max(96, (actions.ClientSize.Width - padX * 2 - gapX) / columns);
+        int startX = padX;
+
+        Point TilePosition(int index)
+        {
+            int col = index % columns;
+            int row = index / columns;
+            return new Point(startX + col * (tileW + gapX), top + row * (tileH + gapY));
+        }
+
+        var addPos = TilePosition(0);
+        var addTile = AddActionTile(actions, "➕", "Thêm mới", string.Empty, Color.FromArgb(34, 197, 94), addPos.X, addPos.Y, width: tileW, height: tileH);
+        BindTileClick(addTile, (_, _) => ShowQuickActionMenu(addTile,
+            ("Thêm tài khoản", () => Navigate("accounts")),
+            ("Thêm cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Thêm căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Thêm hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Thêm phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var editPos = TilePosition(1);
+        var editTile = AddActionTile(actions, "✏", "Sửa dữ liệu", string.Empty, Color.FromArgb(249, 115, 22), editPos.X, editPos.Y, width: tileW, height: tileH);
+        BindTileClick(editTile, (_, _) => ShowQuickActionMenu(editTile,
+            ("Sửa tài khoản", () => Navigate("accounts")),
+            ("Sửa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Sửa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Sửa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Sửa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var deletePos = TilePosition(2);
+        var deleteTile = AddActionTile(actions, "🗑", "Xóa dữ liệu", string.Empty, Color.FromArgb(239, 68, 68), deletePos.X, deletePos.Y, width: tileW, height: tileH);
+        BindTileClick(deleteTile, (_, _) => ShowQuickActionMenu(deleteTile,
+            ("Xóa tài khoản", () => Navigate("accounts")),
+            ("Xóa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
+            ("Xóa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
+            ("Xóa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
+            ("Xóa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+
+        var savePos = TilePosition(3);
+        var saveTile = AddActionTile(actions, "💾", "Lưu dữ liệu", string.Empty, ModernUi.Blue, savePos.X, savePos.Y, width: tileW, height: tileH);
+        BindTileClick(saveTile, (_, _) => SaveDashboardSnapshot());
+
+        var refreshPos = TilePosition(4);
+        var refreshTile = AddActionTile(actions, "↻", "Làm mới", string.Empty, Color.FromArgb(100, 116, 139), refreshPos.X, refreshPos.Y, width: tileW, height: tileH);
+        BindTileClick(refreshTile, (_, _) => ReloadCurrentPage());
+
+        var reportPos = TilePosition(5);
+        var reportTile = AddActionTile(actions, "📊", "Báo cáo", string.Empty, Color.FromArgb(51, 65, 85), reportPos.X, reportPos.Y, width: tileW, height: tileH);
         BindTileClick(reportTile, (_, _) => ShowQuickActionMenu(reportTile,
             ("Xuất báo cáo lấp đầy (.xlsx)", () => SaveGeneratedFile(
                 ReportsBLL.GenerateOccupancyReport(),
@@ -6173,7 +7220,7 @@ END";
         grid.ClearSelection();
     }
 
-    private static RoundedPanel AddActionTile(Control parent, string icon, string title, string subtitle, Color color, int x, int y, Color? textColor = null, int width = 178, int height = 72)
+    private static RoundedPanel AddActionTile_Legacy(Control parent, string icon, string title, string subtitle, Color color, int x, int y, Color? textColor = null, int width = 178, int height = 72)
     {
         bool lightTile = color.GetBrightness() > 0.92f;
         var tile = ModernUi.CardPanel(5);
@@ -6237,9 +7284,227 @@ END";
         return tile;
     }
 
+    private static RoundedPanel AddActionTile_PreCompactFix(Control parent, string icon, string title, string subtitle, Color color, int x, int y, Color? textColor = null, int width = 178, int height = 72)
+    {
+        bool lightTile = color.GetBrightness() > 0.92f;
+        var tile = ModernUi.CardPanel(5);
+        tile.Location = new Point(x, y);
+        tile.Size = new Size(width, height);
+        tile.BackColor = color;
+        tile.BorderColor = lightTile ? ModernUi.Border : color;
+        tile.Cursor = Cursors.Hand;
+
+        Color fg = textColor ?? Color.White;
+        bool compact = width < 180 || height < 72;
+        int iconSize = compact ? (width < 120 ? 20 : 22) : 28;
+        string titleText = title.Replace("\n", "\r\n");
+
+        if (compact && width < 145 && !titleText.Contains("\r\n", StringComparison.Ordinal) && titleText.Contains(' '))
+        {
+            string[] words = titleText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length == 2)
+            {
+                titleText = $"{words[0]}\r\n{words[1]}";
+            }
+            else if (words.Length > 2)
+            {
+                titleText = $"{string.Join(" ", words.Take(words.Length - 1))}\r\n{words[words.Length - 1]}";
+            }
+        }
+
+        var iconLabel = ModernUi.Label(icon, iconSize, FontStyle.Bold, fg);
+        iconLabel.BackColor = Color.Transparent;
+        iconLabel.Cursor = Cursors.Hand;
+
+        var titleLabel = ModernUi.Label(titleText, compact ? 8.7f : 9.8f, FontStyle.Bold, fg);
+        titleLabel.BackColor = Color.Transparent;
+        titleLabel.Cursor = Cursors.Hand;
+
+        var subLabel = ModernUi.Label(subtitle, compact ? 7.7f : 8.2f, FontStyle.Regular, lightTile ? ModernUi.Muted : Color.FromArgb(242, 247, 255));
+        subLabel.BackColor = Color.Transparent;
+        subLabel.Cursor = Cursors.Hand;
+
+        if (compact)
+        {
+            iconLabel.Location = new Point(0, 8);
+            iconLabel.Size = new Size(width, 22);
+            iconLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+            titleLabel.Location = new Point(8, 30);
+            titleLabel.Size = new Size(width - 16, height - 36);
+            titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+            tile.Controls.Add(iconLabel);
+            tile.Controls.Add(titleLabel);
+        }
+        else
+        {
+            iconLabel.Location = new Point(12, 14);
+            iconLabel.Size = new Size(36, height - 24);
+            iconLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+            titleLabel.Location = new Point(54, 14);
+            titleLabel.Size = new Size(width - 64, 24);
+            titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+
+            subLabel.Location = new Point(54, 38);
+            subLabel.Size = new Size(width - 64, 18);
+            subLabel.TextAlign = ContentAlignment.MiddleLeft;
+
+            tile.Controls.Add(iconLabel);
+            tile.Controls.Add(titleLabel);
+            tile.Controls.Add(subLabel);
+        }
+
+        Color original = tile.BackColor;
+        tile.MouseEnter += (_, _) => tile.BackColor = lightTile ? ModernUi.LightBlue : ControlPaint.Light(original, 0.08f);
+        tile.MouseLeave += (_, _) => tile.BackColor = original;
+        foreach (Control child in tile.Controls)
+        {
+            child.MouseEnter += (_, _) => tile.BackColor = lightTile ? ModernUi.LightBlue : ControlPaint.Light(original, 0.08f);
+            child.MouseLeave += (_, _) => tile.BackColor = original;
+        }
+
+        parent.Controls.Add(tile);
+        return tile;
+    }
+
+    private static RoundedPanel AddActionTile_PriorLayout(Control parent, string icon, string title, string subtitle, Color color, int x, int y, Color? textColor = null, int width = 178, int height = 72)
+    {
+        bool lightTile = color.GetBrightness() > 0.92f;
+        var tile = ModernUi.CardPanel(12);
+        tile.Location = new Point(x, y);
+        tile.Size = new Size(width, height);
+        tile.BackColor = color;
+        tile.BorderColor = lightTile ? ModernUi.Border : color;
+        tile.Cursor = Cursors.Hand;
+
+        Color foreground = textColor ?? Color.White;
+        bool compact = width < 156 || height <= 68;
+
+        string titleText = title.Replace("\n", "\r\n");
+        if (compact && !titleText.Contains("\r\n", StringComparison.Ordinal) && titleText.Contains(' '))
+        {
+            string[] words = titleText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length == 2)
+            {
+                titleText = $"{words[0]}\r\n{words[1]}";
+            }
+            else if (words.Length > 2)
+            {
+                titleText = $"{string.Join(" ", words.Take(words.Length - 1))}\r\n{words[^1]}";
+            }
+        }
+
+        var iconLabel = ModernUi.Label(icon, compact ? 18f : 24f, FontStyle.Bold, foreground);
+        iconLabel.BackColor = Color.Transparent;
+        iconLabel.Cursor = Cursors.Hand;
+        iconLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        var titleLabel = ModernUi.Label(titleText, compact ? 8.2f : 9.6f, FontStyle.Bold, foreground);
+        titleLabel.BackColor = Color.Transparent;
+        titleLabel.Cursor = Cursors.Hand;
+        titleLabel.AutoEllipsis = true;
+
+        var subLabel = ModernUi.Label(subtitle, 8f, FontStyle.Regular, lightTile ? ModernUi.Muted : Color.FromArgb(242, 247, 255));
+        subLabel.BackColor = Color.Transparent;
+        subLabel.Cursor = Cursors.Hand;
+        subLabel.AutoEllipsis = true;
+
+        if (compact)
+        {
+            iconLabel.SetBounds(0, 8, width, 18);
+            titleLabel.SetBounds(8, 28, width - 16, height - 34);
+            titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+            tile.Controls.Add(iconLabel);
+            tile.Controls.Add(titleLabel);
+        }
+        else
+        {
+            iconLabel.SetBounds(12, 13, 32, height - 26);
+            titleLabel.SetBounds(48, 14, width - 56, 22);
+            titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+            subLabel.SetBounds(48, 37, width - 56, 18);
+            subLabel.TextAlign = ContentAlignment.MiddleLeft;
+            tile.Controls.Add(iconLabel);
+            tile.Controls.Add(titleLabel);
+            tile.Controls.Add(subLabel);
+        }
+
+        Color original = tile.BackColor;
+        tile.MouseEnter += (_, _) => tile.BackColor = lightTile ? ModernUi.LightBlue : ControlPaint.Light(original, 0.08f);
+        tile.MouseLeave += (_, _) => tile.BackColor = original;
+        foreach (Control child in tile.Controls)
+        {
+            child.MouseEnter += (_, _) => tile.BackColor = lightTile ? ModernUi.LightBlue : ControlPaint.Light(original, 0.08f);
+            child.MouseLeave += (_, _) => tile.BackColor = original;
+        }
+
+        parent.Controls.Add(tile);
+        return tile;
+    }
+
+    private static RoundedPanel AddActionTile(Control parent, string icon, string title, string subtitle, Color color, int x, int y, Color? textColor = null, int width = 178, int height = 72)
+    {
+        bool lightTile = color.GetBrightness() > 0.92f;
+        var tile = ModernUi.CardPanel(12);
+        tile.Location = new Point(x, y);
+        tile.Size = new Size(width, height);
+        tile.BackColor = color;
+        tile.BorderColor = lightTile ? ModernUi.Border : color;
+        tile.Cursor = Cursors.Hand;
+
+        Color foreground = textColor ?? Color.White;
+
+        var iconLabel = ModernUi.Label(icon, 16.5f, FontStyle.Regular, foreground);
+        iconLabel.Font = new Font("Segoe UI Emoji", 16.5f, FontStyle.Regular);
+        iconLabel.BackColor = Color.Transparent;
+        iconLabel.Cursor = Cursors.Hand;
+        iconLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        var titleLabel = ModernUi.Label(title, 8.3f, FontStyle.Bold, foreground);
+        titleLabel.BackColor = Color.Transparent;
+        titleLabel.Cursor = Cursors.Hand;
+        titleLabel.AutoEllipsis = true;
+        titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        iconLabel.SetBounds(0, 10, width, 22);
+        titleLabel.SetBounds(8, height - 30, width - 16, 16);
+
+        tile.Controls.Add(iconLabel);
+        tile.Controls.Add(titleLabel);
+
+        Color original = tile.BackColor;
+        tile.MouseEnter += (_, _) => tile.BackColor = lightTile ? ModernUi.LightBlue : ControlPaint.Light(original, 0.08f);
+        tile.MouseLeave += (_, _) => tile.BackColor = original;
+        foreach (Control child in tile.Controls)
+        {
+            child.MouseEnter += (_, _) => tile.BackColor = lightTile ? ModernUi.LightBlue : ControlPaint.Light(original, 0.08f);
+            child.MouseLeave += (_, _) => tile.BackColor = original;
+        }
+
+        parent.Controls.Add(tile);
+        return tile;
+    }
+
     private static DataGridView CreateGrid(string[] columns, object[][] rows)
     {
         var grid = ModernUi.Grid();
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        grid.ScrollBars = ScrollBars.Vertical;
+        grid.AllowUserToResizeColumns = false;
+        grid.AllowUserToResizeRows = false;
+        grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        grid.RowTemplate.Height = 36;
+        grid.ColumnHeadersHeight = 38;
+        grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        grid.DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+        grid.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.False;
+        grid.DefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
+        grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
+        grid.DefaultCellStyle.Font = ModernUi.Font(8.1f);
+        grid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(8.2f, FontStyle.Bold);
+        grid.ShowCellToolTips = true;
         var table = new DataTable();
         foreach (var column in columns)
         {
@@ -6263,7 +7528,30 @@ END";
                 e.ToolTipText = grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? string.Empty;
             }
         };
-        grid.CellFormatting += (_, e) => ApplyGridCellStyle(e);
+        grid.CellFormatting += (_, e) =>
+        {
+            ApplyGridCellStyle(e);
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0 || e.Value is not string text)
+            {
+                return;
+            }
+
+            string header = grid.Columns[e.ColumnIndex].HeaderText;
+            if (!HeaderContains(header, "Nội dung", "Mô tả", "Ghi chú", "Địa chỉ", "Tiêu đề"))
+            {
+                return;
+            }
+
+            string singleLine = text.Replace("\r", " ").Replace("\n", " ").Trim();
+            if (singleLine.Length <= 36)
+            {
+                return;
+            }
+
+            e.Value = $"{singleLine[..33]}...";
+            e.FormattingApplied = true;
+        };
         return grid;
     }
 

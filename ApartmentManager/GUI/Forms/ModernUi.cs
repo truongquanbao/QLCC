@@ -78,6 +78,17 @@ internal static class ModernUi
         icon.TextAlign = ContentAlignment.MiddleCenter;
         wrapper.Controls.Add(icon);
 
+        void LayoutSearch()
+        {
+            input.Location = new Point(14, Math.Max(8, (wrapper.Height - input.Height) / 2));
+            input.Width = Math.Max(110, wrapper.Width - 54);
+            icon.Location = new Point(wrapper.Width - 39, 3);
+            icon.Height = wrapper.Height - 6;
+        }
+
+        wrapper.Resize += (_, _) => LayoutSearch();
+        LayoutSearch();
+
         return wrapper;
     }
 
@@ -207,11 +218,23 @@ internal static class ModernUi
     {
         var panel = CardPanel();
         panel.Size = new Size(width, height);
+        panel.Radius = 12;
+        panel.BorderColor = Color.FromArgb(223, 231, 242);
+        panel.Padding = Padding.Empty;
 
         var label = Label(title.ToUpperInvariant(), 9.5f, FontStyle.Bold, Blue);
         label.Location = new Point(12, 8);
         label.Size = new Size(width - 24, 24);
+        label.AutoEllipsis = true;
         panel.Controls.Add(label);
+
+        void LayoutSectionHeader()
+        {
+            label.SetBounds(16, 10, Math.Max(80, panel.Width - 32), 24);
+        }
+
+        panel.Resize += (_, _) => LayoutSectionHeader();
+        LayoutSectionHeader();
         return panel;
     }
 

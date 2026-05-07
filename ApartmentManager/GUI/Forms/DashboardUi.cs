@@ -55,51 +55,61 @@ internal static class DashboardUi
         card.Padding = Padding.Empty;
         card.MinimumSize = new Size(150, 112);
 
-        var accentBar = new Panel
-        {
-            Height = 4,
-            BackColor = accent
-        };
-        card.Controls.Add(accentBar);
-
-        var titleLabel = ModernUi.Label(title.ToUpperInvariant(), 8.4f, FontStyle.Bold, ModernUi.Muted);
-        titleLabel.TextAlign = ContentAlignment.MiddleLeft;
-        card.Controls.Add(titleLabel);
-
         var icon = new CircleLabel
         {
             Text = iconText,
-            CircleColor = Color.FromArgb(235, 243, 255),
-            ForeColor = accent,
-            Font = ModernUi.Font(18f, FontStyle.Bold),
+            CircleColor = accent,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(20f, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleCenter
         };
         card.Controls.Add(icon);
 
-        var valueLabel = ModernUi.Label(value, 24f, FontStyle.Bold, ModernUi.Navy);
+        var titleLabel = ModernUi.Label(title.ToUpperInvariant(), 8.6f, FontStyle.Bold, accent);
+        titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+        titleLabel.AutoEllipsis = true;
+        card.Controls.Add(titleLabel);
+
+        var valueLabel = ModernUi.Label(value, 22f, FontStyle.Bold, accent);
         valueLabel.TextAlign = ContentAlignment.MiddleLeft;
+        valueLabel.AutoEllipsis = true;
         card.Controls.Add(valueLabel);
 
         var unitLabel = ModernUi.Label(unit, 8.8f, FontStyle.Regular, ModernUi.Muted);
         unitLabel.TextAlign = ContentAlignment.MiddleLeft;
+        unitLabel.AutoEllipsis = true;
         card.Controls.Add(unitLabel);
 
-        var trendLabel = ModernUi.Label(trend, 8.6f, FontStyle.Bold, accent);
+        Color trendColor = accent == ModernUi.Red
+            ? ModernUi.Red
+            : accent == ModernUi.Orange
+                ? ModernUi.Orange
+                : Color.FromArgb(22, 163, 74);
+        var trendLabel = ModernUi.Label(trend, 8.6f, FontStyle.Bold, trendColor);
         trendLabel.TextAlign = ContentAlignment.MiddleLeft;
+        trendLabel.AutoEllipsis = true;
         card.Controls.Add(trendLabel);
 
         void LayoutCard()
         {
-            accentBar.SetBounds(0, 0, card.Width, 4);
-            titleLabel.SetBounds(16, 14, Math.Max(90, card.Width - 84), 20);
-            icon.SetBounds(card.Width - 60, 18, 42, 42);
+            int iconSize = card.Width < 190 ? 44 : card.Width < 260 ? 50 : 56;
+            int iconTop = Math.Max(20, (card.Height - iconSize) / 2 - 4);
+            int iconLeft = 18;
+            int textLeft = iconLeft + iconSize + 16;
+            int textWidth = Math.Max(84, card.Width - textLeft - 16);
 
-            float valueSize = value.Length > 11 ? 15f : value.Length > 7 ? 19f : 24f;
+            icon.Font = ModernUi.Font(iconSize >= 56 ? 21f : iconSize >= 50 ? 18f : 16f, FontStyle.Bold);
+            icon.SetBounds(iconLeft, iconTop, iconSize, iconSize);
+
+            float valueSize = card.Width < 190
+                ? (value.Length > 10 ? 13f : 16f)
+                : value.Length > 13 ? 15f : value.Length > 10 ? 17f : value.Length > 7 ? 19f : 22f;
             valueLabel.Font = ModernUi.Font(valueSize, FontStyle.Bold);
-            valueLabel.SetBounds(16, 45, Math.Max(100, card.Width - 88), 34);
 
-            unitLabel.SetBounds(16, 78, Math.Max(90, card.Width - 36), 18);
-            trendLabel.SetBounds(16, card.Height - 28, Math.Max(110, card.Width - 34), 18);
+            titleLabel.SetBounds(textLeft, 18, textWidth, 18);
+            valueLabel.SetBounds(textLeft, 38, textWidth, 32);
+            unitLabel.SetBounds(textLeft, 68, textWidth, 18);
+            trendLabel.SetBounds(textLeft, card.Height - 28, textWidth, 18);
         }
 
         card.Resize += (_, _) => LayoutCard();
@@ -115,7 +125,7 @@ internal static class DashboardUi
         grid.RowHeadersVisible = false;
         grid.AllowUserToAddRows = false;
         grid.AllowUserToResizeRows = false;
-        grid.AllowUserToResizeColumns = true;
+        grid.AllowUserToResizeColumns = false;
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         grid.MultiSelect = false;
         grid.ReadOnly = true;
@@ -123,7 +133,7 @@ internal static class DashboardUi
         grid.ScrollBars = ScrollBars.Vertical;
 
         grid.EnableHeadersVisualStyles = false;
-        grid.ColumnHeadersHeight = 38;
+        grid.ColumnHeadersHeight = 40;
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 248, 252);
         grid.ColumnHeadersDefaultCellStyle.ForeColor = ModernUi.Navy;
@@ -133,13 +143,13 @@ internal static class DashboardUi
 
         grid.DefaultCellStyle.Font = ModernUi.Font(8.8f);
         grid.DefaultCellStyle.ForeColor = ModernUi.Text;
-        grid.DefaultCellStyle.Padding = new Padding(6, 3, 6, 3);
+        grid.DefaultCellStyle.Padding = new Padding(6, 2, 6, 2);
         grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(225, 236, 251);
         grid.DefaultCellStyle.SelectionForeColor = ModernUi.Text;
         grid.DefaultCellStyle.WrapMode = DataGridViewTriState.False;
 
         grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 251, 255);
-        grid.RowTemplate.Height = 36;
+        grid.RowTemplate.Height = 34;
     }
 }
 
@@ -269,38 +279,39 @@ internal sealed class DashboardBarChartPanel : Control
         base.OnPaint(e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-        var chartArea = new Rectangle(54, 18, Math.Max(120, Width - 84), Math.Max(90, Height - 68));
-        using var textBrush = new SolidBrush(ModernUi.Muted);
+        decimal maxValue = AxisMax > 0 ? AxisMax : (Bars.Count == 0 ? 0 : Bars.Max(b => b.Value));
+        bool hasData = Bars.Count > 0 && maxValue > 0;
+
+        if (!hasData)
+        {
+            using var iconBrush = new SolidBrush(Color.FromArgb(166, 178, 194));
+            using var textBrush = new SolidBrush(ModernUi.Muted);
+            using var iconFont = new Font("Segoe UI Symbol", 28f, FontStyle.Regular);
+            using var messageFont = ModernUi.Font(10.2f, FontStyle.Bold);
+
+            var iconRect = new Rectangle(0, Math.Max(24, Height / 2 - 34), Width, 34);
+            var textRect = new Rectangle(18, iconRect.Bottom + 4, Math.Max(0, Width - 36), 24);
+
+            e.Graphics.DrawString("▤", iconFont, iconBrush, iconRect, CenterFormat());
+            e.Graphics.DrawString(EmptyMessage, messageFont, textBrush, textRect, CenterFormat());
+            return;
+        }
+
+        var chartArea = new Rectangle(52, 18, Math.Max(120, Width - 78), Math.Max(90, Height - 70));
+        using var textBrush2 = new SolidBrush(ModernUi.Muted);
         using var linePen = new Pen(Color.FromArgb(231, 236, 244));
         using var axisPen = new Pen(Color.FromArgb(208, 216, 228));
         using var barBrush = new SolidBrush(BarColor);
-
-        decimal maxValue = AxisMax > 0 ? AxisMax : (Bars.Count == 0 ? 0 : Bars.Max(b => b.Value));
-        bool hasData = Bars.Count > 0 && maxValue > 0;
         int steps = 4;
 
         for (int i = 0; i <= steps; i++)
         {
             int y = chartArea.Bottom - chartArea.Height * i / steps;
             e.Graphics.DrawLine(linePen, chartArea.Left, y, chartArea.Right, y);
-            string label = hasData ? CompactMoney(maxValue * i / steps) : i == 0 ? "0" : string.Empty;
-            if (!string.IsNullOrWhiteSpace(label))
-            {
-                e.Graphics.DrawString(label, ModernUi.Font(7.6f), textBrush, 4, y - 8);
-            }
+            e.Graphics.DrawString(CompactMoney(maxValue * i / steps), ModernUi.Font(7.6f), textBrush2, 4, y - 8);
         }
 
         e.Graphics.DrawLine(axisPen, chartArea.Left, chartArea.Bottom, chartArea.Right, chartArea.Bottom);
-
-        if (!hasData)
-        {
-            using var emptyBrush = new SolidBrush(Color.FromArgb(130, ModernUi.Muted));
-            using var emptyPen = new Pen(Color.FromArgb(226, 232, 240));
-            var emptyBox = new Rectangle(chartArea.Left + 20, chartArea.Top + 32, chartArea.Width - 40, 48);
-            e.Graphics.DrawRectangle(emptyPen, emptyBox);
-            e.Graphics.DrawString(EmptyMessage, ModernUi.Font(9.5f, FontStyle.Bold), emptyBrush, emptyBox, CenterFormat());
-            return;
-        }
 
         int slotWidth = Math.Max(26, chartArea.Width / Math.Max(1, Bars.Count));
         int barWidth = Math.Max(16, Math.Min(30, slotWidth - 18));
@@ -314,12 +325,14 @@ internal sealed class DashboardBarChartPanel : Control
 
             using var path = CreateRoundedRect(new Rectangle(x, y, barWidth, barHeight), 7);
             e.Graphics.FillPath(barBrush, path);
-            e.Graphics.DrawString(Bars[i].Label, ModernUi.Font(7.8f), textBrush, x - 8, chartArea.Bottom + 8);
+
+            var labelRect = new Rectangle(x - 10, chartArea.Bottom + 8, slotWidth + 8, 18);
+            e.Graphics.DrawString(Bars[i].Label, ModernUi.Font(7.8f), textBrush2, labelRect, CenterFormat());
         }
 
         int legendY = Height - 24;
         e.Graphics.FillRectangle(barBrush, chartArea.Left, legendY + 4, 12, 12);
-        e.Graphics.DrawString(SeriesLabel, ModernUi.Font(8.4f, FontStyle.Bold), textBrush, chartArea.Left + 20, legendY);
+        e.Graphics.DrawString(SeriesLabel, ModernUi.Font(8.4f, FontStyle.Bold), textBrush2, chartArea.Left + 20, legendY);
     }
 
     private static string CompactMoney(decimal value)
@@ -391,7 +404,7 @@ internal sealed class DashboardDonutChartPanel : Control
     {
         DoubleBuffered = true;
         BackColor = Color.White;
-        MinimumSize = new Size(210, 190);
+        MinimumSize = new Size(240, 190);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -399,41 +412,80 @@ internal sealed class DashboardDonutChartPanel : Control
         base.OnPaint(e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-        int donutSize = Math.Min(132, Math.Min(Width - 42, Height - 70));
+        using var labelFont = ModernUi.Font(8.5f, FontStyle.Bold);
+        using var valueFont = ModernUi.Font(8.3f);
+        using var centerFont = ModernUi.Font(17f, FontStyle.Bold);
+        using var subFont = ModernUi.Font(9f, FontStyle.Bold);
+        using var labelBrush = new SolidBrush(ModernUi.Text);
+        using var valueBrush = new SolidBrush(ModernUi.Muted);
+        using var centerBrush = new SolidBrush(AccentColor);
+        using var subBrush = new SolidBrush(ModernUi.Navy);
+
+        float primaryLabelWidth = e.Graphics.MeasureString(PrimaryLabel, labelFont).Width;
+        float primaryValueWidth = e.Graphics.MeasureString(PrimaryValue, valueFont).Width;
+        float secondaryLabelWidth = e.Graphics.MeasureString(SecondaryLabel, labelFont).Width;
+        float secondaryValueWidth = e.Graphics.MeasureString(SecondaryValue, valueFont).Width;
+        int legendWidth = (int)Math.Ceiling(Math.Max(primaryLabelWidth + primaryValueWidth, secondaryLabelWidth + secondaryValueWidth)) + 54;
+
+        bool sideLegend = Width >= Math.Max(320, legendWidth + 180);
+        int stroke = sideLegend ? 16 : 14;
+        int donutAvailableWidth = sideLegend ? Width - legendWidth - 46 : Width - 36;
+        int donutSize = sideLegend
+            ? Math.Min(136, Math.Min(donutAvailableWidth - 8, Height - 42))
+            : Math.Min(120, Math.Min(donutAvailableWidth - 8, Height - 82));
         donutSize = Math.Max(96, donutSize);
-        int donutX = (Width - donutSize) / 2;
-        int donutY = 8;
+
+        int donutX = sideLegend ? 18 : (Width - donutSize) / 2;
+        int donutY = sideLegend ? Math.Max(18, (Height - donutSize) / 2 - 2) : Math.Max(14, (Height - donutSize - 36) / 2);
         var donutRect = new Rectangle(donutX, donutY, donutSize, donutSize);
 
-        using var bgPen = new Pen(Color.FromArgb(221, 227, 236), 18) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        using var accentPen = new Pen(AccentColor, 18) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var bgPen = new Pen(Color.FromArgb(221, 227, 236), stroke) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var accentPen = new Pen(AccentColor, stroke) { StartCap = LineCap.Round, EndCap = LineCap.Round };
         e.Graphics.DrawArc(bgPen, donutRect, -90, 360);
         e.Graphics.DrawArc(accentPen, donutRect, -90, Math.Max(0, Math.Min(100, Percent)) * 3.6f);
 
-        using var centerBrush = new SolidBrush(AccentColor);
-        using var textBrush = new SolidBrush(ModernUi.Navy);
+        SizeF centerTextSize = e.Graphics.MeasureString(CenterText, centerFont);
+        SizeF subTextSize = string.IsNullOrWhiteSpace(SubText) ? SizeF.Empty : e.Graphics.MeasureString(SubText, subFont);
+        float blockHeight = centerTextSize.Height + (subTextSize.Height > 0 ? subTextSize.Height - 2 : 0);
+        float startY = donutRect.Y + (donutRect.Height - blockHeight) / 2f - 2f;
 
-        var centerRect = new Rectangle(donutRect.X, donutRect.Y + 4, donutRect.Width, donutRect.Height - 10);
-        e.Graphics.DrawString(CenterText, ModernUi.Font(18f, FontStyle.Bold), centerBrush, centerRect, CenterFormat());
-        e.Graphics.DrawString(SubText, ModernUi.Font(8.8f, FontStyle.Bold), textBrush, new Rectangle(donutRect.X, donutRect.Y + 50, donutRect.Width, 24), CenterFormat());
+        var centerTextRect = new RectangleF(donutRect.X, startY, donutRect.Width, centerTextSize.Height + 2);
+        e.Graphics.DrawString(CenterText, centerFont, centerBrush, centerTextRect, CenterFormat());
 
-        int legendX = Math.Max(12, Width / 2 - 86);
-        DrawLegendRow(e.Graphics, legendX, Height - 48, AccentColor, PrimaryLabel, PrimaryValue);
-        DrawLegendRow(e.Graphics, legendX, Height - 25, Color.FromArgb(221, 227, 236), SecondaryLabel, SecondaryValue);
+        if (!string.IsNullOrWhiteSpace(SubText))
+        {
+            var subTextRect = new RectangleF(donutRect.X, centerTextRect.Bottom - 1, donutRect.Width, subTextSize.Height + 2);
+            e.Graphics.DrawString(SubText, subFont, subBrush, subTextRect, CenterFormat());
+        }
+
+        if (sideLegend)
+        {
+            int legendX = donutRect.Right + 20;
+            int legendY = Math.Max(34, (Height - 52) / 2);
+            int rowWidth = Math.Max(120, Width - legendX - 16);
+            DrawLegendRow(e.Graphics, new Rectangle(legendX, legendY, rowWidth, 20), AccentColor, PrimaryLabel, PrimaryValue, labelFont, valueFont, labelBrush, valueBrush);
+            DrawLegendRow(e.Graphics, new Rectangle(legendX, legendY + 40, rowWidth, 20), Color.FromArgb(221, 227, 236), SecondaryLabel, SecondaryValue, labelFont, valueFont, labelBrush, valueBrush);
+            return;
+        }
+
+        int bottomLegendWidth = Math.Max(160, Width - 32);
+        int bottomLegendX = Math.Max(12, (Width - bottomLegendWidth) / 2);
+        DrawLegendRow(e.Graphics, new Rectangle(bottomLegendX, Height - 48, bottomLegendWidth, 18), AccentColor, PrimaryLabel, PrimaryValue, labelFont, valueFont, labelBrush, valueBrush);
+        DrawLegendRow(e.Graphics, new Rectangle(bottomLegendX, Height - 24, bottomLegendWidth, 18), Color.FromArgb(221, 227, 236), SecondaryLabel, SecondaryValue, labelFont, valueFont, labelBrush, valueBrush);
     }
 
-    private static void DrawLegendRow(Graphics graphics, int x, int y, Color color, string label, string value)
+    private static void DrawLegendRow(Graphics graphics, Rectangle bounds, Color color, string label, string value, Font labelFont, Font valueFont, Brush labelBrush, Brush valueBrush)
     {
-        using var brush = new SolidBrush(color);
-        using var labelBrush = new SolidBrush(ModernUi.Text);
-        using var valueBrush = new SolidBrush(ModernUi.Muted);
+        using var bulletBrush = new SolidBrush(color);
+        graphics.FillEllipse(bulletBrush, bounds.X, bounds.Y + 4, 10, 10);
 
-        graphics.FillEllipse(brush, x, y + 3, 10, 10);
-        graphics.DrawString(label, ModernUi.Font(8.6f, FontStyle.Bold), labelBrush, x + 18, y - 2);
+        var labelRect = new Rectangle(bounds.X + 18, bounds.Y - 1, Math.Max(50, bounds.Width - 94), bounds.Height + 2);
+        graphics.DrawString(label, labelFont, labelBrush, labelRect, LeftFormat());
 
         if (!string.IsNullOrWhiteSpace(value))
         {
-            graphics.DrawString(value, ModernUi.Font(8.4f), valueBrush, x + 98, y - 2);
+            var valueRect = new Rectangle(bounds.Right - 90, bounds.Y - 1, 90, bounds.Height + 2);
+            graphics.DrawString(value, valueFont, valueBrush, valueRect, RightFormat());
         }
     }
 
@@ -441,5 +493,19 @@ internal sealed class DashboardDonutChartPanel : Control
     {
         Alignment = StringAlignment.Center,
         LineAlignment = StringAlignment.Center
+    };
+
+    private static StringFormat LeftFormat() => new()
+    {
+        Alignment = StringAlignment.Near,
+        LineAlignment = StringAlignment.Center,
+        Trimming = StringTrimming.EllipsisCharacter
+    };
+
+    private static StringFormat RightFormat() => new()
+    {
+        Alignment = StringAlignment.Far,
+        LineAlignment = StringAlignment.Center,
+        Trimming = StringTrimming.EllipsisCharacter
     };
 }
