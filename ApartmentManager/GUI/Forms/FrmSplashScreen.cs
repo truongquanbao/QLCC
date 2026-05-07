@@ -25,7 +25,7 @@ namespace ApartmentManager.GUI.Forms
 
         private void InitializeSplashScreen()
         {
-            Text = "Quáº£n lÃ½ khu chung cÆ°";
+            Text = "Quản lý khu chung cư";
             Size = new Size(600, 300);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(33, 86, 155);
@@ -36,7 +36,7 @@ namespace ApartmentManager.GUI.Forms
 
             var lblTitle = new Label
             {
-                Text = "Quáº£n lÃ½ khu chung cÆ°",
+                Text = "Quản lý khu chung cư",
                 Font = new Font("Arial", 20, FontStyle.Bold),
                 ForeColor = Color.White,
                 Left = 50,
@@ -49,7 +49,7 @@ namespace ApartmentManager.GUI.Forms
 
             var lblSubtitle = new Label
             {
-                Text = "Há»‡ thá»‘ng quáº£n lÃ½ cÆ° dÃ¢n vÃ  váº­n hÃ nh",
+                Text = "Hệ thống quản lý cư dân và vận hành",
                 Font = new Font("Arial", 12, FontStyle.Italic),
                 ForeColor = Color.LightGray,
                 Left = 50,
@@ -72,7 +72,7 @@ namespace ApartmentManager.GUI.Forms
 
             _lblStatus = new Label
             {
-                Text = "Äang khá»Ÿi táº¡o...",
+                Text = "Đang khởi tạo...",
                 Font = new Font("Arial", 10),
                 ForeColor = Color.White,
                 Left = 50,
@@ -85,7 +85,7 @@ namespace ApartmentManager.GUI.Forms
 
             _lblVersion = new Label
             {
-                Text = "PhiÃªn báº£n 1.0.0",
+                Text = "Phiên bản 1.0.0",
                 Font = new Font("Arial", 8),
                 ForeColor = Color.LightGray,
                 Left = 50,
@@ -110,7 +110,7 @@ namespace ApartmentManager.GUI.Forms
             catch (Exception ex)
             {
                 Log.Error(ex, "Error initializing application");
-                MessageBox.Show($"Khá»Ÿi táº¡o tháº¥t báº¡i: {ex.Message}", "Lá»—i", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Khởi tạo thất bại: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 DialogResult = DialogResult.Cancel;
                 Close();
             }
@@ -118,31 +118,31 @@ namespace ApartmentManager.GUI.Forms
 
         private async Task InitializeApplication()
         {
-            UpdateProgress("Äang khá»Ÿi táº¡o há»‡ thá»‘ng ghi log...", 10);
+            UpdateProgress("Đang khởi tạo hệ thống ghi log...", 10);
             await Task.Delay(500);
 
-            UpdateProgress("Äang táº£i cáº¥u hÃ¬nh...", 25);
+            UpdateProgress("Đang tải cấu hình...", 25);
             await Task.Delay(500);
 
-            UpdateProgress("Äang káº¿t ná»‘i cÆ¡ sá»Ÿ dá»¯ liá»‡u...", 40);
+            UpdateProgress("Đang kết nối cơ sở dữ liệu...", 40);
             var connectionResult = await Task.Run(DatabaseHelper.EnsureActiveConnection);
             if (connectionResult.success)
             {
-                UpdateProgress("ÄÃ£ káº¿t ná»‘i cÆ¡ sá»Ÿ dá»¯ liá»‡u", 55);
+                UpdateProgress("Đã kết nối cơ sở dữ liệu", 55);
             }
             else
             {
                 Log.Warning("Database connection is not ready during splash screen: {Message}", connectionResult.message);
-                UpdateProgress("ChÆ°a káº¿t ná»‘i Ä‘Æ°á»£c cÆ¡ sá»Ÿ dá»¯ liá»‡u", 55);
+                UpdateProgress("Chưa kết nối được cơ sở dữ liệu", 55);
             }
 
-            UpdateProgress("Äang khá»Ÿi táº¡o quáº£n lÃ½ phiÃªn...", 70);
+            UpdateProgress("Đang khởi tạo quản lý phiên...", 70);
             await Task.Delay(300);
 
-            UpdateProgress("Äang táº£i tÃ i nguyÃªn giao diá»‡n...", 85);
+            UpdateProgress("Đang tải tài nguyên giao diện...", 85);
             await Task.Delay(300);
 
-            UpdateProgress("Há»‡ thá»‘ng sáºµn sÃ ng", 100);
+            UpdateProgress("Hệ thống sẵn sàng", 100);
             await Task.Delay(500);
         }
 
