@@ -3303,11 +3303,8 @@ END";
         };
         content.Controls.Add(tabStrip);
 
+        string activeApartmentTab = "Căn hộ";
         string[] tabNames = { "Tòa nhà", "Block", "Tầng", "Căn hộ" };
-        for (int i = 0; i < tabNames.Length; i++)
-        {
-            AddApartmentTab(tabStrip, tabNames[i], i == 3, 0 + i * 112);
-        }
 
         const int innerX = 6;
         const int innerGap = 12;
@@ -3452,6 +3449,73 @@ END";
         };
         tree.Controls.Add(treeView);
         content.Controls.Add(tree);
+
+        void BuildApartmentTabs()
+        {
+            tabStrip.Controls.Clear();
+
+            for (int i = 0; i < tabNames.Length; i++)
+            {
+                string tabName = tabNames[i];
+
+                AddApartmentTab(tabStrip, tabName, tabName == activeApartmentTab, i * 112, (_, _) =>
+                {
+                    ShowApartmentTab(tabName);
+                });
+            }
+        }
+
+        void ShowApartmentTab(string tabName)
+        {
+            activeApartmentTab = tabName;
+            BuildApartmentTabs();
+
+            bool isApartmentTab = tabName == "Căn hộ";
+
+            list.Visible = isApartmentTab;
+            details.Visible = isApartmentTab;
+
+            if (isApartmentTab)
+            {
+                tree.Visible = true;
+
+                int newDetailW = Math.Min(380, Math.Max(350, (int)(w * 0.30)));
+                int newTreeW = Math.Min(300, Math.Max(260, (int)(w * 0.22)));
+                int newListW = w - innerX * 2 - newDetailW - newTreeW - innerGap * 2;
+
+                if (newListW < 520)
+                {
+                    newTreeW = 0;
+                    newListW = w - innerX * 2 - newDetailW - innerGap;
+                    tree.Visible = false;
+                }
+
+                list.Location = new Point(innerX, sectionsY);
+                list.Size = new Size(newListW, sectionH);
+                grid.Size = new Size(list.Width - 24, sectionH - 102);
+
+                details.Location = new Point(list.Right + innerGap, sectionsY);
+                details.Size = new Size(newDetailW, sectionH);
+
+                tree.Location = new Point(details.Right + innerGap, sectionsY);
+                tree.Size = new Size(newTreeW, sectionH);
+                treeView.Size = new Size(Math.Max(120, tree.Width - 36), sectionH - 62);
+            }
+            else
+            {
+                list.Visible = false;
+                details.Visible = false;
+                tree.Visible = true;
+
+                tree.Location = new Point(innerX, sectionsY);
+                tree.Size = new Size(w - innerX * 2, sectionH);
+
+                treeView.Location = new Point(18, 44);
+                treeView.Size = new Size(tree.Width - 36, sectionH - 62);
+            }
+        }
+
+        ShowApartmentTab("Căn hộ");
 
         typeInput.Items.Clear();
         typeInput.AddOption("Studio", "Studio");
@@ -3803,10 +3867,15 @@ END";
                 {
                     string haystack = string.Join(' ',
                         Display(apartment.ApartmentCode, string.Empty),
+                        Display(apartment.BuildingName, string.Empty),
                         BuildingShort(apartment.BuildingName),
+                        Display(apartment.BlockName, string.Empty),
                         BlockShort(apartment.BlockName),
+                        apartment.FloorNumber?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
                         FloorLabel(apartment.FloorNumber),
+                        Display(apartment.ApartmentType, string.Empty),
                         ApartmentTypeText(apartment.ApartmentType),
+                        Display(apartment.Status, string.Empty),
                         ViStatus(apartment.Status),
                         Display(apartment.Note, string.Empty));
 
@@ -4129,6 +4198,37 @@ END";
             PrepareCreateMode();
         }
 
+        void RefreshApartmentPage(bool keepCreateMode = false)
+        {
+            displayApartments = FilterApartments();
+            IReadOnlyList<ApartmentDTO> pageApartments = Paginate(displayApartments, apartmentPagination);
+            PopulateApartmentGrid(pageApartments);
+            PopulateApartmentTree(displayApartments);
+            UpdatePaginationControls(apartmentPagination, apartmentPager, "cÄƒn há»™");
+
+            if (keepCreateMode)
+            {
+                PrepareCreateMode();
+                return;
+            }
+
+            ApartmentDTO? selectionTarget = null;
+            if (selectedApartment != null)
+            {
+                selectionTarget = pageApartments.FirstOrDefault(apartment => apartment.ApartmentID == selectedApartment.ApartmentID);
+            }
+
+            selectionTarget ??= pageApartments.FirstOrDefault();
+
+            if (selectionTarget != null)
+            {
+                SelectApartment(selectionTarget);
+                return;
+            }
+
+            PrepareCreateMode();
+        }
+
         void ReloadApartmentData(int? preferredApartmentId = null, bool keepCreateMode = false)
         {
             string currentBuilding = buildingFilter.SelectedItem?.ToString() ?? "Tất cả";
@@ -4294,33 +4394,33 @@ END";
         apartmentPager.FirstButton.Click += (_, _) =>
         {
             apartmentPagination.MoveToFirstPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         apartmentPager.PreviousButton.Click += (_, _) =>
         {
             apartmentPagination.MoveToPreviousPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         apartmentPager.NextButton.Click += (_, _) =>
         {
             apartmentPagination.MoveToNextPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         apartmentPager.LastButton.Click += (_, _) =>
         {
             apartmentPagination.MoveToLastPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         apartmentPager.PageSizeCombo.SelectedIndexChanged += (_, _) =>
         {
             apartmentPagination.SetPageSize(ParsePageSize(apartmentPager.PageSizeCombo.SelectedItem, apartmentPagination.PageSize));
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
 
         apartmentSearch.TextChanged += (_, _) =>
         {
             apartmentPagination.MoveToFirstPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         buildingFilter.SelectedIndexChanged += (_, _) =>
         {
@@ -4331,7 +4431,7 @@ END";
 
             RefreshFilterOptions(buildingFilter.SelectedItem?.ToString(), blockFilter.SelectedItem?.ToString(), floorFilter.SelectedItem?.ToString(), statusFilter.SelectedItem?.ToString());
             apartmentPagination.MoveToFirstPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         blockFilter.SelectedIndexChanged += (_, _) =>
         {
@@ -4342,14 +4442,14 @@ END";
 
             RefreshFilterOptions(buildingFilter.SelectedItem?.ToString(), blockFilter.SelectedItem?.ToString(), floorFilter.SelectedItem?.ToString(), statusFilter.SelectedItem?.ToString());
             apartmentPagination.MoveToFirstPage();
-            RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+            RefreshApartmentPage(isCreateMode);
         };
         floorFilter.SelectedIndexChanged += (_, _) =>
         {
             if (!suppressFilterEvents)
             {
                 apartmentPagination.MoveToFirstPage();
-                RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+                RefreshApartmentPage(isCreateMode);
             }
         };
         statusFilter.SelectedIndexChanged += (_, _) =>
@@ -4357,7 +4457,7 @@ END";
             if (!suppressFilterEvents)
             {
                 apartmentPagination.MoveToFirstPage();
-                RefreshApartmentView(selectedApartment?.ApartmentID, isCreateMode);
+                RefreshApartmentPage(isCreateMode);
             }
         };
 
@@ -4423,12 +4523,20 @@ END";
         return combo;
     }
 
-    private static void AddApartmentTab(Control parent, string text, bool active, int x)
+    private static void AddApartmentTab(Control parent, string text, bool active, int x, EventHandler click)
     {
-        var tab = ModernUi.Label(text, 9.2f, active ? FontStyle.Bold : FontStyle.Regular, active ? ModernUi.Blue : ModernUi.Text);
+        var tab = ModernUi.Label(
+            text,
+            9.2f,
+            active ? FontStyle.Bold : FontStyle.Regular,
+            active ? ModernUi.Blue : ModernUi.Text);
+
         tab.Location = new Point(x, 0);
         tab.Size = new Size(112, 50);
         tab.TextAlign = ContentAlignment.MiddleCenter;
+        tab.Cursor = Cursors.Hand;
+        tab.BackColor = active ? Color.White : ModernUi.Header;
+        tab.Click += click;
         parent.Controls.Add(tab);
 
         if (active)
@@ -4437,8 +4545,11 @@ END";
             {
                 BackColor = ModernUi.Blue,
                 Location = new Point(x, 48),
-                Size = new Size(112, 2)
+                Size = new Size(112, 2),
+                Cursor = Cursors.Hand
             };
+
+            line.Click += click;
             parent.Controls.Add(line);
         }
     }
