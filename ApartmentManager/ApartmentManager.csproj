@@ -25,4 +25,10 @@
     <PackageReference Include="itext7" Version="7.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Assets\qr_payment_test.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

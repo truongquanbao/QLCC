@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
@@ -297,6 +298,57 @@ public class RolePermissionDAL
         catch (Exception ex)
         {
             Log.Error(ex, "Error checking role permission: {RoleID}, {PermissionName}", roleID, permissionName);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Replace all permissions assigned to a role.
+    /// </summary>
+    public static bool UpdateRolePermissions(int roleID, IEnumerable<int> permissionIDs)
+    {
+        try
+        {
+            var normalizedPermissionIds = (permissionIDs ?? Enumerable.Empty<int>())
+                .Distinct()
+                .ToList();
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    using (var deleteCommand = new SqlCommand("DELETE FROM RolePermissions WHERE RoleID = @RoleID", connection, transaction))
+                    {
+                        deleteCommand.Parameters.AddWithValue("@RoleID", roleID);
+                        deleteCommand.ExecuteNonQuery();
+                    }
+
+                    if (normalizedPermissionIds.Count > 0)
+                    {
+                        const string insertQuery = @"
+                            INSERT INTO RolePermissions (RoleID, PermissionID)
+                            VALUES (@RoleID, @PermissionID)
+                        ";
+
+                        foreach (var permissionID in normalizedPermissionIds)
+                        {
+                            using var insertCommand = new SqlCommand(insertQuery, connection, transaction);
+                            insertCommand.Parameters.AddWithValue("@RoleID", roleID);
+                            insertCommand.Parameters.AddWithValue("@PermissionID", permissionID);
+                            insertCommand.ExecuteNonQuery();
+                        }
+                    }
+
+                    transaction.Commit();
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating permissions for role: {RoleID}", roleID);
             return false;
         }
     }

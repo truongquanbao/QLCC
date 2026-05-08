@@ -355,31 +355,51 @@ public partial class FrmMainDashboard : Form
     private void BuildFooter()
     {
         _footer.Controls.Clear();
-        _footer.Padding = new Padding(0, 6, 0, 6);
+        _footer.Padding = new Padding(18, 8, 18, 8);
 
         var user = ModernUi.Label($"●  {RoleFooterLabel()}: {FooterDisplayName()}", 10f, FontStyle.Regular, Color.White);
         user.Size = new Size(300, 28);
+        user.AutoEllipsis = true;
         _footer.Controls.Add(user);
 
         var role = ModernUi.Label($"◆  Vai trò: {RoleDisplay()}", 10f, FontStyle.Regular, Color.White);
         role.Size = new Size(300, 28);
+        role.AutoEllipsis = true;
         _footer.Controls.Add(role);
 
         _clockLabel = ModernUi.Label("", 10f, FontStyle.Regular, Color.White);
         _clockLabel.Size = new Size(420, 28);
+        _clockLabel.AutoEllipsis = true;
         _footer.Controls.Add(_clockLabel);
 
         var db = ModernUi.Label("▰  Trạng thái kết nối:  Đã kết nối SQL Server", 10f, FontStyle.Regular, Color.White);
         db.Size = new Size(390, 28);
+        db.AutoEllipsis = true;
         _footer.Controls.Add(db);
 
         void LayoutFooter()
         {
             int top = Math.Max(10, (_footer.ClientSize.Height - 28) / 2);
-            user.Location = new Point(30, top);
-            role.Location = new Point(345, top);
-            _clockLabel.Location = new Point(645, top);
-            db.Location = new Point(Math.Max(1068, _footer.ClientSize.Width - 410), top);
+            int left = 24;
+            int gap = 18;
+            int available = Math.Max(980, _footer.ClientSize.Width - left * 2 - gap * 3);
+
+            int userWidth = Math.Max(220, (int)(available * 0.20f));
+            int roleWidth = Math.Max(190, (int)(available * 0.18f));
+            int clockWidth = Math.Max(290, (int)(available * 0.29f));
+            int dbWidth = Math.Max(280, available - userWidth - roleWidth - clockWidth);
+
+            user.Location = new Point(left, top);
+            user.Size = new Size(userWidth, 28);
+
+            role.Location = new Point(user.Right + gap, top);
+            role.Size = new Size(roleWidth, 28);
+
+            _clockLabel.Location = new Point(role.Right + gap, top);
+            _clockLabel.Size = new Size(clockWidth, 28);
+
+            db.Location = new Point(_clockLabel.Right + gap, top);
+            db.Size = new Size(dbWidth, 28);
         }
 
         _footer.Resize += (_, _) => LayoutFooter();
@@ -405,6 +425,11 @@ public partial class FrmMainDashboard : Form
         string? currentGroup = null;
         foreach (var item in MenuItemsForRole())
         {
+            if (item.Key == "permissions")
+            {
+                continue;
+            }
+
             // Add group header if group changed
             if (item.Group != currentGroup && !string.IsNullOrEmpty(item.Group))
             {
@@ -511,7 +536,7 @@ public partial class FrmMainDashboard : Form
         _activePage = page;
         foreach (var pair in _navButtons)
         {
-            bool active = pair.Key == page || (page == "permissions" && pair.Key == "accounts");
+            bool active = pair.Key == page;
             pair.Value.BackColor = active ? ModernUi.Blue : _sidebar.BackColor;
         }
 
@@ -2898,88 +2923,240 @@ END";
     private void RenderResidentDashboard()
     {
         var page = BeginPage("Dashboard cá nhân", $"Xin chào, {CurrentDisplayName()}! Chúc bạn một ngày tốt lành.");
-        int w = Math.Max(1150, _content.ClientSize.Width - 58);
+
+        page.AutoScroll = true;
+        page.AutoScrollMinSize = Size.Empty;
+
+        int x = 18;
         int y = 76;
-        int gap = 12;
-        int cardW = (w - gap * 5) / 6;
-        ResidentDTO? resident = _session?.UserID > 0 ? ResidentDAL.GetResidentByUserID(_session.UserID) : null;
-        resident ??= ResidentDAL.GetAllResidents().FirstOrDefault(r => string.Equals(r.Username, CurrentUsername(), StringComparison.OrdinalIgnoreCase));
+        int gap = 14;
+        int scrollbar = SystemInformation.VerticalScrollBarWidth;
+        int w = Math.Max(860, page.ClientSize.Width - x * 2 - scrollbar);
+
+        ResidentDTO? resident = _session?.UserID > 0
+            ? ResidentDAL.GetResidentByUserID(_session.UserID)
+            : null;
+
+        resident ??= ResidentDAL.GetAllResidents()
+            .FirstOrDefault(r => string.Equals(r.Username, CurrentUsername(), StringComparison.OrdinalIgnoreCase));
+
         var apartment = resident == null ? null : ApartmentDAL.GetApartmentByID(resident.ApartmentID);
         var residentInvoices = resident == null ? new List<InvoiceDTO>() : InvoiceDAL.GetInvoicesByResident(resident.ResidentID);
         var latestInvoice = residentInvoices.FirstOrDefault();
-        var residentNotifications = _session?.UserID > 0 ? NotificationDAL.GetUserNotifications(_session.UserID) : new List<NotificationDTO>();
-        var residentComplaints = resident == null ? new List<dynamic>() : ComplaintDAL.GetComplaintsByResident(resident.ResidentID);
+
+        var residentNotifications = _session?.UserID > 0
+            ? NotificationDAL.GetUserNotifications(_session.UserID)
+            : new List<NotificationDTO>();
+
+        var residentComplaints = resident == null
+            ? new List<dynamic>()
+            : ComplaintDAL.GetComplaintsByResident(resident.ResidentID);
+
         int unreadCount = residentNotifications.Count(n => !n.IsRead);
         int openComplaintCount = residentComplaints.Count(c => ViStatus(c.Status) is not ("Đã xử lý" or "Đã đóng"));
 
-        AddRow(page, y, gap,
-            ResidentCard("Thông tin cá nhân", Display(resident?.FullName, CurrentDisplayName()), $"{Display(resident?.Phone)}\r\n{Display(resident?.Email)}", ModernUi.Blue, "●", "Xem chi tiết", cardW),
-            ResidentCard("Căn hộ đang ở", Display(resident?.ApartmentCode), $"{Display(apartment?.BuildingName)} - Tầng {apartment?.FloorNumber?.ToString() ?? "-"}\r\nDiện tích: {(apartment == null ? "-" : apartment.Area.ToString("N1", CultureInfo.InvariantCulture))} m²", Color.FromArgb(34, 197, 94), "⌂", "Xem chi tiết", cardW),
-            ResidentCard("Hóa đơn mới nhất", latestInvoice == null ? "Chưa có" : $"Tháng {latestInvoice.Month:00}/{latestInvoice.Year}", latestInvoice == null ? "Không có dữ liệu\r\n-" : $"{Money(latestInvoice.TotalAmount)} VNĐ\r\nNgày phát hành: {DateText(latestInvoice.CreatedAt)}", Color.FromArgb(249, 115, 22), "▤", "Xem hóa đơn", cardW),
-            ResidentCard("Trạng thái thanh toán", latestInvoice == null ? "-" : ViStatus(latestInvoice.PaymentStatus), latestInvoice == null ? "Không có hóa đơn\r\n-" : $"Đã thu: {Money(latestInvoice.PaidAmount)} VNĐ\r\nHạn: {DateText(latestInvoice.DueDate)}", Color.FromArgb(34, 197, 94), "✓", "Xem lịch sử", cardW),
-            ResidentCard("Thông báo chưa đọc", unreadCount.ToString("N0"), "Thông báo mới", ModernUi.Blue, "◆", "Xem tất cả", cardW),
-            ResidentCard("Phản ánh đang xử lý", openComplaintCount.ToString("N0"), "Phản ánh đang xử lý", Color.FromArgb(6, 182, 212), "■", "Xem chi tiết", cardW));
+        int cardW = Math.Max(260, (w - gap * 2) / 3);
 
-        y += 142;
+        string apartmentDetail = apartment == null
+            ? "Chưa có dữ liệu\r\n-"
+            : $"{Display(apartment.BuildingName)}\r\nDiện tích: {apartment.Area.ToString("N1", CultureInfo.InvariantCulture)} m²";
 
-        var invoices = ModernUi.Section("Hóa đơn gần đây", (int)(w * 0.40), 270);
-        invoices.Location = new Point(18, y);
+        var card1 = ResidentCard(
+            "Thông tin cá nhân",
+            Display(resident?.FullName, CurrentDisplayName()),
+            $"{Display(resident?.Phone)}\r\n{Display(resident?.Email)}",
+            ModernUi.Blue,
+            "●",
+            "Xem chi tiết",
+            cardW);
+
+        var card2 = ResidentCard(
+            "Căn hộ đang ở",
+            Display(resident?.ApartmentCode),
+            apartmentDetail,
+            Color.FromArgb(34, 197, 94),
+            "⌂",
+            "Xem chi tiết",
+            cardW);
+
+        var card3 = ResidentCard(
+            "Hóa đơn mới nhất",
+            latestInvoice == null ? "Chưa có" : $"Tháng {latestInvoice.Month:00}/{latestInvoice.Year}",
+            latestInvoice == null
+                ? "Không có dữ liệu\r\n-"
+                : $"{Money(latestInvoice.TotalAmount)} VNĐ\r\nNgày phát hành: {DateText(latestInvoice.CreatedAt)}",
+            Color.FromArgb(249, 115, 22),
+            "▤",
+            "Xem hóa đơn",
+            cardW);
+
+        var card4 = ResidentCard(
+            "Trạng thái thanh toán",
+            latestInvoice == null ? "-" : ViStatus(latestInvoice.PaymentStatus),
+            latestInvoice == null
+                ? "Không có hóa đơn\r\n-"
+                : $"Đã thu: {Money(latestInvoice.PaidAmount)} VNĐ\r\nHạn: {DateText(latestInvoice.DueDate)}",
+            Color.FromArgb(34, 197, 94),
+            "✓",
+            "Xem lịch sử",
+            cardW);
+
+        var card5 = ResidentCard(
+            "Thông báo chưa đọc",
+            unreadCount.ToString("N0"),
+            "Thông báo mới",
+            ModernUi.Blue,
+            "◆",
+            "Xem tất cả",
+            cardW);
+
+        var card6 = ResidentCard(
+            "Phản ánh đang xử lý",
+            openComplaintCount.ToString("N0"),
+            "Phản ánh đang xử lý",
+            Color.FromArgb(6, 182, 212),
+            "■",
+            "Xem chi tiết",
+            cardW);
+
+        card1.Location = new Point(x, y);
+        card2.Location = new Point(x + cardW + gap, y);
+        card3.Location = new Point(x + (cardW + gap) * 2, y);
+
+        y += 140;
+
+        card4.Location = new Point(x, y);
+        card5.Location = new Point(x + cardW + gap, y);
+        card6.Location = new Point(x + (cardW + gap) * 2, y);
+
+        page.Controls.Add(card1);
+        page.Controls.Add(card2);
+        page.Controls.Add(card3);
+        page.Controls.Add(card4);
+        page.Controls.Add(card5);
+        page.Controls.Add(card6);
+
+        y += 154;
+
+        int leftW = Math.Max(520, (int)(w * 0.58));
+        int rightW = w - leftW - gap;
+
+        var invoices = ModernUi.Section("Hóa đơn gần đây", leftW, 276);
+        invoices.Location = new Point(x, y);
+
         var grid = CreateGrid(
-            new[] { "Kỳ hóa đơn", "Ngày phát hành", "Hạn thanh toán", "Số tiền (VNĐ)", "Trạng thái", "Hành động" },
-            RowsOrEmpty(residentInvoices.Take(8), 6, (invoice, _) => new object[]
+            new[] { "Kỳ", "Ngày phát hành", "Hạn thanh toán", "Số tiền", "Trạng thái", "Hành động" },
+            RowsOrEmpty(residentInvoices.Take(6), 6, (invoice, _) => new object[]
             {
-                $"{invoice.Month:00}/{invoice.Year}",
-                DateText(invoice.CreatedAt),
-                DateText(invoice.DueDate),
-                Money(invoice.TotalAmount),
-                ViStatus(invoice.PaymentStatus),
-                "Xem"
+            $"{invoice.Month:00}/{invoice.Year}",
+            DateText(invoice.CreatedAt),
+            DateText(invoice.DueDate),
+            Money(invoice.TotalAmount),
+            ViStatus(invoice.PaymentStatus),
+            "Xem"
             }));
+
         grid.Location = new Point(12, 46);
-        grid.Size = new Size(invoices.Width - 24, 190);
+        grid.Size = new Size(invoices.Width - 24, 196);
+        grid.ScrollBars = ScrollBars.Vertical;
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         invoices.Controls.Add(grid);
         page.Controls.Add(invoices);
 
-        var notices = ModernUi.Section("Thông báo gần đây", (int)(w * 0.26), 270);
+        var notices = ModernUi.Section("Thông báo gần đây", rightW, 276);
         notices.Location = new Point(invoices.Right + gap, y);
+
         var recentNotifications = residentNotifications.Take(5).ToList();
         if (recentNotifications.Count == 0)
         {
-            recentNotifications.Add(new NotificationDTO { Title = "Không có thông báo", CreatedAt = DateTime.MinValue });
+            recentNotifications.Add(new NotificationDTO
+            {
+                Title = "Không có thông báo mới",
+                CreatedAt = DateTime.MinValue
+            });
         }
+
         for (int i = 0; i < recentNotifications.Count; i++)
         {
-            string rowText = $"{Display(recentNotifications[i].Title, Display(recentNotifications[i].Message))}        {DateTimeText(recentNotifications[i].CreatedAt)}";
-            var row = ModernUi.Label("•  " + rowText, 9.3f, FontStyle.Regular, ModernUi.Text);
-            row.Location = new Point(18, 54 + i * 34);
-            row.Size = new Size(notices.Width - 36, 28);
+            string title = Display(recentNotifications[i].Title, Display(recentNotifications[i].Message));
+            string time = DateTimeText(recentNotifications[i].CreatedAt);
+
+            var row = ModernUi.Label("•  " + title, 9.4f, FontStyle.Regular, ModernUi.Text);
+            row.Location = new Point(18, 54 + i * 36);
+            row.Size = new Size(notices.Width - 150, 28);
+            row.AutoEllipsis = true;
             notices.Controls.Add(row);
+
+            var date = ModernUi.Label(time, 8.4f, FontStyle.Regular, ModernUi.Muted);
+            date.Location = new Point(notices.Width - 128, 54 + i * 36);
+            date.Size = new Size(108, 28);
+            date.TextAlign = ContentAlignment.MiddleRight;
+            date.AutoEllipsis = true;
+            notices.Controls.Add(date);
         }
+
         page.Controls.Add(notices);
 
-        var progress = ModernUi.Section("Tiến độ phản ánh của tôi", w - invoices.Width - notices.Width - gap * 2, 506);
-        progress.Location = new Point(notices.Right + gap, y);
-        AddTimeline(progress);
-        page.Controls.Add(progress);
+        y += 292;
 
-        y += 286;
+        int qrW = Math.Max(560, (int)(w * 0.62));
+        int timelineW = w - qrW - gap;
 
-        var qr = ModernUi.Section("Thanh toán nhanh qua QR Code", invoices.Width + notices.Width + gap, 220);
-        qr.Location = new Point(18, y);
-        var qrCode = new QrPanel { Location = new Point(18, 54), Size = new Size(140, 140) };
-        qr.Controls.Add(qrCode);
+        var qr = ModernUi.Section("Thanh toán nhanh qua QR Code", qrW, 250);
+        qr.Location = new Point(x, y);
+
+        string[] qrImageCandidates =
+        {
+            Path.Combine(AppContext.BaseDirectory, "Assets", "qr_payment_test.jpg"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "qr_payment_test.jpg"))
+        };
+        string? qrImagePath = qrImageCandidates.FirstOrDefault(File.Exists);
+
+        if (!string.IsNullOrWhiteSpace(qrImagePath))
+        {
+            using var qrImage = Image.FromFile(qrImagePath);
+            var qrPicture = new PictureBox
+            {
+                Location = new Point(24, 50),
+                Size = new Size(170, 170),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Image = new Bitmap(qrImage)
+            };
+            qr.Controls.Add(qrPicture);
+        }
+        else
+        {
+            var missingQr = ModernUi.Label("Không tìm thấy ảnh QR", 10f, FontStyle.Bold, ModernUi.Muted);
+            missingQr.Location = new Point(24, 112);
+            missingQr.Size = new Size(170, 28);
+            missingQr.TextAlign = ContentAlignment.MiddleCenter;
+            qr.Controls.Add(missingQr);
+        }
+
         string qrInvoiceText = latestInvoice == null
             ? "Quét QR để thanh toán hóa đơn mới nhất\r\n\r\nHóa đơn:   Chưa có hóa đơn\r\nSố tiền:   0 VNĐ\r\nNội dung CK: -"
             : $"Quét QR để thanh toán hóa đơn mới nhất\r\n\r\nHóa đơn:   Tháng {latestInvoice.Month:00}/{latestInvoice.Year}\r\nSố tiền:   {Money(Math.Max(0, latestInvoice.TotalAmount - latestInvoice.PaidAmount))} VNĐ\r\nNội dung CK: {Display(resident?.ApartmentCode)}-{latestInvoice.Month:00}{latestInvoice.Year}-{Display(resident?.FullName, CurrentUsername()).Replace(" ", "")}";
-        var qrText = ModernUi.Label(qrInvoiceText, 10.2f, FontStyle.Regular, ModernUi.Text);
-        qrText.Location = new Point(190, 54);
-        qrText.Size = new Size(qr.Width - 220, 118);
+
+        var qrText = ModernUi.Label(qrInvoiceText, 10f, FontStyle.Regular, ModernUi.Text);
+        qrText.Location = new Point(218, 58);
+        qrText.Size = new Size(qr.Width - 242, 116);
         qr.Controls.Add(qrText);
+
         var note = ModernUi.Badge("Sau khi thanh toán, hệ thống sẽ tự động cập nhật trong vòng 5-10 phút.", ModernUi.Blue);
-        note.Location = new Point(190, 174);
-        note.Size = new Size(qr.Width - 220, 26);
+        note.Location = new Point(218, 188);
+        note.Size = new Size(qr.Width - 242, 28);
         qr.Controls.Add(note);
+
         page.Controls.Add(qr);
+
+        var progress = ModernUi.Section("Tiến độ phản ánh của tôi", timelineW, 250);
+        progress.Location = new Point(qr.Right + gap, y);
+        AddTimeline(progress);
+        page.Controls.Add(progress);
+
+        page.AutoScrollMinSize = new Size(0, y + 300);
     }
 
     private RoundedPanel CreateDebtCard(int unpaidCount, decimal debtAmount, int width, bool hasDebt)
@@ -5828,6 +6005,14 @@ END";
         headerBell.Visible = false;
         headerBadge.Visible = false;
         headerUser.Visible = false;
+        title.Text = "Quản lý tài khoản & phân quyền";
+        title.Font = ModernUi.Font(20f, FontStyle.Bold);
+        title.Size = new Size(460, 34);
+
+        var subtitle = ModernUi.Label("Quản lý người dùng, vai trò và phân quyền hệ thống", 9.6f, FontStyle.Regular, ModernUi.Muted);
+        subtitle.Location = new Point(margin + 8, 48);
+        subtitle.Size = new Size(460, 22);
+        page.Controls.Add(subtitle);
 
         var syncedHeaderBell = ModernUi.IconButton("🔔", 36);
         syncedHeaderBell.Location = new Point(w - 188, 10);
@@ -5903,40 +6088,42 @@ END";
 
         var toolbar = new Panel
         {
-            Location = new Point(margin, 58),
+            Location = new Point(margin, 82),
             Size = new Size(w, 50),
             BackColor = ModernUi.Surface
         };
         page.Controls.Add(toolbar);
 
-        int searchW = Math.Min(380, Math.Max(260, (int)(w * 0.24)));
+        int toolbarPadding = 0;
+        int filterY = 8;
+        int buttonY = 50;
+        int filterGap = 16;
+        int searchW = Math.Min(390, Math.Max(250, w - 520));
         var search = ModernUi.TextBox("Tìm kiếm nhanh (username/email)...", searchW);
-        search.Location = new Point(0, 10);
-        search.Height = 34;
+        search.Location = new Point(toolbarPadding, filterY);
+        search.Size = new Size(searchW, 38);
         toolbar.Controls.Add(search);
 
         var roleLabel = ModernUi.Label("Vai trò:", 9.2f, FontStyle.Bold, ModernUi.Text);
-        roleLabel.Location = new Point(search.Right + 26, 14);
+        roleLabel.Location = new Point(search.Right + filterGap, filterY + 6);
         roleLabel.Size = new Size(58, 26);
         toolbar.Controls.Add(roleLabel);
         var role = ModernUi.ComboBox(new[] { "Tất cả", "Super Admin", "Quản lý", "Cư dân" }, 168);
-        role.Location = new Point(roleLabel.Right + 6, 10);
+        role.Location = new Point(roleLabel.Right + 6, filterY + 2);
         toolbar.Controls.Add(role);
 
         var statusLabel = ModernUi.Label("Trạng thái:", 9.2f, FontStyle.Bold, ModernUi.Text);
-        statusLabel.Location = new Point(role.Right + 30, 14);
+        statusLabel.Location = new Point(role.Right + filterGap, filterY + 6);
         statusLabel.Size = new Size(78, 26);
         toolbar.Controls.Add(statusLabel);
         var status = ModernUi.ComboBox(new[] { "Tất cả", "Hoạt động", "Tạm khóa", "Chờ duyệt" }, 168);
-        status.Location = new Point(statusLabel.Right + 8, 10);
+        status.Location = new Point(statusLabel.Right + 8, filterY + 2);
         toolbar.Controls.Add(status);
 
-        int toolbarButtonsWidth = 574;
-        bool wrapToolbar = status.Right + 24 + toolbarButtonsWidth > w;
-        toolbar.Height = wrapToolbar ? 92 : 50;
+        toolbar.Height = 90;
 
-        int buttonY = wrapToolbar ? 52 : 10;
-        int buttonX = wrapToolbar ? 0 : Math.Max(status.Right + 24, w - 640);
+        int toolbarButtonsWidth = 574;
+        int buttonX = Math.Max(toolbarPadding, w - toolbarButtonsWidth);
         var addButton = AddToolbarButton(toolbar, "+  Thêm", ModernUi.Blue, buttonX, buttonY, 88);
         var editButton = AddToolbarButton(toolbar, "✎  Sửa", Color.FromArgb(241, 166, 0), buttonX + 102, buttonY, 86);
         var deleteButton = AddToolbarButton(toolbar, "×  Xóa", ModernUi.Red, buttonX + 202, buttonY, 86);
@@ -5945,7 +6132,7 @@ END";
 
         int topY = toolbar.Bottom + 12;
         int listW = w;
-        int topH = 408;
+        int topH = 392;
 
         var users = ModernUi.CardPanel(5);
         users.Location = new Point(margin, topY);
@@ -5954,22 +6141,29 @@ END";
         page.Controls.Add(users);
 
         var userGrid = CreateAccountUsersGrid();
-        userGrid.Location = new Point(0, 0);
-        userGrid.Size = new Size(users.Width, 330);
+        userGrid.Location = new Point(12, 12);
+        userGrid.Size = new Size(users.Width - 24, 314);
+        userGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         users.Controls.Add(userGrid);
 
-        int totalUsers = UserDAL.GetAllUsers().Count;
-        var accountPager = AddPaginationControls(users, 14, 352, users.Width - 710, 344, users.Width - 520, 344, 250);
+        int pagerY = userGrid.Bottom + 14;
+        int pagerButtonGroupWidth = 184;
+        int pageSizeWidth = 66;
+        int pageSizeTextWidth = 76;
+        int pageSizeX = users.Width - 12 - pageSizeWidth;
+        int pageSizeTextX = pageSizeX - pageSizeTextWidth - 8;
+        int pagerButtonsX = pageSizeTextX - 14 - pagerButtonGroupWidth;
+        var accountPager = AddPaginationControls(users, 16, pagerY + 2, pagerButtonsX, pagerY, pageSizeX, pagerY, Math.Max(280, pagerButtonsX - 32));
         var paging = accountPager.SummaryLabel; // Giữ tương thích với hàm refresh cũ trong cùng scope.
         var perPage = accountPager.PageSizeCombo;
         var perPageText = ModernUi.Label("mục/trang", 9f, FontStyle.Regular, ModernUi.Text);
-        perPageText.Location = new Point(users.Width - 430, 347);
-        perPageText.Size = new Size(100, 26);
+        perPageText.Location = new Point(pageSizeTextX, pagerY + 2);
+        perPageText.Size = new Size(pageSizeTextWidth, 26);
         users.Controls.Add(perPageText);
 
         var account = ModernUi.CardPanel(5);
         account.Location = new Point(margin, users.Bottom + 14);
-        account.Size = new Size(w, 260);
+        account.Size = new Size(w, 242);
         account.Padding = new Padding(14);
         page.Controls.Add(account);
 
@@ -6028,16 +6222,15 @@ END";
         cancel.Location = new Point(save.Right + 10, 190);
         account.Controls.Add(cancel);
 
-        int bottomY = account.Bottom + 18;
-        bool stackBottom = w < 1380;
-        int bottomH = stackBottom ? 742 : Math.Max(392, _content.ClientSize.Height - bottomY - 18);
+        int bottomY = account.Bottom + 16;
+        int bottomH = Math.Max(332, _content.ClientSize.Height - bottomY - 20);
         var bottom = ModernUi.CardPanel(5);
         bottom.Location = new Point(margin, bottomY);
         bottom.Size = new Size(w, bottomH);
         bottom.Padding = new Padding(0);
         page.Controls.Add(bottom);
 
-        var activeTab = new Label
+        var permissionTab = new Label
         {
             Text = "◆  Phân quyền vai trò",
             Location = new Point(0, 0),
@@ -6045,10 +6238,11 @@ END";
             BackColor = Color.White,
             ForeColor = ModernUi.Navy,
             Font = ModernUi.Font(9.3f, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleCenter
+            TextAlign = ContentAlignment.MiddleCenter,
+            Cursor = Cursors.Hand
         };
-        bottom.Controls.Add(activeTab);
-        var inactiveTab = new Label
+        bottom.Controls.Add(permissionTab);
+        var activityTab = new Label
         {
             Text = "▤  Nhật ký hoạt động",
             Location = new Point(190, 0),
@@ -6056,32 +6250,46 @@ END";
             BackColor = ModernUi.Header,
             ForeColor = ModernUi.Text,
             Font = ModernUi.Font(9.3f, FontStyle.Regular),
-            TextAlign = ContentAlignment.MiddleCenter
+            TextAlign = ContentAlignment.MiddleCenter,
+            Cursor = Cursors.Hand
         };
-        bottom.Controls.Add(inactiveTab);
+        bottom.Controls.Add(activityTab);
         var activeLine = new Panel { BackColor = ModernUi.Blue, Location = new Point(12, 42), Size = new Size(166, 2) };
         bottom.Controls.Add(activeLine);
         var divider = new Panel { BackColor = ModernUi.Border, Location = new Point(0, 44), Size = new Size(bottom.Width, 1) };
         bottom.Controls.Add(divider);
 
-        int matrixW = stackBottom ? bottom.Width - 24 : Math.Min(790, (int)(bottom.Width * 0.56));
-        var matrix = CreatePermissionMatrixGrid();
-        matrix.Location = new Point(12, 58);
-        matrix.Size = stackBottom
-            ? new Size(matrixW, 322)
-            : new Size(matrixW, bottom.Height - 76);
-        bottom.Controls.Add(matrix);
+        var savePermissionsButton = ModernUi.Button("Lưu phân quyền", ModernUi.Blue, 144, 34);
+        savePermissionsButton.Location = new Point(bottom.Width - 156, 6);
+        savePermissionsButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        savePermissionsButton.Enabled = false;
+        bottom.Controls.Add(savePermissionsButton);
 
-        var logGrid = CreateAccountLogGrid();
-        logGrid.Location = stackBottom ? new Point(12, matrix.Bottom + 18) : new Point(matrix.Right + 14, 58);
-        logGrid.Size = stackBottom
-            ? new Size(bottom.Width - 24, bottom.Height - matrix.Bottom - 30)
-            : new Size(bottom.Width - matrix.Right - 26, bottom.Height - 76);
-        bottom.Controls.Add(logGrid);
+        var tabContent = new Panel
+        {
+            Location = new Point(12, 58),
+            Size = new Size(bottom.Width - 24, bottom.Height - 70),
+            BackColor = Color.Transparent,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
+        };
+        bottom.Controls.Add(tabContent);
 
         var roles = RolePermissionDAL.GetAllRoles();
+        var permissions = RolePermissionDAL.GetAllPermissions();
+        var matrix = CreatePermissionMatrixGrid(roles, permissions);
+        matrix.Dock = DockStyle.Fill;
+        tabContent.Controls.Add(matrix);
+
+        var logGrid = CreateAccountLogGrid();
+        logGrid.Dock = DockStyle.Fill;
+        tabContent.Controls.Add(logGrid);
+        logGrid.Visible = false;
         UserDTO? selectedUser = null;
+        int? lastFocusedUserId = null;
         string? selectedAvatarPath = null;
+        bool suppressAccountSelectionChanged = false;
+        bool suppressPermissionMatrixEvents = false;
+        bool permissionMatrixDirty = false;
 
         var accountPagination = new PaginationState();
 
@@ -6093,6 +6301,44 @@ END";
                 string.Equals(UserRoleLabel(r.RoleName), label, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(r.RoleName, label, StringComparison.OrdinalIgnoreCase));
 
+        UserDTO? GetSelectedUserFromGrid()
+        {
+            if (userGrid.SelectedRows.Count > 0)
+            {
+                foreach (DataGridViewRow row in userGrid.SelectedRows)
+                {
+                    if (row.Tag is UserDTO selectedRowUser)
+                    {
+                        return selectedRowUser;
+                    }
+                }
+            }
+
+            return userGrid.CurrentRow?.Tag as UserDTO;
+        }
+
+        string AccountAvatarInitials(UserDTO? user)
+        {
+            string source = Display(user?.FullName, Display(user?.Username, "U")).Trim();
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                return "U";
+            }
+
+            string[] parts = source.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}";
+            }
+
+            return char.ToUpperInvariant(parts[0][0]).ToString();
+        }
+
+        void RefreshAccountAvatarPreview(UserDTO? user, string? avatarPathOverride = null)
+        {
+            avatar.SetAvatar(avatarPathOverride ?? user?.AvatarPath, AccountAvatarInitials(user));
+        }
+
         void SetFormMode(bool creating)
         {
             accountTitle.Text = creating ? "THÊM TÀI KHOẢN MỚI" : "THÔNG TIN TÀI KHOẢN";
@@ -6102,10 +6348,15 @@ END";
         void PopulateAccountForm(UserDTO? user, bool clearSelection = false)
         {
             selectedUser = user;
+            if (user != null)
+            {
+                lastFocusedUserId = user.UserID;
+            }
             selectedAvatarPath = user?.AvatarPath;
             choose.Text = string.IsNullOrWhiteSpace(selectedAvatarPath)
                 ? "▣ Chọn ảnh"
                 : $"▣ {Path.GetFileName(selectedAvatarPath)}";
+            RefreshAccountAvatarPreview(user, selectedAvatarPath);
 
             if (user == null)
             {
@@ -6123,10 +6374,20 @@ END";
                 forceChange.Checked = true;
                 if (clearSelection)
                 {
-                    userGrid.ClearSelection();
+                    suppressAccountSelectionChanged = true;
+                    try
+                    {
+                        userGrid.ClearSelection();
+                        userGrid.CurrentCell = null;
+                    }
+                    finally
+                    {
+                        suppressAccountSelectionChanged = false;
+                    }
                 }
 
                 SetFormMode(true);
+                usernameInput.Focus();
                 return;
             }
 
@@ -6139,6 +6400,7 @@ END";
             approved.Checked = user.IsApproved;
             forceChange.Checked = false;
             SetFormMode(false);
+            fullNameInput.Focus();
         }
 
         List<UserDTO> FilterUsers()
@@ -6180,6 +6442,104 @@ END";
                 .ToList();
 
             PopulateAccountLogGrid(logGrid, logs);
+        }
+
+        void ReloadPermissionMatrix()
+        {
+            roles = RolePermissionDAL.GetAllRoles();
+            permissions = RolePermissionDAL.GetAllPermissions();
+
+            suppressPermissionMatrixEvents = true;
+            try
+            {
+                PopulatePermissionMatrixGrid(matrix, roles, permissions);
+                permissionMatrixDirty = false;
+                savePermissionsButton.Enabled = false;
+            }
+            finally
+            {
+                suppressPermissionMatrixEvents = false;
+            }
+        }
+
+        void SavePermissionChanges()
+        {
+            if (matrix.IsCurrentCellDirty)
+            {
+                matrix.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+
+            matrix.EndEdit();
+
+            var roleColumns = matrix.Columns
+                .Cast<DataGridViewColumn>()
+                .Skip(1)
+                .Where(column => column.Tag is RoleDTO)
+                .Select(column => (Column: column, Role: (RoleDTO)column.Tag))
+                .ToList();
+
+            foreach (var (_, roleDto) in roleColumns)
+            {
+                var selectedPermissionIds = new List<int>();
+                foreach (DataGridViewRow row in matrix.Rows)
+                {
+                    if (row.Tag is not PermissionDTO permissionDto)
+                    {
+                        continue;
+                    }
+
+                    var column = roleColumns.First(item => item.Role.RoleID == roleDto.RoleID).Column;
+                    bool isGranted = row.Cells[column.Index].Value is bool granted && granted;
+                    if (isGranted)
+                    {
+                        selectedPermissionIds.Add(permissionDto.PermissionID);
+                    }
+                }
+
+                if (!RolePermissionDAL.UpdateRolePermissions(roleDto.RoleID, selectedPermissionIds))
+                {
+                    MessageBox.Show(this,
+                        $"Không thể lưu phân quyền cho vai trò `{Display(roleDto.RoleName)}`.",
+                        "Phân quyền",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+            }
+
+            AuditLogDAL.LogAction(_session?.UserID, "Update_RolePermissions", "RolePermission", description: "Cập nhật phân quyền vai trò");
+            ReloadPermissionMatrix();
+            MessageBox.Show(this,
+                "Đã lưu thay đổi phân quyền.",
+                "Phân quyền",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        void SetBottomTab(bool showPermissions)
+        {
+            permissionTab.BackColor = showPermissions ? Color.White : ModernUi.Header;
+            permissionTab.ForeColor = showPermissions ? ModernUi.Navy : ModernUi.Text;
+            permissionTab.Font = ModernUi.Font(9.3f, showPermissions ? FontStyle.Bold : FontStyle.Regular);
+
+            activityTab.BackColor = showPermissions ? ModernUi.Header : Color.White;
+            activityTab.ForeColor = showPermissions ? ModernUi.Text : ModernUi.Navy;
+            activityTab.Font = ModernUi.Font(9.3f, showPermissions ? FontStyle.Regular : FontStyle.Bold);
+
+            activeLine.Location = showPermissions ? new Point(12, 42) : new Point(activityTab.Left + 12, 42);
+            activeLine.Width = showPermissions ? permissionTab.Width - 24 : activityTab.Width - 24;
+
+            savePermissionsButton.Visible = showPermissions;
+            matrix.Visible = showPermissions;
+            logGrid.Visible = !showPermissions;
+            if (showPermissions)
+            {
+                matrix.BringToFront();
+            }
+            else
+            {
+                logGrid.BringToFront();
+            }
         }
 
         void RefreshUsers(int? selectUserId = null)
@@ -6555,47 +6915,74 @@ END";
         accountPager.FirstButton.Click += (_, _) =>
         {
             accountPagination.MoveToFirstPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         accountPager.PreviousButton.Click += (_, _) =>
         {
             accountPagination.MoveToPreviousPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         accountPager.NextButton.Click += (_, _) =>
         {
             accountPagination.MoveToNextPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         accountPager.LastButton.Click += (_, _) =>
         {
             accountPagination.MoveToLastPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         perPage.SelectedIndexChanged += (_, _) =>
         {
             accountPagination.SetPageSize(ParsePageSize(perPage.SelectedItem, accountPagination.PageSize));
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         search.TextChanged += (_, _) =>
         {
             accountPagination.MoveToFirstPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         role.SelectedIndexChanged += (_, _) =>
         {
             accountPagination.MoveToFirstPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
         status.SelectedIndexChanged += (_, _) =>
         {
             accountPagination.MoveToFirstPage();
-            RefreshUsersWithPaging(selectedUser?.UserID);
+            RefreshUsersWithPaging();
         };
+
+        matrix.CurrentCellDirtyStateChanged += (_, _) =>
+        {
+            if (matrix.IsCurrentCellDirty)
+            {
+                matrix.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        };
+        matrix.CellValueChanged += (_, e) =>
+        {
+            if (suppressPermissionMatrixEvents || e.RowIndex < 0 || e.ColumnIndex <= 0)
+            {
+                return;
+            }
+
+            permissionMatrixDirty = true;
+            savePermissionsButton.Enabled = true;
+        };
+
+        permissionTab.Click += (_, _) => SetBottomTab(true);
+        activityTab.Click += (_, _) => SetBottomTab(false);
+        savePermissionsButton.Click += (_, _) => SavePermissionChanges();
 
         userGrid.SelectionChanged += (_, _) =>
         {
-            if (userGrid.CurrentRow?.Tag is UserDTO rowUser)
+            if (suppressAccountSelectionChanged)
+            {
+                return;
+            }
+
+            if (GetSelectedUserFromGrid() is UserDTO rowUser)
             {
                 PopulateAccountForm(rowUser);
             }
@@ -6604,26 +6991,42 @@ END";
         addButton.Click += (_, _) => PopulateAccountForm(null, clearSelection: true);
         editButton.Click += (_, _) =>
         {
-            if (selectedUser == null)
+            var userToEdit = GetSelectedUserFromGrid() ?? selectedUser;
+            if (userToEdit == null)
             {
                 MessageBox.Show(this, "Bạn chưa chọn tài khoản để sửa.",
                     "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            PopulateAccountForm(UserDAL.GetUserByID(selectedUser.UserID) ?? selectedUser);
+            PopulateAccountForm(UserDAL.GetUserByID(userToEdit.UserID) ?? userToEdit);
         };
         deleteButton.Click += (_, _) => DeleteSelectedUser();
         lockButton.Click += (_, _) => ToggleSelectedUserLock();
         resetPasswordButton.Click += (_, _) => ResetSelectedUserPassword();
         save.Click += (_, _) => SaveAccountChanges();
-        cancel.Click += (_, _) => RefreshUsersWithPaging(selectedUser?.UserID);
+        cancel.Click += (_, _) =>
+        {
+            if (selectedUser != null)
+            {
+                PopulateAccountForm(UserDAL.GetUserByID(selectedUser.UserID) ?? selectedUser);
+                return;
+            }
+
+            if (lastFocusedUserId.HasValue)
+            {
+                RefreshUsersWithPaging(lastFocusedUserId.Value);
+                return;
+            }
+
+            PopulateAccountForm(null, clearSelection: true);
+        };
         choose.Click += (_, _) =>
         {
             using var dialog = new OpenFileDialog
             {
                 Title = "Chọn ảnh đại diện",
-                Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
+                Filter = "Image Files|*.png;*.jpg;*.jpeg",
                 RestoreDirectory = true
             };
 
@@ -6631,10 +7034,13 @@ END";
             {
                 selectedAvatarPath = dialog.FileName;
                 choose.Text = $"▣ {Path.GetFileName(dialog.FileName)}";
+                RefreshAccountAvatarPreview(selectedUser, selectedAvatarPath);
             }
         };
 
         RefreshUsersWithPaging();
+        ReloadPermissionMatrix();
+        SetBottomTab(true);
 
         static Button AddToolbarButton(Control parent, string text, Color color, int x, int y, int width)
         {
@@ -6710,10 +7116,8 @@ END";
         }
     }
 
-    private static DataGridView CreatePermissionMatrixGrid()
+    private static DataGridView CreatePermissionMatrixGrid(IReadOnlyList<RoleDTO> roles, IReadOnlyList<PermissionDTO> permissions)
     {
-        var roles = RolePermissionDAL.GetAllRoles();
-        var permissions = RolePermissionDAL.GetAllPermissions();
         var grid = ModernUi.Grid();
         grid.ReadOnly = false;
         grid.AllowUserToAddRows = false;
@@ -6721,7 +7125,14 @@ END";
         grid.ColumnHeadersHeight = 34;
         grid.RowTemplate.Height = 30;
         grid.ScrollBars = ScrollBars.None;
+        PopulatePermissionMatrixGrid(grid, roles, permissions);
+        return grid;
+    }
 
+    private static void PopulatePermissionMatrixGrid(DataGridView grid, IReadOnlyList<RoleDTO> roles, IReadOnlyList<PermissionDTO> permissions)
+    {
+        grid.Columns.Clear();
+        grid.Rows.Clear();
         grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "Module / Chức năng",
@@ -6731,18 +7142,20 @@ END";
 
         foreach (var role in roles.Take(7))
         {
-            grid.Columns.Add(new DataGridViewCheckBoxColumn
+            var column = new DataGridViewCheckBoxColumn
             {
                 HeaderText = Display(role.RoleName),
                 FillWeight = (role.RoleName ?? "").Length > 14 ? 1.35f : 1f,
                 FlatStyle = FlatStyle.Standard
-            });
+            };
+            column.Tag = role;
+            grid.Columns.Add(column);
         }
 
         if (roles.Count == 0 || permissions.Count == 0)
         {
             grid.Rows.Add("Không có dữ liệu phân quyền");
-            return grid;
+            return;
         }
 
         foreach (var permission in permissions.Take(12))
@@ -6754,10 +7167,9 @@ END";
             {
                 row[index++] = role.PermissionIDs.Contains(permission.PermissionID);
             }
-            grid.Rows.Add(row);
+            int rowIndex = grid.Rows.Add(row);
+            grid.Rows[rowIndex].Tag = permission;
         }
-
-        return grid;
     }
 
     private static DataGridView CreateAccountLogGrid()
@@ -6994,35 +7406,47 @@ END";
     {
         var card = ModernUi.CardPanel();
         card.Size = new Size(width, 126);
-        var titleLabel = ModernUi.Label(title.ToUpperInvariant(), 8.5f, FontStyle.Bold, accent);
-        titleLabel.Location = new Point(14, 12);
-        titleLabel.Size = new Size(width - 28, 22);
-        titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        var titleLabel = ModernUi.Label(title.ToUpperInvariant(), 8.6f, FontStyle.Bold, accent);
+        titleLabel.Location = new Point(16, 12);
+        titleLabel.Size = new Size(width - 32, 22);
+        titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+        titleLabel.AutoEllipsis = true;
         card.Controls.Add(titleLabel);
+
         var circle = new CircleLabel
         {
             Text = icon,
             CircleColor = accent,
             ForeColor = Color.White,
-            Font = ModernUi.Font(22f, FontStyle.Bold),
+            Font = ModernUi.Font(21f, FontStyle.Bold),
             Size = new Size(58, 58),
-            Location = new Point(18, 44)
+            Location = new Point(18, 48),
+            TextAlign = ContentAlignment.MiddleCenter
         };
         card.Controls.Add(circle);
-        var valueLabel = ModernUi.Label(value, 13f, FontStyle.Bold, ModernUi.Navy);
-        valueLabel.Location = new Point(86, 40);
-        valueLabel.Size = new Size(width - 98, 30);
-        valueLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        var valueLabel = ModernUi.Label(value, value.Length > 16 ? 10.5f : 13.5f, FontStyle.Bold, ModernUi.Navy);
+        valueLabel.Location = new Point(90, 40);
+        valueLabel.Size = new Size(width - 106, 30);
+        valueLabel.TextAlign = ContentAlignment.MiddleLeft;
+        valueLabel.AutoEllipsis = true;
         card.Controls.Add(valueLabel);
-        var detailLabel = ModernUi.Label(detail, 8.4f, FontStyle.Regular, ModernUi.Text);
-        detailLabel.Location = new Point(86, 70);
-        detailLabel.Size = new Size(width - 98, 40);
-        detailLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        var detailLabel = ModernUi.Label(detail, 8.5f, FontStyle.Regular, ModernUi.Text);
+        detailLabel.Location = new Point(90, 68);
+        detailLabel.Size = new Size(width - 106, 36);
+        detailLabel.TextAlign = ContentAlignment.MiddleLeft;
+        detailLabel.AutoEllipsis = true;
         card.Controls.Add(detailLabel);
-        var actionLabel = ModernUi.Badge(action, ModernUi.Blue);
-        actionLabel.Location = new Point(14, 92);
-        actionLabel.Size = new Size(width - 28, 24);
+
+        var actionLabel = ModernUi.Label(action + " →", 8.8f, FontStyle.Bold, ModernUi.Blue);
+        actionLabel.Location = new Point(90, 102);
+        actionLabel.Size = new Size(width - 106, 18);
+        actionLabel.TextAlign = ContentAlignment.MiddleLeft;
+        actionLabel.AutoEllipsis = true;
         card.Controls.Add(actionLabel);
+
         return card;
     }
 
@@ -7888,16 +8312,25 @@ END";
         parent.Controls.Add(save);
     }
 
+
     private static void AddTimeline(Control parent)
     {
-        int x = 42;
-        int y = 76;
-        var line = new Panel { BackColor = Color.FromArgb(202, 213, 228), Location = new Point(x + 19, y + 44), Size = new Size(3, 260) };
+        int x = 20;
+        int y = 54;
+        int itemGap = 52;
+
+        var line = new Panel
+        {
+            BackColor = Color.FromArgb(202, 213, 228),
+            Location = new Point(x + 15, y + 28),
+            Size = new Size(3, 148)
+        };
         parent.Controls.Add(line);
-        AddTimelineItem(parent, x, y, ModernUi.Orange, "!", "#PA240515-001 - Đèn hành lang không sáng", "Đang xử lý\r\n16/05/2024 08:45");
-        AddTimelineItem(parent, x, y + 110, ModernUi.Green, "✓", "Tiếp nhận phản ánh", "16/05/2024 08:45");
-        AddTimelineItem(parent, x, y + 220, ModernUi.Blue, "⚙", "Đang xử lý", "16/05/2024 10:20");
-        AddTimelineItem(parent, x, y + 330, Color.FromArgb(209, 213, 219), "○", "Hoàn tất", "Chưa hoàn thành");
+
+        AddTimelineItem(parent, x, y, ModernUi.Orange, "!", "#PA240515-001 - Đèn hành lang không sáng", "Đang xử lý");
+        AddTimelineItem(parent, x, y + itemGap, ModernUi.Green, "✓", "Tiếp nhận phản ánh", "16/05/2024 08:45");
+        AddTimelineItem(parent, x, y + itemGap * 2, ModernUi.Blue, "⚙", "Đang xử lý", "16/05/2024 10:20");
+        AddTimelineItem(parent, x, y + itemGap * 3, Color.FromArgb(209, 213, 219), "○", "Hoàn tất", "Chưa hoàn thành");
     }
 
     private static void AddTimelineItem(Control parent, int x, int y, Color color, string icon, string title, string body)
@@ -7907,15 +8340,24 @@ END";
             Text = icon,
             CircleColor = color,
             ForeColor = Color.White,
-            Font = ModernUi.Font(14f, FontStyle.Bold),
+            Font = ModernUi.Font(11.5f, FontStyle.Bold),
             Location = new Point(x, y),
-            Size = new Size(42, 42)
+            Size = new Size(32, 32),
+            TextAlign = ContentAlignment.MiddleCenter
         };
         parent.Controls.Add(dot);
-        var text = ModernUi.Label(title + "\r\n" + body, 9.5f, FontStyle.Regular, ModernUi.Text);
-        text.Location = new Point(x + 70, y - 2);
-        text.Size = new Size(parent.Width - x - 95, 76);
-        parent.Controls.Add(text);
+
+        var titleLabel = ModernUi.Label(title, 8.7f, FontStyle.Bold, ModernUi.Text);
+        titleLabel.Location = new Point(x + 44, y - 2);
+        titleLabel.Size = new Size(parent.Width - x - 58, 20);
+        titleLabel.AutoEllipsis = true;
+        parent.Controls.Add(titleLabel);
+
+        var bodyLabel = ModernUi.Label(body, 8.2f, FontStyle.Regular, ModernUi.Muted);
+        bodyLabel.Location = new Point(x + 44, y + 18);
+        bodyLabel.Size = new Size(parent.Width - x - 58, 20);
+        bodyLabel.AutoEllipsis = true;
+        parent.Controls.Add(bodyLabel);
     }
 
     private static void AddProfileField(Control parent, string label, string value, int x, int y, int width)
@@ -8290,11 +8732,53 @@ END";
 
 internal sealed class AccountAvatarControl : Control
 {
+    private Image? _avatarImage;
+
     public AccountAvatarControl()
     {
         SetStyle(ControlStyles.SupportsTransparentBackColor, true);
         DoubleBuffered = true;
         BackColor = Color.Transparent;
+    }
+
+    public string Initials { get; private set; } = "U";
+
+    public void SetAvatar(string? avatarPath, string? fallbackInitials = null)
+    {
+        Initials = string.IsNullOrWhiteSpace(fallbackInitials) ? "U" : fallbackInitials.Trim().ToUpperInvariant();
+
+        if (_avatarImage != null)
+        {
+            _avatarImage.Dispose();
+            _avatarImage = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(avatarPath) && File.Exists(avatarPath))
+        {
+            try
+            {
+                using var stream = new FileStream(avatarPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var source = Image.FromStream(stream);
+                _avatarImage = new Bitmap(source);
+            }
+            catch
+            {
+                _avatarImage = null;
+            }
+        }
+
+        Invalidate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _avatarImage?.Dispose();
+            _avatarImage = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -8306,6 +8790,20 @@ internal sealed class AccountAvatarControl : Control
         using var bg = new SolidBrush(Color.FromArgb(228, 238, 251));
         using var border = new Pen(Color.FromArgb(198, 214, 236));
         e.Graphics.FillEllipse(bg, bounds);
+
+        if (_avatarImage != null)
+        {
+            using var clipPath = new System.Drawing.Drawing2D.GraphicsPath();
+            clipPath.AddEllipse(bounds);
+            var state = e.Graphics.Save();
+            e.Graphics.SetClip(clipPath);
+            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            e.Graphics.DrawImage(_avatarImage, bounds);
+            e.Graphics.Restore(state);
+            e.Graphics.DrawEllipse(border, bounds);
+            return;
+        }
+
         e.Graphics.DrawEllipse(border, bounds);
 
         using var hair = new SolidBrush(Color.FromArgb(37, 48, 66));
