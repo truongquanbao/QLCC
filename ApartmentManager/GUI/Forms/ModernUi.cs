@@ -476,16 +476,28 @@ internal sealed class BarChartPanel : Control
 internal sealed class DonutChartPanel : Control
 {
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int Percent { get; set; } = 81;
+    public int Percent { get; set; } = 0;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Color AccentColor { get; set; } = ModernUi.Green;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public string CenterText { get; set; } = "81%";
+    public string CenterText { get; set; } = "0";
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public string SubText { get; set; } = "Đang ở";
+    public string SubText { get; set; } = "Tổng hóa đơn";
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string PrimaryLabel { get; set; } = "Đã thanh toán";
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string PrimaryValue { get; set; } = "";
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string SecondaryLabel { get; set; } = "Chưa thanh toán";
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string SecondaryValue { get; set; } = "";
 
     public DonutChartPanel()
     {
@@ -497,21 +509,45 @@ internal sealed class DonutChartPanel : Control
     {
         base.OnPaint(e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        var rect = new Rectangle(18, 14, Math.Min(Height - 28, Width / 2 - 20), Math.Min(Height - 28, Width / 2 - 20));
-        using var bgPen = new Pen(Color.FromArgb(214, 219, 228), 28) { StartCap = LineCap.Flat, EndCap = LineCap.Flat };
-        using var accentPen = new Pen(AccentColor, 28) { StartCap = LineCap.Flat, EndCap = LineCap.Flat };
+
+        int chartSize = Math.Max(80, Math.Min(Height - 28, Width / 2 - 24));
+        var rect = new Rectangle(20, 16, chartSize, chartSize);
+
+        using var bgPen = new Pen(Color.FromArgb(214, 219, 228), 24)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+
+        using var accentPen = new Pen(AccentColor, 24)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+
         e.Graphics.DrawArc(bgPen, rect, -90, 360);
-        e.Graphics.DrawArc(accentPen, rect, -90, Math.Max(0, Math.Min(100, Percent)) * 360 / 100f);
 
+        int safePercent = Math.Max(0, Math.Min(100, Percent));
+        if (safePercent > 0)
+        {
+            e.Graphics.DrawArc(accentPen, rect, -90, safePercent * 360 / 100f);
+        }
+
+        using var accentBrush = new SolidBrush(AccentColor);
         using var textBrush = new SolidBrush(ModernUi.Text);
-        var center = rect;
-        e.Graphics.DrawString(CenterText, ModernUi.Font(18f, FontStyle.Bold), new SolidBrush(AccentColor), center, CenterFormat());
-        var subRect = new Rectangle(center.Left, center.Top + 28, center.Width, 24);
-        e.Graphics.DrawString(SubText, ModernUi.Font(9f, FontStyle.Bold), textBrush, subRect, CenterFormat());
+        using var mutedBrush = new SolidBrush(ModernUi.Muted);
 
-        int legendX = rect.Right + 42;
-        DrawLegend(e.Graphics, legendX, rect.Top + 36, AccentColor, "Đang ở", "692 (81%)");
-        DrawLegend(e.Graphics, legendX, rect.Top + 76, Color.FromArgb(214, 219, 228), "Còn trống", "164 (19%)");
+        var numberRect = new Rectangle(rect.Left, rect.Top + chartSize / 2 - 24, rect.Width, 28);
+        e.Graphics.DrawString(CenterText, ModernUi.Font(18f, FontStyle.Bold), accentBrush, numberRect, CenterFormat());
+
+        var subRect = new Rectangle(rect.Left, rect.Top + chartSize / 2 + 4, rect.Width, 24);
+        e.Graphics.DrawString(SubText, ModernUi.Font(8.8f, FontStyle.Bold), textBrush, subRect, CenterFormat());
+
+        int legendX = rect.Right + 40;
+        int legendY = rect.Top + 34;
+
+        DrawLegend(e.Graphics, legendX, legendY, AccentColor, PrimaryLabel, PrimaryValue);
+        DrawLegend(e.Graphics, legendX, legendY + 42, Color.FromArgb(214, 219, 228), SecondaryLabel, SecondaryValue);
     }
 
     private static StringFormat CenterFormat() => new()
@@ -524,9 +560,15 @@ internal sealed class DonutChartPanel : Control
     {
         using var brush = new SolidBrush(color);
         using var textBrush = new SolidBrush(ModernUi.Text);
-        graphics.FillRectangle(brush, x, y + 2, 16, 16);
-        graphics.DrawString(label, ModernUi.Font(9f), textBrush, x + 26, y - 2);
-        graphics.DrawString(value, ModernUi.Font(9f), textBrush, x + 118, y - 2);
+        using var mutedBrush = new SolidBrush(ModernUi.Muted);
+
+        graphics.FillEllipse(brush, x, y + 4, 12, 12);
+        graphics.DrawString(label, ModernUi.Font(8.8f, FontStyle.Bold), textBrush, x + 22, y - 1);
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            graphics.DrawString(value, ModernUi.Font(8.5f), mutedBrush, x + 130, y - 1);
+        }
     }
 }
 

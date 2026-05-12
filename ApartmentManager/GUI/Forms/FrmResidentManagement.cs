@@ -9,9 +9,6 @@ using System.Windows.Forms;
 
 namespace ApartmentManager.GUI.Forms;
 
-/// <summary>
-/// Form for managing residents with comprehensive profile management
-/// </summary>
 public class FrmResidentManagement : Form
 {
     private const int PRIMARY_COLOR = 0x215689;

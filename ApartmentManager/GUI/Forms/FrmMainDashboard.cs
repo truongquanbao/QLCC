@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -422,6 +423,24 @@ public partial class FrmMainDashboard : Form
         };
         _sidebar.Controls.Add(menu);
 
+        static string SidebarGlyph(string key) => key switch
+        {
+            "dashboard" => "\u25C9",
+            "accounts" => "\u25CF",
+            "permissions" => "\u25A1",
+            "apartments" or "apartment-info" => "\u25A6",
+            "residents" or "profile" => "\u25CF",
+            "invoices" or "my-invoices" or "payment" => "\u25A4",
+            "complaints" or "send-complaint" => "\u25A0",
+            "vehicles" => "\u25A3",
+            "visitors" => "\u25CF",
+            "assets" => "\u25C7",
+            "reports" => "\u25A5",
+            "logs" => "\u25A4",
+            "settings" or "notifications" or "password" => "\u25CE",
+            _ => "\u25CF"
+        };
+
         string? currentGroup = null;
         foreach (var item in MenuItemsForRole())
         {
@@ -455,21 +474,48 @@ public partial class FrmMainDashboard : Form
 
             var button = new Button
             {
-                Text = $"{item.Icon}   {item.Text}",
+                Text = string.Empty,
                 Tag = item.Key,
                 Width = SidebarWidth - 24,
                 Height = 44,
                 Margin = new Padding(0, 0, 0, 4),
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(16, 0, 0, 0),
+                Padding = Padding.Empty,
                 Font = ModernUi.Font(9.8f, FontStyle.Regular),
                 BackColor = _sidebar.BackColor,
                 ForeColor = Color.FromArgb(226, 232, 240),
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                AccessibleName = item.Text
             };
             button.FlatAppearance.BorderSize = 0;
             button.FlatAppearance.MouseOverBackColor = Color.FromArgb(15, 23, 42);
+            string iconText = SidebarGlyph(item.Key);
+            string menuText = item.Text;
+            button.Paint += (_, e) =>
+            {
+                const int iconWidth = 28;
+                int iconLeft = 16;
+                int textLeft = iconLeft + iconWidth + 10;
+                var iconRect = new Rectangle(iconLeft, 0, iconWidth, button.Height);
+                var textRect = new Rectangle(textLeft, 0, Math.Max(40, button.Width - textLeft - 12), button.Height);
+
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    iconText,
+                    ModernUi.Font(10.2f, FontStyle.Regular),
+                    iconRect,
+                    button.ForeColor,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    menuText,
+                    button.Font,
+                    textRect,
+                    button.ForeColor,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            };
             button.Click += (_, _) => Navigate(item.Key);
             _navButtons[item.Key] = button;
             menu.Controls.Add(button);
@@ -638,6 +684,8 @@ public partial class FrmMainDashboard : Form
         };
         page.Controls.Add(header);
 
+        bool isResidentsPage = title.IndexOf("cư dân", StringComparison.CurrentCultureIgnoreCase) >= 0;
+
         var headerIcon = new CircleLabel
         {
             Text = "◉",
@@ -647,14 +695,24 @@ public partial class FrmMainDashboard : Form
             Location = new Point(22, 17),
             Size = new Size(28, 28)
         };
+        headerIcon.Text = isResidentsPage ? "👥" : "●";
+        headerIcon.Font = isResidentsPage
+            ? new Font("Segoe UI Emoji", 11.5f, FontStyle.Regular)
+            : ModernUi.Font(11f, FontStyle.Bold);
+        headerIcon.Size = new Size(36, 36);
+        isResidentsPage =
+            title.IndexOf("cư dân", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+            title.IndexOf("resident", StringComparison.CurrentCultureIgnoreCase) >= 0;
+        headerIcon.Text = isResidentsPage ? "●" : "◉";
+        headerIcon.Font = ModernUi.Font(isResidentsPage ? 12f : 11f, FontStyle.Bold);
         header.Controls.Add(headerIcon);
 
         var label = ModernUi.Label(title, 15f, FontStyle.Bold, ModernUi.Navy);
         label.AutoEllipsis = true;
         int rightReserved = IsResident ? 24 : 500;
-        int maxTitleWidth = Math.Min(560, Math.Max(220, header.Width - 63 - rightReserved - 90));
+        int maxTitleWidth = Math.Min(560, Math.Max(220, header.Width - 72 - rightReserved - 90));
         int titleWidth = Math.Min(maxTitleWidth, Math.Max(130, TextRenderer.MeasureText(title, label.Font).Width + 10));
-        label.Location = new Point(63, 14);
+        label.Location = new Point(72, 14);
         label.Size = new Size(titleWidth, 30);
         header.Controls.Add(label);
 
@@ -674,9 +732,9 @@ public partial class FrmMainDashboard : Form
 
         void LayoutHeaderBase(int rightEdge)
         {
-            headerIcon.Location = new Point(22, 23);
+            headerIcon.SetBounds(22, 19, 36, 36);
 
-            int titleLeft = 63;
+            int titleLeft = 72;
             int titleMaxWidth = Math.Max(150, rightEdge - titleLeft - 24);
             int desiredTitleWidth = Math.Max(130, TextRenderer.MeasureText(title, label.Font).Width + 10);
             label.SetBounds(titleLeft, 20, Math.Min(titleMaxWidth, desiredTitleWidth), 30);
@@ -690,20 +748,38 @@ public partial class FrmMainDashboard : Form
 
         if (!IsResident)
         {
-            var search = ModernUi.SearchBox("Tìm kiếm nhanh...", 270, 42);
-            search.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            search.Location = new Point(header.Width - 455, 12);
-            header.Controls.Add(search);
-            var searchInput = search.Controls.OfType<TextBox>().FirstOrDefault();
-            if (searchInput != null)
+            bool hideTopSearch =
+                title.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                title.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                title.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                breadcrumb.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                breadcrumb.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                breadcrumb.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0;
+
+            Panel search = null;
+
+            if (!hideTopSearch)
             {
-                searchInput.PlaceholderText = "Tìm kiếm nhanh...";
+                search = ModernUi.SearchBox("Tìm kiếm nhanh...", 270, 42);
+                search.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                search.Location = new Point(header.Width - 455, 12);
+                header.Controls.Add(search);
+
+                var searchInput = search.Controls.OfType<TextBox>().FirstOrDefault();
+                if (searchInput != null)
+                {
+                    searchInput.PlaceholderText = "Tìm kiếm nhanh...";
+                }
             }
 
-            var bell = ModernUi.IconButton("🔔", 36);
+            var bell = ModernUi.IconButton("!", 36);
             bell.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            bell.Location = new Point(header.Width - 176, 12);
+            bell.Location = new Point(header.Width - 176, 18);
             bell.Cursor = Cursors.Hand;
+            // Use a safe, non-emoji font for the symbol and center it
+            bell.Font = ModernUi.Font(12f, FontStyle.Bold);
+            bell.TextAlign = ContentAlignment.MiddleCenter;
+            bell.Padding = Padding.Empty;
             header.Controls.Add(bell);
 
             var badge = new CircleLabel
@@ -712,32 +788,30 @@ public partial class FrmMainDashboard : Form
                 CircleColor = ModernUi.Red,
                 ForeColor = Color.White,
                 Font = ModernUi.Font(7.2f, FontStyle.Bold),
-                Location = new Point(header.Width - 160, 6),
-                Size = new Size(16, 16)
+                Size = new Size(16, 16),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Cursor = Cursors.Hand
             };
-            badge.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            badge.Cursor = Cursors.Hand;
             header.Controls.Add(badge);
 
             var avatar = new CircleLabel
             {
-                Text = "●",
+                Text = "SA",
                 CircleColor = Color.FromArgb(226, 236, 248),
                 ForeColor = ModernUi.Navy,
-                Font = ModernUi.Font(13f, FontStyle.Bold),
-                Location = new Point(header.Width - 121, 13),
+                Font = ModernUi.Font(9f, FontStyle.Bold),
                 Size = new Size(34, 34),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Cursor = Cursors.Hand
             };
-            avatar.Cursor = Cursors.Hand;
             header.Controls.Add(avatar);
 
             var userName = ModernUi.Label($"{CurrentUsername()} ▾", 9f, FontStyle.Bold, ModernUi.Text);
             userName.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            userName.Location = new Point(header.Width - 83, 16);
-            userName.Size = new Size(78, 28);
+            userName.Size = new Size(92, 26);
             userName.AutoEllipsis = true;
             userName.Cursor = Cursors.Hand;
+            userName.TextAlign = ContentAlignment.MiddleLeft;
             header.Controls.Add(userName);
 
             void ToggleNotificationDropdown()
@@ -780,19 +854,45 @@ public partial class FrmMainDashboard : Form
             void LayoutInteractiveHeader()
             {
                 int rightEdge = Math.Max(0, header.ClientSize.Width - 18);
-                userName.SetBounds(Math.Max(0, rightEdge - 104), 23, 104, 24);
-                rightEdge = userName.Left - 8;
 
-                avatar.SetBounds(Math.Max(0, rightEdge - 34), 19, 34, 34);
+                // Username: fixed width, vertically centered at y = 23
+                userName.SetBounds(Math.Max(0, rightEdge - 112), 23, 112, 24);
+                rightEdge = userName.Left - 10;
+
+                // Avatar: 34x34, y = 18 (slightly higher to vertically center with username)
+                avatar.SetBounds(Math.Max(0, rightEdge - 34), 18, 34, 34);
                 rightEdge = avatar.Left - 12;
 
-                bell.SetBounds(Math.Max(0, rightEdge - 36), 19, 36, 36);
-                badge.SetBounds(bell.Right - 7, bell.Top - 3, 16, 16);
+                // Notification button: 36x36, y = 17
+                bell.SetBounds(Math.Max(0, rightEdge - 36), 17, 36, 36);
+
+                // Badge: corner top-right of bell, shift up by 4px
+                badge.SetBounds(
+                    bell.Right - 7,
+                    bell.Top - 4,
+                    16,
+                    16);
+
                 rightEdge = bell.Left - 18;
 
-                int searchWidth = Math.Clamp(header.ClientSize.Width / 5, 240, 300);
-                search.SetBounds(Math.Max(0, rightEdge - searchWidth), 16, searchWidth, 42);
-                LayoutHeaderBase(search.Left - 18);
+                if (search != null)
+                {
+                    int searchWidth = Math.Min(300, Math.Max(240, header.ClientSize.Width / 5));
+
+                    // place search to the left of bell with a minimum gap
+                    int searchRight = rightEdge - 18;
+                    search.SetBounds(
+                        Math.Max(0, searchRight - searchWidth),
+                        14,
+                        searchWidth,
+                        42);
+
+                    LayoutHeaderBase(search.Left - 18);
+                }
+                else
+                {
+                    LayoutHeaderBase(rightEdge - 18);
+                }
             }
 
             header.Resize += (_, _) => LayoutInteractiveHeader();
@@ -935,6 +1035,25 @@ public partial class FrmMainDashboard : Form
             "" => "-",
             var other => other
         };
+    }
+
+    private static string GetDynamicString(dynamic? obj, params string[] names)
+    {
+        if (obj == null) return "-";
+
+        var type = obj.GetType();
+
+        foreach (string name in names)
+        {
+            var prop = type.GetProperty(name);
+            if (prop == null) continue;
+
+            var value = prop.GetValue(obj);
+            if (value != null && !string.IsNullOrWhiteSpace(value.ToString()))
+                return value.ToString()!;
+        }
+
+        return "-";
     }
 
     private static string UserRoleLabel(string? roleName)
@@ -2729,20 +2848,33 @@ END";
 
     private static void AddInvoiceQuickActions(Control actions)
     {
-        const int columns = 3;
-        const int padX = 18;
-        const int gapX = 12;
-        const int tileH = 52;
-        int tileW = Math.Max(1, (actions.Width - padX * 2 - gapX * (columns - 1)) / columns);
-        int row1 = 42;
-        int row2 = 102;
+        actions.Controls.Clear();
 
-        AddActionTile(actions, "▤", "Tạo hóa đơn", "Theo tháng", ModernUi.Blue, padX, row1, width: tileW, height: tileH);
-        AddActionTile(actions, "▦", "Tính phí", "Tự động", ModernUi.Green, padX + tileW + gapX, row1, width: tileW, height: tileH);
-        AddActionTile(actions, "▰", "Cập nhật", "Thanh toán", ModernUi.Orange, padX + (tileW + gapX) * 2, row1, width: tileW, height: tileH);
-        AddActionTile(actions, "▣", "In hóa đơn", "Bản in", ModernUi.Purple, padX, row2, width: tileW, height: tileH);
-        AddActionTile(actions, "▥", "Xuất Excel", "File bảng", ModernUi.Green, padX + tileW + gapX, row2, width: tileW, height: tileH);
-        AddActionTile(actions, "PDF", "Xuất PDF", "File PDF", ModernUi.Red, padX + (tileW + gapX) * 2, row2, width: tileW, height: tileH);
+        const int pad = 16;
+        const int gap = 10;
+        const int startY = 42;
+
+        int availableW = Math.Max(260, actions.Width - pad * 2);
+        int tileW = Math.Max(120, (availableW - gap) / 2);
+
+        int availableH = Math.Max(180, actions.Height - startY - pad);
+        int tileH = Math.Max(48, Math.Min(58, (availableH - gap * 2) / 3));
+
+        int x1 = pad;
+        int x2 = pad + tileW + gap;
+
+        int y1 = startY;
+        int y2 = y1 + tileH + gap;
+        int y3 = y2 + tileH + gap;
+
+        AddActionTile(actions, "+", "Tạo hóa đơn", "Theo tháng", ModernUi.Blue, x1, y1, width: tileW, height: tileH);
+        AddActionTile(actions, "=", "Tính phí", "Tự động", ModernUi.Green, x2, y1, width: tileW, height: tileH);
+
+        AddActionTile(actions, "✓", "Cập nhật", "Thanh toán", ModernUi.Orange, x1, y2, width: tileW, height: tileH);
+        AddActionTile(actions, "P", "In hóa đơn", "Bản in", ModernUi.Purple, x2, y2, width: tileW, height: tileH);
+
+        AddActionTile(actions, "X", "Xuất Excel", "File Excel", ModernUi.Green, x1, y3, width: tileW, height: tileH);
+        AddActionTile(actions, "PDF", "Xuất PDF", "File PDF", ModernUi.Red, x2, y3, width: tileW, height: tileH);
     }
 
     private void RenderManagerDashboard()
@@ -4653,6 +4785,10 @@ END";
     private void RenderResidents_Legacy()
     {
         var page = BeginPage("Quản lý cư dân", "");
+        #if false
+        var page = BeginPage("Quản lý hóa đơn & phí dịch vụ", "Dashboard / Hóa đơn & phí dịch vụ");
+
+        #endif
         int w = PageWorkWidth();
         int y = 72;
         var residents = ResidentDAL.GetAllResidents();
@@ -4719,50 +4855,77 @@ END";
 
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
-        filters.Size = new Size(w, 104);
+        filters.Size = new Size(w, 126);
         page.Controls.Add(filters);
 
-        var buildingFilter = AddResidentFilterCombo(filters, "Tòa nhà", 16, 10, 210);
-        var apartmentFilter = AddResidentFilterCombo(filters, "Căn hộ", 244, 10, 180);
-        var statusFilter = AddResidentFilterCombo(filters, "Tình trạng cư trú", 442, 10, 192);
-        var roleFilter = AddResidentFilterCombo(filters, "Vai trò trong căn hộ", 652, 10, 190);
-        var search = ModernUi.TextBox("Nhập tên, CCCD, SĐT hoặc căn hộ...", Math.Min(310, w - 36));
-        search.Location = new Point(16, 64);
+        int filterGap = 16;
+        int filterWidth = Math.Max(150, (filters.Width - 32 - filterGap * 3) / 4);
+        var buildingFilter = AddResidentFilterCombo(filters, "Tòa nhà", 16, 10, filterWidth);
+        var apartmentFilter = AddResidentFilterCombo(filters, "Căn hộ", buildingFilter.Right + filterGap, 10, filterWidth);
+        var statusFilter = AddResidentFilterCombo(filters, "Tình trạng cư trú", apartmentFilter.Right + filterGap, 10, filterWidth);
+        var roleFilter = AddResidentFilterCombo(filters, "Vai trò trong căn hộ", statusFilter.Right + filterGap, 10, filterWidth);
+        int searchButtonWidth = 116;
+        int resetButtonWidth = 104;
+        int searchButtonGap = 12;
+        int searchWidth = Math.Max(280, filters.Width - 32 - searchButtonWidth - resetButtonWidth - searchButtonGap * 2);
+        var search = ModernUi.TextBox("Nhập tên, CCCD, SĐT hoặc căn hộ...", searchWidth);
+        search.Location = new Point(16, 62);
         filters.Controls.Add(search);
 
+        var searchButton = ModernUi.Button("Tìm kiếm", ModernUi.Blue, searchButtonWidth, 34);
+        searchButton.Location = new Point(search.Right + searchButtonGap, 60);
+        filters.Controls.Add(searchButton);
+
+        var resetButton = ModernUi.OutlineButton("Đặt lại", resetButtonWidth, 34);
+        resetButton.Location = new Point(searchButton.Right + searchButtonGap, 60);
+        filters.Controls.Add(resetButton);
+
         var filterSummary = ModernUi.Label("", 8.7f, FontStyle.Regular, ModernUi.Muted);
-        filterSummary.Location = new Point(search.Right + 16, 66);
-        filterSummary.Size = new Size(Math.Max(200, w - search.Right - 48), 24);
+        filterSummary.Location = new Point(16, 96);
+        filterSummary.Size = new Size(filters.Width - 32, 18);
         filters.Controls.Add(filterSummary);
 
-        y += 120;
-        int leftW = Math.Max(640, (int)(w * 0.60));
+        y += 142;
+        int leftW = Math.Min(Math.Max(740, (int)Math.Round(w * 0.65)), w - 320);
         int rightW = w - leftW - 12;
 
-        var list = ModernUi.Section("Danh sách cư dân theo căn hộ", leftW, 536);
+        var list = ModernUi.Section("Danh sách cư dân theo căn hộ", leftW, 552);
         list.Location = new Point(18, y);
         var gridColumns = new[] { "Mã cư dân", "Họ tên", "Tòa", "Block", "Tầng", "Căn hộ", "Vai trò", "Tình trạng", "Ngày vào ở" };
         var grid = CreateGrid(gridColumns, new[] { EmptyRow(gridColumns.Length, "Không có cư dân") });
+        gridColumns[8] = "SĐT";
+        if (grid.Columns.Count > 8)
+        {
+            grid.Columns[8].HeaderText = "SĐT";
+        }
         grid.Location = new Point(12, 44);
-        grid.Size = new Size(list.Width - 24, 428);
-        grid.ColumnHeadersHeight = 38;
+        grid.Size = new Size(list.Width - 24, 404);
+        grid.ColumnHeadersHeight = 40;
         grid.RowTemplate.Height = 36;
         grid.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         list.Controls.Add(grid);
 
         var listSummary = ModernUi.Label("", 8.8f, FontStyle.Bold, ModernUi.Blue);
-        listSummary.Location = new Point(18, 482);
+        listSummary.Location = new Point(18, 488);
         listSummary.Size = new Size(list.Width - 36, 22);
         list.Controls.Add(listSummary);
 
         var listHint = ModernUi.Label("Chọn cư dân để xem căn hộ liên kết và các cư dân cùng căn.", 8.7f, FontStyle.Regular, ModernUi.Muted);
-        listHint.Location = new Point(18, 504);
+        listHint.Location = new Point(18, 512);
         listHint.Size = new Size(list.Width - 36, 22);
         list.Controls.Add(listHint);
-        var residentPager = AddPaginationControls(list, 18, 452, list.Width - 270, 450, list.Width - 80, 450, list.Width - 300);
+        var residentPager = AddPaginationControls(list, 18, 456, list.Width - 270, 454, list.Width - 80, 454, list.Width - 300);
+        residentPager.SummaryLabel.Font = ModernUi.Font(9.1f, FontStyle.Bold);
+        residentPager.SummaryLabel.ForeColor = ModernUi.Navy;
+        residentPager.PageButton.Font = ModernUi.Font(9.2f, FontStyle.Bold);
+        residentPager.FirstButton.Font = ModernUi.Font(9.5f, FontStyle.Bold);
+        residentPager.PreviousButton.Font = ModernUi.Font(9.5f, FontStyle.Bold);
+        residentPager.NextButton.Font = ModernUi.Font(9.5f, FontStyle.Bold);
+        residentPager.LastButton.Font = ModernUi.Font(9.5f, FontStyle.Bold);
+        residentPager.PageSizeCombo.Font = ModernUi.Font(9f, FontStyle.Bold);
         page.Controls.Add(list);
 
-        var details = ModernUi.Section("Thông tin cư dân và căn hộ", rightW, 536);
+        var details = ModernUi.Section("Thông tin cư dân và căn hộ", rightW, 552);
         details.Location = new Point(list.Right + 12, y);
         var detailBody = new Panel
         {
@@ -4772,6 +4935,12 @@ END";
         };
         details.Controls.Add(detailBody);
         page.Controls.Add(details);
+        page.Controls.Add(new Panel
+        {
+            Location = new Point(0, details.Bottom + 20),
+            Size = new Size(1, 20),
+            BackColor = Color.Transparent
+        });
 
         bool suppressFilterEvents = false;
         var residentPagination = new PaginationState();
@@ -4829,14 +4998,28 @@ END";
                         Display(resident.ApartmentCode),
                         Display(resident.RelationshipWithOwner),
                         ResidentLivingStatus(resident),
-                        DateText(resident.StartDate ?? resident.MoveInDate)
+                        Display(resident.Phone)
                     };
                 }, "Không có cư dân phù hợp"));
 
-            int[] weights = { 88, 132, 84, 68, 56, 84, 106, 114, 90 };
-            for (int i = 0; i < grid.Columns.Count && i < weights.Length; i++)
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            grid.ScrollBars = ScrollBars.Both;
+            grid.ColumnHeadersHeight = 40;
+            grid.RowTemplate.Height = 36;
+            grid.DefaultCellStyle.Font = ModernUi.Font(8.2f);
+            grid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(8.4f, FontStyle.Bold);
+
+            int[] widths = { 90, 180, 80, 70, 70, 100, 110, 110, 120 };
+            for (int i = 0; i < grid.Columns.Count && i < widths.Length; i++)
             {
-                grid.Columns[i].FillWeight = weights[i];
+                grid.Columns[i].Width = widths[i];
+                grid.Columns[i].MinimumWidth = widths[i];
+            }
+
+            if (grid.Columns.Count >= 9)
+            {
+                grid.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                grid.Columns[6].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             }
 
             grid.ClearSelection();
@@ -4890,7 +5073,15 @@ END";
                 .Where(resident =>
                 {
                     apartmentById.TryGetValue(resident.ApartmentID, out var apartment);
+                    string residentCode = $"CD{resident.ResidentID:0000}";
                     string buildingName = BuildingShort(apartment?.BuildingName);
+                    string buildingFullName = Display(apartment?.BuildingName, "");
+                    string blockName = BlockShort(apartment?.BlockName);
+                    string blockFullName = Display(apartment?.BlockName, "");
+                    string floorNumber = apartment?.FloorNumber?.ToString("00", CultureInfo.InvariantCulture) ?? string.Empty;
+                    string floorLabel = apartment?.FloorNumber.HasValue == true
+                        ? $"Tầng {apartment.FloorNumber.Value:00}"
+                        : string.Empty;
                     string apartmentCode = Display(resident.ApartmentCode);
                     string residentStatus = ResidentLivingStatus(resident);
                     string relationship = Display(resident.RelationshipWithOwner);
@@ -4922,13 +5113,18 @@ END";
 
                     string haystack = string.Join(" ", new[]
                     {
+                        residentCode,
                         Display(resident.FullName, ""),
                         Display(resident.CCCD, ""),
                         Display(resident.Phone, ""),
                         Display(resident.Email, ""),
                         apartmentCode,
                         buildingName,
-                        BlockShort(apartment?.BlockName)
+                        buildingFullName,
+                        blockName,
+                        blockFullName,
+                        floorNumber,
+                        floorLabel
                     });
 
                     return haystack.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) >= 0;
@@ -4948,13 +5144,34 @@ END";
                 .Count();
             listSummary.Text = $"Lọc được {displayResidents.Count:N0} / {allResidents.Count:N0} cư dân - {apartmentCount:N0} căn hộ có cư dân.";
             filterSummary.Text = selectedBuilding == "Tất cả"
-                ? "Danh sách đang đồng bộ theo căn hộ thực tế trong database."
-                : $"Đang lọc theo {selectedBuilding} và các căn hộ liên quan.";
+                ? "Bộ lọc áp dụng trên danh sách cư dân liên kết với căn hộ hiện có trong hệ thống."
+                : $"Đang áp dụng bộ lọc theo {selectedBuilding} và các căn hộ liên quan.";
 
             ResidentDTO? residentToSelect = preferredResident != null
                 ? pageResidents.FirstOrDefault(r => r.ResidentID == preferredResident.ResidentID)
                 : pageResidents.FirstOrDefault();
             SelectResident(residentToSelect);
+        }
+
+        void ResetResidentFilters()
+        {
+            suppressFilterEvents = true;
+            try
+            {
+                buildingFilter.SelectedIndex = 0;
+                statusFilter.SelectedIndex = 0;
+                roleFilter.SelectedIndex = 0;
+                search.Clear();
+                RefreshApartmentFilter();
+                apartmentFilter.SelectedIndex = apartmentFilter.Items.Count > 0 ? 0 : -1;
+            }
+            finally
+            {
+                suppressFilterEvents = false;
+            }
+
+            residentPagination.MoveToFirstPage();
+            ApplyFilters();
         }
 
         var buildingOptions = apartments.Select(a => BuildingShort(a.BuildingName));
@@ -5005,6 +5222,24 @@ END";
             residentPagination.MoveToFirstPage();
             ApplyFilters();
         };
+        searchButton.Click += (_, _) =>
+        {
+            residentPagination.MoveToFirstPage();
+            ApplyFilters();
+        };
+        resetButton.Click += (_, _) => ResetResidentFilters();
+        search.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode != Keys.Enter)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            residentPagination.MoveToFirstPage();
+            ApplyFilters();
+        };
         grid.CellClick += (_, e) =>
         {
             int absoluteIndex = residentPagination.StartIndex + e.RowIndex;
@@ -5045,85 +5280,250 @@ END";
 
     private void RenderInvoices()
     {
-        var page = BeginPage("Quản lý phí dịch vụ & hóa đơn", "");
+#if false
+        var page = BeginPage("Quản lý hóa đơn & phí dịch vụ", "Dashboard / Hóa đơn - phí dịch vụ");
+
+        #endif
+        var page = BeginPage("Quản lý hóa đơn & phí dịch vụ", "Dashboard / Hóa đơn & phí dịch vụ");
         int w = PageWorkWidth();
         int y = 72;
+        int gap = 12;
+
         var invoices = InvoiceDAL.GetAllInvoices();
-        var residentsByApartment = ResidentDAL.GetAllResidents()
+        var apartments = ApartmentDAL.GetAllApartments();
+        var residents = ResidentDAL.GetAllResidents();
+
+        var residentsByApartment = residents
+            .Where(r => r.ApartmentID > 0)
             .GroupBy(r => r.ApartmentID)
             .ToDictionary(g => g.Key, g => g.First());
 
+        // Nếu database chưa có hóa đơn, tạo dữ liệu demo chỉ để hiển thị UI.
+        // Không ghi vào database.
+        if (invoices.Count == 0)
+        {
+            var sampleApartments = apartments.Take(8).ToList();
+
+            if (sampleApartments.Count == 0)
+            {
+                sampleApartments = new List<ApartmentDTO>
+            {
+                new ApartmentDTO { ApartmentID = 1, ApartmentCode = "A-0605", BuildingName = "Tòa A", BlockName = "A", FloorNumber = 6, Area = 92, ApartmentType = "3 PN - 2 WC", Status = "Occupied" },
+                new ApartmentDTO { ApartmentID = 2, ApartmentCode = "A-0503", BuildingName = "Tòa A", BlockName = "A", FloorNumber = 5, Area = 68, ApartmentType = "2 PN - 1 WC", Status = "Occupied" },
+                new ApartmentDTO { ApartmentID = 3, ApartmentCode = "A-0404", BuildingName = "Tòa A", BlockName = "A", FloorNumber = 4, Area = 75, ApartmentType = "2 PN - 1 WC", Status = "Occupied" }
+            };
+            }
+
+            int id = 501;
+            foreach (var apartment in sampleApartments)
+            {
+                decimal amount = 950000 + (id % 5) * 100000;
+                decimal paid = id % 4 == 0 ? 0 : amount;
+
+                invoices.Add(new InvoiceDTO
+                {
+                    InvoiceID = id,
+                    ApartmentID = apartment.ApartmentID,
+                    ApartmentCode = apartment.ApartmentCode,
+                    Month = id % 2 == 0 ? 5 : 4,
+                    Year = 2024,
+                    DueDate = new DateTime(2024, id % 2 == 0 ? 5 : 4, 15),
+                    CreatedAt = new DateTime(2024, id % 2 == 0 ? 5 : 4, 1),
+                    UpdatedAt = paid > 0 ? new DateTime(2024, id % 2 == 0 ? 5 : 4, 10) : null,
+                    TotalAmount = amount,
+                    PaidAmount = paid,
+                    RemainingAmount = amount - paid,
+                    PaymentStatus = paid <= 0 ? (id % 3 == 0 ? "Overdue" : "Unpaid") : "Paid",
+                    Status = paid <= 0 ? (id % 3 == 0 ? "Overdue" : "Unpaid") : "Paid",
+                    Note = "Dữ liệu demo hiển thị giao diện"
+                });
+
+                id++;
+            }
+        }
+
+        var monthItems = Enumerable.Range(1, 12)
+            .Select(m => $"{m:00}")
+            .Prepend("Tất cả")
+            .ToArray();
+
+        var yearItems = invoices
+            .Select(i => i.Year)
+            .Where(year => year > 0)
+            .Distinct()
+            .OrderByDescending(year => year)
+            .Select(year => year.ToString(CultureInfo.InvariantCulture))
+            .Prepend("Tất cả")
+            .ToArray();
+
+        if (yearItems.Length == 1)
+        {
+            yearItems = new[] { "Tất cả", DateTime.Now.Year.ToString(CultureInfo.InvariantCulture), "2024" };
+        }
+
+        var apartmentItems = apartments
+            .Select(a => Display(a.ApartmentCode, ""))
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Distinct()
+            .OrderBy(code => code)
+            .Prepend("Tất cả")
+            .ToArray();
+
+        if (apartmentItems.Length == 1)
+        {
+            apartmentItems = invoices
+                .Select(i => Display(i.ApartmentCode, ""))
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Distinct()
+                .OrderBy(code => code)
+                .Prepend("Tất cả")
+                .ToArray();
+        }
+
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
-        filters.Size = new Size(w, 96);
-        AddFilter(filters, "Tháng:", "05/2024", 14);
-        AddFilter(filters, "Năm:", "2024", 236);
-        AddFilter(filters, "Căn hộ:", "Tất cả", 458);
-        var statusFilterCombo = AddInvoiceStatusFilter(filters, "Trạng thái thanh toán:", "Tất cả", 680);
-        var search = ModernUi.TextBox("Tìm kiếm nhanh...", 300);
-        search.Location = new Point(14, 60);
+        filters.Size = new Size(w, 118);
+
+        var monthLabel = ModernUi.Label("Tháng", 8.7f, FontStyle.Bold, ModernUi.Text);
+        monthLabel.Location = new Point(14, 12);
+        monthLabel.Size = new Size(150, 18);
+        filters.Controls.Add(monthLabel);
+
+        var monthCombo = ModernUi.ComboBox(monthItems, 150);
+        monthCombo.Location = new Point(14, 34);
+        monthCombo.SelectedItem = monthItems.Contains("05") ? "05" : "Tất cả";
+        filters.Controls.Add(monthCombo);
+
+        var yearLabel = ModernUi.Label("Năm", 8.7f, FontStyle.Bold, ModernUi.Text);
+        yearLabel.Location = new Point(180, 12);
+        yearLabel.Size = new Size(150, 18);
+        filters.Controls.Add(yearLabel);
+
+        var yearCombo = ModernUi.ComboBox(yearItems, 150);
+        yearCombo.Location = new Point(180, 34);
+        yearCombo.SelectedItem = yearItems.Contains("2024") ? "2024" : yearItems.FirstOrDefault();
+        filters.Controls.Add(yearCombo);
+
+        var apartmentLabel = ModernUi.Label("Căn hộ", 8.7f, FontStyle.Bold, ModernUi.Text);
+        apartmentLabel.Location = new Point(346, 12);
+        apartmentLabel.Size = new Size(170, 18);
+        filters.Controls.Add(apartmentLabel);
+
+        var apartmentCombo = ModernUi.ComboBox(apartmentItems, 210);
+        apartmentCombo.Location = new Point(346, 34);
+        apartmentCombo.SelectedItem = "Tất cả";
+        filters.Controls.Add(apartmentCombo);
+
+        var statusFilterCombo = AddInvoiceStatusFilter(filters, "Trạng thái thanh toán", "Tất cả", 574, 12);
+
+        var search = ModernUi.TextBox("Tìm mã hóa đơn, căn hộ, chủ hộ, SĐT...", 360);
+        search.Location = new Point(14, 76);
         filters.Controls.Add(search);
+
+        var searchButton = ModernUi.Button("⌕  Tìm kiếm", ModernUi.Blue, 120, 32);
+        searchButton.Location = new Point(390, 76);
+        filters.Controls.Add(searchButton);
+
+        var resetButton = ModernUi.OutlineButton("⟳  Đặt lại", 110, 32);
+        resetButton.Location = new Point(522, 76);
+        filters.Controls.Add(resetButton);
+
         page.Controls.Add(filters);
 
-        y += 112;
-        int leftW = (int)(w * 0.58);
+        y += 134;
+
+        int leftW = Math.Max(680, (int)(w * 0.64));
+        int rightW = w - leftW - gap;
+
         var list = ModernUi.Section("Danh sách hóa đơn", leftW, 430);
         list.Location = new Point(18, y);
-        var grid = CreateGrid(
-            new[] { "", "Mã hóa đơn", "Tháng/Năm", "Căn hộ", "Chủ hộ", "Tổng tiền (VNĐ)", "Trạng thái thanh toán", "Ngày thanh toán" },
-            RowsOrEmpty(invoices.Take(50), 8, (invoice, index) =>
-            {
-                residentsByApartment.TryGetValue(invoice.ApartmentID, out var resident);
-                return new object[]
-                {
-                    index == 0 ? "›" : "",
-                    InvoiceCode(invoice),
-                    $"{invoice.Month:00}/{invoice.Year}",
-                    Display(invoice.ApartmentCode),
-                    Display(resident?.FullName),
-                    Money(invoice.TotalAmount),
-                    ViStatus(invoice.PaymentStatus),
-                    invoice.PaidAmount > 0 ? DateText(invoice.UpdatedAt) : "-"
-                };
-            }));
-        grid.Location = new Point(0, 44);
-        grid.Size = new Size(list.Width, 336);
+
+        string[] invoiceColumns =
+        {
+        "Mã hóa đơn",
+        "Tháng/Năm",
+        "Căn hộ",
+        "Chủ hộ",
+        "Tổng tiền",
+        "Hạn thanh toán",
+        "Trạng thái",
+        "Ngày thanh toán"
+    };
+
+        var grid = CreateGrid(invoiceColumns, new[] { EmptyRow(invoiceColumns.Length, "Không có hóa đơn") });
+        grid.Location = new Point(12, 44);
+        grid.Size = new Size(list.Width - 24, 316);
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        grid.ScrollBars = ScrollBars.Vertical;
         list.Controls.Add(grid);
-        var paging = ModernUi.Label($"Hiển thị 1 - {Math.Min(50, invoices.Count)} / {invoices.Count} hóa đơn", 9f, FontStyle.Regular, ModernUi.Text);
-        paging.Location = new Point(16, 386);
-        paging.Size = new Size(list.Width - 32, 28);
-        list.Controls.Add(paging);
+
+        var invoicePager = AddPaginationControls(
+            list,
+            16,
+            382,
+            Math.Max(260, list.Width - 420),
+            378,
+            list.Width - 86,
+            378,
+            Math.Max(200, list.Width - 470));
+
         page.Controls.Add(list);
 
-        var detail = ModernUi.Section("Chi tiết hóa đơn", w - leftW - 12, 430);
-        detail.Location = new Point(list.Right + 12, y);
-        var selectedInvoice = invoices.FirstOrDefault();
-        residentsByApartment.TryGetValue(selectedInvoice?.ApartmentID ?? 0, out var selectedInvoiceResident);
-        AddInvoiceDetail(detail, selectedInvoice, selectedInvoiceResident);
+        var detail = ModernUi.Section("Chi tiết hóa đơn", rightW, 430);
+        detail.Location = new Point(list.Right + gap, y);
         page.Controls.Add(detail);
 
-        var invoicePager = AddPaginationControls(list, 16, 386, list.Width - 270, 382, list.Width - 80, 382, list.Width - 300);
-        paging.Visible = false; // Dùng pager động bên dưới thay cho label tĩnh ban đầu.
         var invoicePagination = new PaginationState();
         List<InvoiceDTO> displayInvoices = new();
+        InvoiceDTO? selectedInvoice = null;
+
+        void ApplyInvoiceGridStyle()
+        {
+            if (grid.Columns.Count == 0)
+            {
+                return;
+            }
+
+            grid.Columns[0].Width = 105;
+            grid.Columns[1].Width = 80;
+            grid.Columns[2].Width = 80;
+            grid.Columns[3].Width = 145;
+            grid.Columns[4].Width = 110;
+            grid.Columns[5].Width = 105;
+            grid.Columns[6].Width = 120;
+            grid.Columns[7].Width = 105;
+        }
+
+        ResidentDTO? ResidentForInvoice(InvoiceDTO? invoice)
+        {
+            if (invoice == null)
+            {
+                return null;
+            }
+
+            residentsByApartment.TryGetValue(invoice.ApartmentID, out var resident);
+            return resident;
+        }
 
         void SelectInvoice(InvoiceDTO? invoice)
         {
             selectedInvoice = invoice;
             detail.Controls.Clear();
-            residentsByApartment.TryGetValue(invoice?.ApartmentID ?? 0, out var detailResident);
-            AddInvoiceDetail(detail, invoice, detailResident);
+            AddInvoiceDetail(detail, selectedInvoice, ResidentForInvoice(selectedInvoice));
 
             grid.ClearSelection();
-            if (invoice == null)
+
+            if (selectedInvoice == null)
             {
                 return;
             }
 
             for (int i = 0; i < grid.Rows.Count; i++)
             {
-                if (invoicePagination.StartIndex + i < displayInvoices.Count &&
-                    displayInvoices[invoicePagination.StartIndex + i].InvoiceID == invoice.InvoiceID)
+                int absoluteIndex = invoicePagination.StartIndex + i;
+                if (absoluteIndex >= 0 &&
+                    absoluteIndex < displayInvoices.Count &&
+                    displayInvoices[absoluteIndex].InvoiceID == selectedInvoice.InvoiceID)
                 {
                     grid.Rows[i].Selected = true;
                     grid.CurrentCell = grid.Rows[i].Cells[0];
@@ -5132,17 +5532,43 @@ END";
             }
         }
 
+        DonutChartPanel invoiceStatsDonut = null;
+        Label invoiceStatsSummary = null;
+
         void ApplyInvoiceFilters(int? preferredInvoiceId = null)
         {
             string keyword = (search.Text ?? string.Empty).Trim();
+            string monthText = monthCombo.Text.Trim();
+            string yearText = yearCombo.Text.Trim();
+            string apartmentText = apartmentCombo.Text.Trim();
             string statusText = statusFilterCombo.Text.Trim();
 
             displayInvoices = invoices
                 .Where(invoice =>
                 {
-                    residentsByApartment.TryGetValue(invoice.ApartmentID, out var resident);
-                    if (!string.IsNullOrWhiteSpace(statusText) &&
-                        !string.Equals(statusText, "Tất cả", StringComparison.OrdinalIgnoreCase) &&
+                    var resident = ResidentForInvoice(invoice);
+
+                    if (monthText != "Tất cả" &&
+                        int.TryParse(monthText, out int month) &&
+                        invoice.Month != month)
+                    {
+                        return false;
+                    }
+
+                    if (yearText != "Tất cả" &&
+                        int.TryParse(yearText, out int year) &&
+                        invoice.Year != year)
+                    {
+                        return false;
+                    }
+
+                    if (apartmentText != "Tất cả" &&
+                        !string.Equals(Display(invoice.ApartmentCode, ""), apartmentText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    if (statusText != "Tất cả" &&
                         !string.Equals(ViStatus(invoice.PaymentStatus), statusText, StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -5157,8 +5583,12 @@ END";
                         InvoiceCode(invoice),
                         Display(invoice.ApartmentCode, ""),
                         Display(resident?.FullName, ""),
+                        Display(resident?.Phone, ""),
+                        Display(resident?.Email, ""),
                         $"{invoice.Month:00}/{invoice.Year}",
-                        ViStatus(invoice.PaymentStatus));
+                        ViStatus(invoice.PaymentStatus),
+                        Display(invoice.Note, ""));
+
                     return haystack.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase) >= 0;
                 })
                 .OrderByDescending(invoice => invoice.Year)
@@ -5175,112 +5605,203 @@ END";
                 }
             }
 
-            IReadOnlyList<InvoiceDTO> pageInvoices = Paginate(displayInvoices, invoicePagination);
+            var pageInvoices = Paginate(displayInvoices, invoicePagination);
+
             SetGridData(
                 grid,
-                new[] { "", "Mã hóa đơn", "Tháng/Năm", "Căn hộ", "Chủ hộ", "Tổng tiền (VNĐ)", "Trạng thái thanh toán", "Ngày thanh toán" },
-                RowsOrEmpty(pageInvoices, 8, (invoice, index) =>
+                invoiceColumns,
+                RowsOrEmpty(pageInvoices, invoiceColumns.Length, (invoice, _) =>
                 {
-                    residentsByApartment.TryGetValue(invoice.ApartmentID, out var resident);
+                    var resident = ResidentForInvoice(invoice);
                     return new object[]
                     {
-                        index == 0 ? "›" : "",
-                        InvoiceCode(invoice),
-                        $"{invoice.Month:00}/{invoice.Year}",
-                        Display(invoice.ApartmentCode),
-                        Display(resident?.FullName),
-                        Money(invoice.TotalAmount),
-                        ViStatus(invoice.PaymentStatus),
-                        invoice.PaidAmount > 0 ? DateText(invoice.UpdatedAt) : "-"
+                    InvoiceCode(invoice),
+                    $"{invoice.Month:00}/{invoice.Year}",
+                    Display(invoice.ApartmentCode),
+                    Display(resident?.FullName),
+                    Money(invoice.TotalAmount),
+                    DateText(invoice.DueDate),
+                    ViStatus(invoice.PaymentStatus),
+                    invoice.PaidAmount > 0 ? DateText(invoice.UpdatedAt) : "-"
                     };
                 }, "Không có hóa đơn phù hợp"));
+
+            ApplyInvoiceGridStyle();
             UpdatePaginationControls(invoicePagination, invoicePager, "hóa đơn");
 
             InvoiceDTO? invoiceToSelect = preferredInvoiceId.HasValue
                 ? pageInvoices.FirstOrDefault(invoice => invoice.InvoiceID == preferredInvoiceId.Value)
                 : pageInvoices.FirstOrDefault();
+
             SelectInvoice(invoiceToSelect);
+            UpdateInvoiceStats();
         }
 
         invoicePager.FirstButton.Click += (_, _) =>
         {
             invoicePagination.MoveToFirstPage();
-            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
-        };
+            ApplyInvoiceFilters();
+        };  
+
         invoicePager.PreviousButton.Click += (_, _) =>
         {
             invoicePagination.MoveToPreviousPage();
-            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+            ApplyInvoiceFilters();
         };
+
         invoicePager.NextButton.Click += (_, _) =>
         {
             invoicePagination.MoveToNextPage();
-            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+            ApplyInvoiceFilters();
         };
+
         invoicePager.LastButton.Click += (_, _) =>
         {
             invoicePagination.MoveToLastPage();
-            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+            ApplyInvoiceFilters();
         };
+
         invoicePager.PageSizeCombo.SelectedIndexChanged += (_, _) =>
         {
             invoicePagination.SetPageSize(ParsePageSize(invoicePager.PageSizeCombo.SelectedItem, invoicePagination.PageSize));
-            ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
+            ApplyInvoiceFilters();
         };
+
+        monthCombo.SelectedIndexChanged += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+
+        yearCombo.SelectedIndexChanged += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+
+        apartmentCombo.SelectedIndexChanged += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+
         statusFilterCombo.SelectedIndexChanged += (_, _) =>
         {
             invoicePagination.MoveToFirstPage();
             ApplyInvoiceFilters();
         };
+
         search.TextChanged += (_, _) =>
         {
             invoicePagination.MoveToFirstPage();
             ApplyInvoiceFilters();
         };
+
+        searchButton.Click += (_, _) =>
+        {
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+
+        resetButton.Click += (_, _) =>
+        {
+            monthCombo.SelectedItem = "Tất cả";
+            yearCombo.SelectedItem = "Tất cả";
+            apartmentCombo.SelectedItem = "Tất cả";
+            statusFilterCombo.SelectedItem = "Tất cả";
+            search.Text = "";
+            invoicePagination.MoveToFirstPage();
+            ApplyInvoiceFilters();
+        };
+
         grid.CellClick += (_, e) =>
         {
+            if (e.RowIndex < 0)
+            {
+                return;
+            }
+
             int absoluteIndex = invoicePagination.StartIndex + e.RowIndex;
-            if (e.RowIndex >= 0 && absoluteIndex >= 0 && absoluteIndex < displayInvoices.Count)
+            if (absoluteIndex >= 0 && absoluteIndex < displayInvoices.Count)
             {
                 SelectInvoice(displayInvoices[absoluteIndex]);
             }
         };
 
-        ApplyInvoiceFilters(selectedInvoice?.InvoiceID);
-
         y += 446;
 
-        var latestInvoice = invoices.OrderByDescending(i => i.Year).ThenByDescending(i => i.Month).FirstOrDefault();
-        var periodInvoices = latestInvoice == null ? new List<InvoiceDTO>() : invoices.Where(i => i.Year == latestInvoice.Year && i.Month == latestInvoice.Month).ToList();
-        int paidCount = periodInvoices.Count(i => ViStatus(i.PaymentStatus) == "Đã thanh toán");
-        int unpaidCount = periodInvoices.Count - paidCount;
-        decimal totalAmount = periodInvoices.Sum(i => i.TotalAmount);
-        decimal paidAmount = periodInvoices.Sum(i => i.PaidAmount);
-        decimal debtAmount = periodInvoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
-        int paidPercent = periodInvoices.Count == 0 ? 0 : (int)Math.Round(paidCount * 100m / periodInvoices.Count);
-        var stats = ModernUi.Section(latestInvoice == null ? "Tình hình thanh toán" : $"Tình hình thanh toán tháng {latestInvoice.Month:00}/{latestInvoice.Year}", (int)(w * 0.50), 170);
+        var stats = ModernUi.Section("Tình hình thanh toán", (int)(w * 0.50), 230);
         stats.Location = new Point(18, y);
-        var donut = new DonutChartPanel
+
+        invoiceStatsDonut = new DonutChartPanel
         {
-            Percent = paidPercent,
-            CenterText = periodInvoices.Count.ToString("N0"),
-            SubText = "Tổng hóa đơn",
+            Percent = 0,
+            CenterText = "0",
+            SubText = "Tổng HĐ",
             AccentColor = ModernUi.Green,
-            Location = new Point(20, 36),
-            Size = new Size(360, 118)
+            PrimaryLabel = "",
+            PrimaryValue = "",
+            SecondaryLabel = "",
+            SecondaryValue = "",
+            Location = new Point(20, 38),
+            Size = new Size(210, 160)
         };
-        stats.Controls.Add(donut);
-        var summary = ModernUi.Label($"▣  Tổng số hóa đơn:        {periodInvoices.Count:N0}\r\n✓  Đã thanh toán:          {paidCount:N0} hóa đơn\r\n△  Chưa thanh toán:        {unpaidCount:N0} hóa đơn\r\n↗  Tổng phát sinh:         {Money(totalAmount)} VNĐ\r\n▣  Đã thu:                 {Money(paidAmount)} VNĐ ({paidPercent}%)\r\n◇  Còn phải thu:           {Money(debtAmount)} VNĐ",
-            9.5f, FontStyle.Regular, ModernUi.Text);
-        summary.Location = new Point(390, 34);
-        summary.Size = new Size(stats.Width - 410, 124);
-        stats.Controls.Add(summary);
+        stats.Controls.Add(invoiceStatsDonut);
+
+        invoiceStatsSummary = ModernUi.Label("", 9.2f, FontStyle.Regular, ModernUi.Text);
+        invoiceStatsSummary.Location = new Point(250, 34);
+        invoiceStatsSummary.Size = new Size(stats.Width - 270, 170);
+        stats.Controls.Add(invoiceStatsSummary);
+
         page.Controls.Add(stats);
 
-        var actions = ModernUi.Section("", w - stats.Width - 12, 170);
-        actions.Location = new Point(stats.Right + 12, y);
+        var actions = ModernUi.Section("Thao tác nhanh", w - stats.Width - gap, 230);
+        actions.Location = new Point(stats.Right + gap, y);
         AddInvoiceQuickActions(actions);
         page.Controls.Add(actions);
+
+        void UpdateInvoiceStats()
+        {
+            var statInvoices = displayInvoices ?? new List<InvoiceDTO>();
+
+            int totalCount = statInvoices.Count;
+            int paidCount = statInvoices.Count(i => ViStatus(i.PaymentStatus) == "Đã thanh toán");
+            int overdueCount = statInvoices.Count(i => ViStatus(i.PaymentStatus) == "Quá hạn");
+            int pendingCount = totalCount - paidCount - overdueCount;
+
+            decimal totalAmount = statInvoices.Sum(i => i.TotalAmount);
+            decimal paidAmount = statInvoices.Sum(i => i.PaidAmount);
+            decimal debtAmount = statInvoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+
+            int paidPercent = totalCount == 0 ? 0 : (int)Math.Round(paidCount * 100m / totalCount);
+
+            if (invoiceStatsDonut == null || invoiceStatsSummary == null)
+            {
+                return;
+            }
+
+            invoiceStatsDonut.Percent = paidPercent;
+            invoiceStatsDonut.CenterText = totalCount.ToString("N0");
+            invoiceStatsDonut.SubText = "Tổng HĐ";
+            invoiceStatsDonut.PrimaryLabel = "";
+            invoiceStatsDonut.PrimaryValue = "";
+            invoiceStatsDonut.SecondaryLabel = "";
+            invoiceStatsDonut.SecondaryValue = "";
+            invoiceStatsDonut.Invalidate();
+
+            invoiceStatsSummary.Text =
+                 $"Tổng hóa đơn: {totalCount:N0}\r\n" +
+               $"Đã thanh toán: {paidCount:N0}\r\n" +
+               $"Chờ thanh toán: {pendingCount:N0}\r\n" +
+               $"Quá hạn: {overdueCount:N0}\r\n" +
+               $"Tổng phát sinh: {Money(totalAmount)} VNĐ\r\n" +
+               $"Đã thu: {Money(paidAmount)} VNĐ\r\n" +
+               $"Còn phải thu: {Money(debtAmount)} VNĐ";
+        }
+
+        page.AutoScrollMinSize = new Size(0, y + 320);
+
+        ApplyInvoiceFilters();
     }
 
     private void RenderComplaints()
@@ -6069,7 +6590,6 @@ END";
         configs.Controls.Add(grid);
         page.Controls.Add(configs);
     }
-
     private void RenderAccounts()
     {
         _content.Controls.Clear();
@@ -7991,20 +8511,20 @@ END";
 
         Color foreground = textColor ?? Color.White;
 
-        var iconLabel = ModernUi.Label(icon, 16.5f, FontStyle.Regular, foreground);
-        iconLabel.Font = new Font("Segoe UI Emoji", 16.5f, FontStyle.Regular);
+        var iconLabel = ModernUi.Label(icon, 11f, FontStyle.Bold, foreground);
+        iconLabel.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
         iconLabel.BackColor = Color.Transparent;
         iconLabel.Cursor = Cursors.Hand;
         iconLabel.TextAlign = ContentAlignment.MiddleCenter;
 
-        var titleLabel = ModernUi.Label(title, 8.3f, FontStyle.Bold, foreground);
+        var titleLabel = ModernUi.Label(title, 8.8f, FontStyle.Bold, foreground);
         titleLabel.BackColor = Color.Transparent;
         titleLabel.Cursor = Cursors.Hand;
-        titleLabel.AutoEllipsis = true;
+        titleLabel.AutoEllipsis = false;
         titleLabel.TextAlign = ContentAlignment.MiddleCenter;
 
-        iconLabel.SetBounds(0, 10, width, 22);
-        titleLabel.SetBounds(8, height - 30, width - 16, 16);
+        iconLabel.SetBounds(0, 7, width, 18);
+        titleLabel.SetBounds(8, 30, width - 16, 26);
 
         tile.Controls.Add(iconLabel);
         tile.Controls.Add(titleLabel);
@@ -8155,32 +8675,80 @@ END";
             return;
         }
 
+        string initials = string.Concat(
+            Display(resident.FullName, "Cư dân")
+                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(part => char.ToUpperInvariant(part[0])));
+        if (string.IsNullOrWhiteSpace(initials))
+        {
+            initials = "CD";
+        }
+
+        var avatar = new CircleLabel
+        {
+            Text = initials,
+            CircleColor = ModernUi.Blue,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(17f, FontStyle.Bold),
+            Location = new Point(16, 12),
+            Size = new Size(64, 64),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        parent.Controls.Add(avatar);
+
+        string residentStatusText = ResidentLivingStatus(resident);
+        Color badgeBack = residentStatusText.IndexOf("đang", StringComparison.CurrentCultureIgnoreCase) >= 0
+            ? Color.FromArgb(230, 248, 236)
+            : residentStatusText.IndexOf("tạm", StringComparison.CurrentCultureIgnoreCase) >= 0
+                ? Color.FromArgb(255, 244, 221)
+                : Color.FromArgb(232, 241, 255);
+        Color badgeFore = residentStatusText.IndexOf("đang", StringComparison.CurrentCultureIgnoreCase) >= 0
+            ? ModernUi.Green
+            : residentStatusText.IndexOf("tạm", StringComparison.CurrentCultureIgnoreCase) >= 0
+                ? ModernUi.Orange
+                : ModernUi.Blue;
+        var statusBadge = new Label
+        {
+            Text = residentStatusText,
+            AutoSize = false,
+            BackColor = badgeBack,
+            ForeColor = badgeFore,
+            Font = ModernUi.Font(8.2f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Location = new Point(Math.Max(96, parent.Width - 106), 16),
+            Size = new Size(86, 24)
+        };
+        parent.Controls.Add(statusBadge);
+
         var title = ModernUi.Label(Display(resident.FullName), 11.5f, FontStyle.Bold, ModernUi.Navy);
-        title.Location = new Point(16, 12);
-        title.Size = new Size(parent.Width - 32, 26);
+        title.Location = new Point(96, 14);
+        title.Size = new Size(Math.Max(120, parent.Width - 200), 24);
+        title.AutoEllipsis = true;
         parent.Controls.Add(title);
 
         string apartmentText = apartment == null
             ? $"Căn hộ liên kết: {Display(resident.ApartmentCode)}"
             : $"Căn hộ liên kết: {Display(resident.ApartmentCode)} · {BuildingShort(apartment.BuildingName)} / {BlockShort(apartment.BlockName)} / Tầng {apartment.FloorNumber?.ToString("00") ?? "-"}";
-        var subtitle = ModernUi.Label(apartmentText, 8.9f, FontStyle.Regular, ModernUi.Muted);
-        subtitle.Location = new Point(16, 40);
-        subtitle.Size = new Size(parent.Width - 32, 22);
+        var subtitle = ModernUi.Label(apartmentText, 8.8f, FontStyle.Regular, ModernUi.Muted);
+        subtitle.Location = new Point(96, 40);
+        subtitle.Size = new Size(Math.Max(150, parent.Width - 116), 34);
+        subtitle.AutoEllipsis = true;
         parent.Controls.Add(subtitle);
 
-        int infoWidth = (parent.Width - 40) / 2;
-        AddResidentInfoBlock(parent, "Mã cư dân", $"CD{resident.ResidentID:0000}", 16, 76, infoWidth);
-        AddResidentInfoBlock(parent, "Căn hộ", Display(resident.ApartmentCode), 24 + infoWidth, 76, infoWidth);
-        AddResidentInfoBlock(parent, "Số điện thoại", Display(resident.Phone), 16, 118, infoWidth);
-        AddResidentInfoBlock(parent, "Tình trạng", ResidentLivingStatus(resident), 24 + infoWidth, 118, infoWidth);
-        AddResidentInfoBlock(parent, "CCCD", Display(resident.CCCD), 16, 160, infoWidth);
-        AddResidentInfoBlock(parent, "Vai trò", Display(resident.RelationshipWithOwner), 24 + infoWidth, 160, infoWidth);
-        AddResidentInfoBlock(parent, "Ngày vào ở", DateText(resident.StartDate ?? resident.MoveInDate), 16, 202, infoWidth);
-        AddResidentInfoBlock(parent, "Số người cùng căn", apartmentResidents.Count.ToString("N0"), 24 + infoWidth, 202, infoWidth);
+        int infoWidth = (parent.Width - 44) / 2;
+        AddResidentInfoBlock(parent, "Mã cư dân", $"CD{resident.ResidentID:0000}", 16, 92, infoWidth);
+        AddResidentInfoBlock(parent, "Căn hộ", Display(resident.ApartmentCode), 28 + infoWidth, 92, infoWidth);
+        AddResidentInfoBlock(parent, "Số điện thoại", Display(resident.Phone), 16, 134, infoWidth);
+        AddResidentInfoBlock(parent, "Tình trạng", residentStatusText, 28 + infoWidth, 134, infoWidth);
+        AddResidentInfoBlock(parent, "CCCD", Display(resident.CCCD), 16, 176, infoWidth);
+        AddResidentInfoBlock(parent, "Vai trò", Display(resident.RelationshipWithOwner), 28 + infoWidth, 176, infoWidth);
+        AddResidentInfoBlock(parent, "Email", Display(resident.Email), 16, 218, infoWidth);
+        AddResidentInfoBlock(parent, "Ngày vào ở", DateText(resident.StartDate ?? resident.MoveInDate), 28 + infoWidth, 218, infoWidth);
 
         var apartmentCard = ModernUi.CardPanel(6);
-        apartmentCard.Location = new Point(16, 248);
-        apartmentCard.Size = new Size(parent.Width - 32, 98);
+        apartmentCard.Location = new Point(16, 266);
+        apartmentCard.Size = new Size(parent.Width - 32, 102);
         parent.Controls.Add(apartmentCard);
 
         var apartmentTitle = ModernUi.Label("THÔNG TIN CĂN HỘ", 8.7f, FontStyle.Bold, ModernUi.Blue);
@@ -8213,25 +8781,50 @@ END";
         apartmentCard.Controls.Add(apartmentInfo3);
 
         var roommatesTitle = ModernUi.Label($"CƯ DÂN CÙNG CĂN HỘ ({apartmentResidents.Count:N0})", 9f, FontStyle.Bold, ModernUi.Blue);
-        roommatesTitle.Location = new Point(16, 358);
+        int roommatesTop = 404;
+        int roommatesHeight = Math.Max(92, parent.Height - roommatesTop - 18);
+        roommatesTitle.Location = new Point(16, roommatesTop - 24);
         roommatesTitle.Size = new Size(parent.Width - 32, 22);
         parent.Controls.Add(roommatesTitle);
 
         var roommatesGrid = CreateGrid(
-            new[] { "Mã cư dân", "Họ tên", "Vai trò", "Tình trạng", "Ngày vào ở" },
-            RowsOrEmpty(apartmentResidents, 5, (mate, _) => new object[]
+            new[] { "Mã cư dân", "Họ tên", "Vai trò", "Tình trạng" },
+            RowsOrEmpty(apartmentResidents, 4, (mate, _) => new object[]
             {
                 $"CD{mate.ResidentID:0000}",
                 Display(mate.FullName),
                 Display(mate.RelationshipWithOwner),
-                ResidentLivingStatus(mate),
-                DateText(mate.StartDate ?? mate.MoveInDate)
+                ResidentLivingStatus(mate)
             }, "Không có cư dân cùng căn"));
-        roommatesGrid.Location = new Point(16, 384);
-        roommatesGrid.Size = new Size(parent.Width - 32, 92);
+        roommatesGrid.Location = new Point(16, roommatesTop);
+        roommatesGrid.Size = new Size(parent.Width - 32, roommatesHeight);
         roommatesGrid.ColumnHeadersHeight = 34;
-        roommatesGrid.RowTemplate.Height = 34;
-        int[] roommateWeights = { 84, 130, 100, 100, 88 };
+        roommatesGrid.RowTemplate.Height = 32;
+        roommatesGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        roommatesGrid.ScrollBars = ScrollBars.Vertical;
+        roommatesGrid.DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+        roommatesGrid.ShowCellToolTips = true;
+        if (roommatesGrid.Columns.Count >= 4)
+        {
+            roommatesGrid.Columns[0].Width = 84;
+            roommatesGrid.Columns[0].MinimumWidth = 84;
+            roommatesGrid.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            roommatesGrid.Columns[1].MinimumWidth = 120;
+            roommatesGrid.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            roommatesGrid.Columns[1].DefaultCellStyle.Padding = new Padding(2, 0, 2, 0);
+            roommatesGrid.Columns[2].Width = 84;
+            roommatesGrid.Columns[2].MinimumWidth = 84;
+            roommatesGrid.Columns[3].Width = 92;
+            roommatesGrid.Columns[3].MinimumWidth = 92;
+        }
+        roommatesGrid.CellToolTipTextNeeded += (_, e) =>
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex == 1)
+            {
+                e.ToolTipText = Convert.ToString(roommatesGrid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value) ?? string.Empty;
+            }
+        };
+        int[] roommateWeights = { 84, 150, 86, 94 };
         for (int i = 0; i < roommatesGrid.Columns.Count && i < roommateWeights.Length; i++)
         {
             roommatesGrid.Columns[i].FillWeight = roommateWeights[i];
@@ -8246,11 +8839,13 @@ END";
         var caption = ModernUi.Label(label.ToUpperInvariant(), 8.1f, FontStyle.Bold, ModernUi.Muted);
         caption.Location = new Point(x, y);
         caption.Size = new Size(width, 16);
+        caption.AutoEllipsis = true;
         parent.Controls.Add(caption);
 
         var text = ModernUi.Label(value, 9.4f, FontStyle.Bold, ModernUi.Text);
         text.Location = new Point(x, y + 16);
         text.Size = new Size(width, 22);
+        text.AutoEllipsis = true;
         parent.Controls.Add(text);
     }
 
@@ -8312,7 +8907,7 @@ END";
         parent.Controls.Add(history);
     }
 
-    private static void AddInvoiceDetail(Control parent, InvoiceDTO? invoice, ResidentDTO? resident)
+    private static void AddInvoiceDetail_Legacy(Control parent, InvoiceDTO? invoice, ResidentDTO? resident)
     {
         var infoTitle = ModernUi.Label("Thông tin căn hộ & chủ hộ", 10f, FontStyle.Bold, ModernUi.Blue);
         infoTitle.Location = new Point(18, 42);
@@ -8359,68 +8954,318 @@ END";
         parent.Controls.Add(total);
     }
 
-    private static void AddComplaintDetail(Control parent, dynamic? complaint)
+    private static void AddComplaintDetail(Control parent, dynamic complaint)
     {
-        var sender = ModernUi.Label(complaint == null
-                ? "Người gửi\r\nKhông có dữ liệu"
-                : $"Người gửi\r\n{Display(complaint.ResidentName)} (Cư dân)\r\nCăn hộ {Display(complaint.ApartmentCode)}\r\nMã phản ánh PA{complaint.CreatedAt:yyMMdd}-{complaint.ComplaintID:000}",
-            9f, FontStyle.Regular, ModernUi.Text);
-        sender.Location = new Point(18, 48);
-        sender.Size = new Size(260, 90);
-        parent.Controls.Add(sender);
+        parent.Controls.Clear();
 
-        var owner = ModernUi.Label(complaint == null
-                ? "Người phụ trách\r\n-"
-                : $"Người phụ trách\r\n{Display(complaint.AssignedTo)}\r\nLoại: {Display(complaint.Category)}\r\nƯu tiên: {ViStatus(complaint.Priority)}",
-            9f, FontStyle.Regular, ModernUi.Text);
-        owner.Location = new Point(parent.Width / 2 + 16, 48);
-        owner.Size = new Size(260, 90);
-        parent.Controls.Add(owner);
+        int pad = 18;
+        int contentW = parent.Width - pad * 2;
 
-        var contentLabel = ModernUi.Label("Nội dung phản ánh", 9f, FontStyle.Bold, ModernUi.Text);
-        contentLabel.Location = new Point(18, 138);
-        contentLabel.Size = new Size(200, 24);
-        parent.Controls.Add(contentLabel);
-        var content = new TextBox
+        var sectionTitle = ModernUi.Label("Thông tin phản ánh", 10f, FontStyle.Bold, ModernUi.Blue);
+        sectionTitle.Location = new Point(pad, 42);
+        sectionTitle.Size = new Size(contentW, 24);
+        parent.Controls.Add(sectionTitle);
+
+        if (complaint == null)
         {
-            Text = complaint == null ? "" : Display(complaint.Description, Display(complaint.Title, "")),
-            Location = new Point(18, 164),
-            Size = new Size(parent.Width / 2 - 36, 74),
-            Multiline = true,
-            Font = ModernUi.Font(9f)
-        };
-        parent.Controls.Add(content);
+            var empty = ModernUi.Label(
+                "Chọn phản ánh để xem thông tin chi tiết.",
+                9.4f,
+                FontStyle.Regular,
+                ModernUi.Muted);
+            empty.Location = new Point(pad, 82);
+            empty.Size = new Size(contentW, 28);
+            parent.Controls.Add(empty);
+            return;
+        }
 
-        var statusLabel = ModernUi.Label("Trạng thái xử lý", 9f, FontStyle.Bold, ModernUi.Text);
-        statusLabel.Location = new Point(parent.Width / 2 + 16, 138);
-        statusLabel.Size = new Size(200, 24);
-        parent.Controls.Add(statusLabel);
-        string currentStatus = complaint == null ? "Không có dữ liệu" : ViStatus((string?)complaint.Status);
-        var status = ModernUi.ComboBox(new[] { currentStatus, "Mới", "Đang xử lý", "Đã xử lý", "Đã đóng" }, parent.Width / 2 - 36);
-        status.Location = new Point(parent.Width / 2 + 16, 164);
+        string code = $"PA{complaint.CreatedAt:yyMMdd}-{complaint.ComplaintID:000}";
+
+        var title = ModernUi.Label(Display((string?)complaint.Title, "Không có tiêu đề"), 11.5f, FontStyle.Bold, ModernUi.Navy);
+        title.Location = new Point(pad, 76);
+        title.Size = new Size(contentW, 26);
+        title.AutoEllipsis = true;
+        parent.Controls.Add(title);
+
+        var meta = ModernUi.Label(
+            $"{code} · {Display((string?)complaint.ApartmentCode)} · {DateTimeText((DateTime?)complaint.CreatedAt)}",
+            9f,
+            FontStyle.Regular,
+            ModernUi.Text);
+        meta.Location = new Point(pad, 104);
+        meta.Size = new Size(contentW, 22);
+        meta.AutoEllipsis = true;
+        parent.Controls.Add(meta);
+
+        int colW = Math.Max(130, contentW / 2 - 12);
+        int leftX = pad;
+        int rightX = pad + colW + 24;
+        int y = 142;
+
+        AddLine(parent, "Cư dân", Display(GetDynamicString(complaint, "FullName", "ResidentName", "Resident", "Name")), leftX, y, colW);
+        AddLine(parent, "Loại phản ánh", Display((string?)complaint.Category), rightX, y, colW);
+        y += 46;
+
+        AddLine(parent, "Ưu tiên", ViStatus((string?)complaint.Priority), leftX, y, colW);
+        AddLine(parent, "Trạng thái", ViStatus((string?)complaint.Status), rightX, y, colW);
+        y += 46;
+
+        AddLine(parent, "Cập nhật", DateTimeText((DateTime?)complaint.UpdatedAt), leftX, y, colW);
+
+        var descTitle = ModernUi.Label("Nội dung phản ánh", 10f, FontStyle.Bold, ModernUi.Blue);
+        descTitle.Location = new Point(pad, y + 58);
+        descTitle.Size = new Size(contentW, 22);
+        parent.Controls.Add(descTitle);
+
+        var description = new RoundedPanel
+        {
+            Radius = 8,
+            BorderColor = Color.FromArgb(226, 232, 240),
+            BackColor = Color.White,
+            Location = new Point(pad, y + 86),
+            Size = new Size(contentW, Math.Max(120, parent.Height - (y + 110) - 18))
+        };
+
+        var descText = ModernUi.Label(Display((string?)complaint.Description, "Không có mô tả"), 9.2f, FontStyle.Regular, ModernUi.Text);
+        descText.Location = new Point(14, 12);
+        descText.Size = new Size(description.Width - 28, description.Height - 24);
+        descText.TextAlign = ContentAlignment.TopLeft;
+        parent.Controls.Add(description);
+        description.Controls.Add(descText);
+
+        static void AddLine(Control target, string label, string value, int x, int y, int width)
+        {
+            var lbl = ModernUi.Label(label, 8.8f, FontStyle.Regular, ModernUi.Muted);
+            lbl.Location = new Point(x, y);
+            lbl.Size = new Size(width, 18);
+            target.Controls.Add(lbl);
+
+            var text = ModernUi.Label(Display(value), 9.4f, FontStyle.Bold, ModernUi.Text);
+            text.Location = new Point(x, y + 18);
+            text.Size = new Size(width, 22);
+            text.AutoEllipsis = true;
+            target.Controls.Add(text);
+        }
+    }
+
+    private static void AddInvoiceDetail(Control parent, InvoiceDTO? invoice, ResidentDTO? resident)
+    {
+        parent.Controls.Clear();
+
+        int pad = 18;
+        int contentW = parent.Width - pad * 2;
+
+        var title = ModernUi.Label("Thông tin căn hộ - chủ hộ", 10f, FontStyle.Bold, ModernUi.Blue);
+        title.Location = new Point(pad, 42);
+        title.Size = new Size(contentW, 24);
+        parent.Controls.Add(title);
+
+        if (invoice == null)
+        {
+            var empty = ModernUi.Label(
+                "Chọn hóa đơn để xem thông tin chi tiết.",
+                9.4f,
+                FontStyle.Regular,
+                ModernUi.Muted);
+
+            empty.Location = new Point(pad, 82);
+            empty.Size = new Size(contentW, 28);
+            parent.Controls.Add(empty);
+
+            var detailTitleEmpty = ModernUi.Label("Chi tiết các khoản phí", 10f, FontStyle.Bold, ModernUi.Blue);
+            detailTitleEmpty.Location = new Point(pad, 190);
+            detailTitleEmpty.Size = new Size(contentW, 24);
+            parent.Controls.Add(detailTitleEmpty);
+
+            var emptyGrid = CreateGrid(
+                new[] { "STT", "Khoản phí", "Đơn giá", "Số lượng", "Thành tiền" },
+                new[] { EmptyRow(5, "Không có dữ liệu") });
+
+            emptyGrid.Location = new Point(pad, 222);
+            emptyGrid.Size = new Size(contentW, 120);
+            emptyGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            parent.Controls.Add(emptyGrid);
+
+            var totalEmpty = ModernUi.Label("TỔNG CỘNG                                      0 VNĐ", 11f, FontStyle.Bold, ModernUi.Red);
+            totalEmpty.Location = new Point(pad, parent.Height - 48);
+            totalEmpty.Size = new Size(contentW, 30);
+            totalEmpty.TextAlign = ContentAlignment.MiddleLeft;
+            parent.Controls.Add(totalEmpty);
+            return;
+        }
+
+        var avatar = new CircleLabel
+        {
+            Text = Initials(Display(resident?.FullName, Display(invoice.ApartmentCode, "HD"))),
+            CircleColor = ModernUi.Blue,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(14f, FontStyle.Bold),
+            Location = new Point(pad, 76),
+            Size = new Size(58, 58),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        parent.Controls.Add(avatar);
+
+        var name = ModernUi.Label(
+            Display(resident?.FullName, "Chưa có chủ hộ"),
+            11.5f,
+            FontStyle.Bold,
+            ModernUi.Navy);
+
+        name.Location = new Point(avatar.Right + 14, 78);
+        name.Size = new Size(contentW - avatar.Width - 20, 26);
+        name.AutoEllipsis = true;
+        parent.Controls.Add(name);
+
+        var apartmentLine = ModernUi.Label(
+            $"Căn hộ {Display(invoice.ApartmentCode)} · Kỳ {invoice.Month:00}/{invoice.Year}",
+            9f,
+            FontStyle.Regular,
+            ModernUi.Text);
+
+        apartmentLine.Location = new Point(avatar.Right + 14, 106);
+        apartmentLine.Size = new Size(contentW - avatar.Width - 20, 22);
+        apartmentLine.AutoEllipsis = true;
+        parent.Controls.Add(apartmentLine);
+
+        var status = ModernUi.Label(
+            ViStatus(invoice.PaymentStatus),
+            8.5f,
+            FontStyle.Bold,
+            StatusColor(invoice.PaymentStatus));
+
+        status.Location = new Point(avatar.Right + 14, 130);
+        status.Size = new Size(contentW - avatar.Width - 20, 22);
         parent.Controls.Add(status);
 
-        var response = new TextBox
-        {
-            Text = complaint == null ? "" : $"Cập nhật gần nhất: {DateTimeText(complaint.UpdatedAt)}",
-            Location = new Point(parent.Width / 2 + 16, 214),
-            Size = new Size(parent.Width / 2 - 36, 64),
-            Multiline = true,
-            Font = ModernUi.Font(9f)
-        };
-        parent.Controls.Add(response);
+        int leftX = pad;
+        int rightX = pad + Math.Max(170, contentW / 2);
+        int fieldY = 168;
+        int fieldW = Math.Max(130, contentW / 2 - 26);
 
-        var photo1 = new RoundedPanel { Location = new Point(18, 278), Size = new Size(90, 74), BackColor = Color.FromArgb(66, 73, 84) };
-        parent.Controls.Add(photo1);
-        var photo2 = new RoundedPanel { Location = new Point(124, 278), Size = new Size(90, 74), BackColor = Color.FromArgb(78, 84, 94) };
-        parent.Controls.Add(photo2);
-        var rating = ModernUi.Label(complaint == null ? "Chưa có đánh giá" : $"Trạng thái: {ViStatus(complaint.Status)}", 13f, FontStyle.Bold, ModernUi.Orange);
-        rating.Location = new Point(parent.Width / 2 + 16, 308);
-        rating.Size = new Size(240, 34);
-        parent.Controls.Add(rating);
-        var save = ModernUi.OutlineButton("Lưu đánh giá", 112, 34);
-        save.Location = new Point(parent.Width - 140, 310);
-        parent.Controls.Add(save);
+        AddInfoPair(parent, "Mã hóa đơn", InvoiceCode(invoice), leftX, fieldY, fieldW);
+        AddInfoPair(parent, "Căn hộ", Display(invoice.ApartmentCode), rightX, fieldY, fieldW);
+
+        fieldY += 50;
+        AddInfoPair(parent, "Chủ hộ", Display(resident?.FullName), leftX, fieldY, fieldW);
+        AddInfoPair(parent, "Số điện thoại", Display(resident?.Phone), rightX, fieldY, fieldW);
+
+        fieldY += 50;
+        AddInfoPair(parent, "Ngày lập", DateTimeText(invoice.CreatedAt), leftX, fieldY, fieldW);
+        AddInfoPair(parent, "Hạn thanh toán", DateText(invoice.DueDate), rightX, fieldY, fieldW);
+
+        var line = new Panel
+        {
+            BackColor = ModernUi.Border,
+            Location = new Point(pad, 318),
+            Size = new Size(contentW, 1)
+        };
+        parent.Controls.Add(line);
+
+        var detailTitle = ModernUi.Label("Chi tiết các khoản phí", 10f, FontStyle.Bold, ModernUi.Blue);
+        detailTitle.Location = new Point(pad, 334);
+        detailTitle.Size = new Size(contentW, 24);
+        parent.Controls.Add(detailTitle);
+
+        decimal remaining = Math.Max(0, invoice.TotalAmount - invoice.PaidAmount);
+
+        var detailGrid = CreateGrid(
+            new[] { "STT", "Khoản phí", "Đơn giá", "SL/DT", "Thành tiền" },
+            new object[][]
+            {
+            new object[] { 1, "Phí quản lý", Money(invoice.TotalAmount * 0.45m), "1", Money(invoice.TotalAmount * 0.45m) },
+            new object[] { 2, "Phí dịch vụ", Money(invoice.TotalAmount * 0.30m), "1", Money(invoice.TotalAmount * 0.30m) },
+            new object[] { 3, "Phí gửi xe / khác", Money(invoice.TotalAmount * 0.25m), "1", Money(invoice.TotalAmount * 0.25m) }
+            });
+
+        detailGrid.Location = new Point(pad, 364);
+        detailGrid.Size = new Size(contentW, 120);
+        detailGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        detailGrid.ScrollBars = ScrollBars.None;
+        parent.Controls.Add(detailGrid);
+
+        var paidLabel = ModernUi.Label(
+            $"Đã thanh toán: {Money(invoice.PaidAmount)} VNĐ",
+            9.2f,
+            FontStyle.Bold,
+            ModernUi.Green);
+
+        paidLabel.Location = new Point(pad, 492);
+        paidLabel.Size = new Size(contentW, 24);
+        parent.Controls.Add(paidLabel);
+
+        var remainLabel = ModernUi.Label(
+            $"Còn phải thu: {Money(remaining)} VNĐ",
+            9.2f,
+            FontStyle.Bold,
+            remaining > 0 ? ModernUi.Red : ModernUi.Green);
+
+        remainLabel.Location = new Point(pad, 518);
+        remainLabel.Size = new Size(contentW, 24);
+        parent.Controls.Add(remainLabel);
+
+        var total = ModernUi.Label(
+            $"TỔNG CỘNG: {Money(invoice.TotalAmount)} VNĐ",
+            11.5f,
+            FontStyle.Bold,
+            ModernUi.Red);
+
+        total.Location = new Point(pad, parent.Height - 44);
+        total.Size = new Size(contentW, 30);
+        total.TextAlign = ContentAlignment.MiddleRight;
+        parent.Controls.Add(total);
+
+        static void AddInfoPair(Control target, string label, string value, int x, int y, int width)
+        {
+            var caption = ModernUi.Label(label.ToUpperInvariant(), 8.1f, FontStyle.Bold, ModernUi.Muted);
+            caption.Location = new Point(x, y);
+            caption.Size = new Size(width, 18);
+            target.Controls.Add(caption);
+
+            var text = ModernUi.Label(Display(value), 9.4f, FontStyle.Bold, ModernUi.Text);
+            text.Location = new Point(x, y + 18);
+            text.Size = new Size(width, 24);
+            text.AutoEllipsis = true;
+            target.Controls.Add(text);
+        }
+
+        static string Initials(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return "HD";
+            }
+
+            var parts = text
+                .Trim()
+                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length == 1)
+            {
+                return parts[0].Length >= 2
+                    ? parts[0].Substring(0, 2).ToUpperInvariant()
+                    : parts[0].ToUpperInvariant();
+            }
+
+            return (parts[0][0].ToString() + parts[parts.Length - 1][0]).ToUpperInvariant();
+        }
+
+        static Color StatusColor(string? status)
+        {
+            string vi = ViStatus(status);
+
+            if (vi == "Đã thanh toán")
+            {
+                return ModernUi.Green;
+            }
+
+            if (vi == "Quá hạn")
+            {
+                return ModernUi.Red;
+            }
+
+            return ModernUi.Orange;
+        }
     }
 
 
