@@ -2846,7 +2846,7 @@ END";
             ("Mở trang báo cáo", () => Navigate("reports"))));
     }
 
-    private static void AddInvoiceQuickActions(Control actions)
+    private void AddInvoiceQuickActions(Control actions)
     {
         actions.Controls.Clear();
 
@@ -2867,14 +2867,47 @@ END";
         int y2 = y1 + tileH + gap;
         int y3 = y2 + tileH + gap;
 
-        AddActionTile(actions, "+", "Tạo hóa đơn", "Theo tháng", ModernUi.Blue, x1, y1, width: tileW, height: tileH);
-        AddActionTile(actions, "=", "Tính phí", "Tự động", ModernUi.Green, x2, y1, width: tileW, height: tileH);
+        var btnCreate = AddActionTile(actions, "+", "Tạo hóa đơn", "Theo tháng", ModernUi.Blue, x1, y1, width: tileW, height: tileH);
+        BindTileClick(btnCreate, (_, _) =>
+        {
+            OpenManagementDialog<FrmInvoiceManagement>();
+        });
 
-        AddActionTile(actions, "✓", "Cập nhật", "Thanh toán", ModernUi.Orange, x1, y2, width: tileW, height: tileH);
-        AddActionTile(actions, "P", "In hóa đơn", "Bản in", ModernUi.Purple, x2, y2, width: tileW, height: tileH);
+        var btnCalculate = AddActionTile(actions, "=", "Tính phí", "Tự động", ModernUi.Green, x2, y1, width: tileW, height: tileH);
+        BindTileClick(btnCalculate, (_, _) =>
+        {
+            OpenManagementDialog<FrmInvoiceManagement>();
+        });
 
-        AddActionTile(actions, "X", "Xuất Excel", "File Excel", ModernUi.Green, x1, y3, width: tileW, height: tileH);
-        AddActionTile(actions, "PDF", "Xuất PDF", "File PDF", ModernUi.Red, x2, y3, width: tileW, height: tileH);
+        var btnUpdate = AddActionTile(actions, "✓", "Cập nhật", "Thanh toán", ModernUi.Orange, x1, y2, width: tileW, height: tileH);
+        BindTileClick(btnUpdate, (_, _) =>
+        {
+            OpenManagementDialog<FrmInvoiceManagement>();
+        });
+
+        var btnPrint = AddActionTile(actions, "P", "In hóa đơn", "Bản in", ModernUi.Purple, x2, y2, width: tileW, height: tileH);
+        BindTileClick(btnPrint, (_, _) =>
+        {
+            OpenManagementDialog<FrmInvoiceManagement>();
+        });
+
+        var btnExportExcel = AddActionTile(actions, "X", "Xuất Excel", "File Excel", ModernUi.Green, x1, y3, width: tileW, height: tileH);
+        BindTileClick(btnExportExcel, (_, _) =>
+        {
+            SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("invoices"),
+                "CSV (*.csv)|*.csv",
+                "InvoiceExportCSV");
+        });
+
+        var btnExportPdf = AddActionTile(actions, "PDF", "Xuất PDF", "File PDF", ModernUi.Red, x2, y3, width: tileW, height: tileH);
+        BindTileClick(btnExportPdf, (_, _) =>
+        {
+            SaveGeneratedFile(
+                ReportsBLL.ExportDataToCSV("invoices"),
+                "CSV (*.csv)|*.csv",
+                "InvoiceExportForPDF");
+        });
     }
 
     private void RenderManagerDashboard()
@@ -3356,9 +3389,9 @@ END";
         lbl.Location = new Point(x, y);
         lbl.Size = new Size(170, 18);
         parent.Controls.Add(lbl);
-        var combo = ModernUi.ComboBox(new[] 
-        { 
-            selected, 
+        var combo = ModernUi.ComboBox(new[]
+        {
+            selected,
             "Tất cả",
             "Đã thanh toán",
             "Chưa thanh toán",
@@ -4785,10 +4818,10 @@ END";
     private void RenderResidents_Legacy()
     {
         var page = BeginPage("Quản lý cư dân", "");
-        #if false
+#if false
         var page = BeginPage("Quản lý hóa đơn & phí dịch vụ", "Dashboard / Hóa đơn & phí dịch vụ");
 
-        #endif
+#endif
         int w = PageWorkWidth();
         int y = 72;
         var residents = ResidentDAL.GetAllResidents();
@@ -5283,7 +5316,7 @@ END";
 #if false
         var page = BeginPage("Quản lý hóa đơn & phí dịch vụ", "Dashboard / Hóa đơn - phí dịch vụ");
 
-        #endif
+#endif
         var page = BeginPage("Quản lý hóa đơn & phí dịch vụ", "Dashboard / Hóa đơn & phí dịch vụ");
         int w = PageWorkWidth();
         int y = 72;
@@ -5641,7 +5674,7 @@ END";
         {
             invoicePagination.MoveToFirstPage();
             ApplyInvoiceFilters();
-        };  
+        };
 
         invoicePager.PreviousButton.Click += (_, _) =>
         {
@@ -5758,6 +5791,7 @@ END";
         var actions = ModernUi.Section("Thao tác nhanh", w - stats.Width - gap, 230);
         actions.Location = new Point(stats.Right + gap, y);
         AddInvoiceQuickActions(actions);
+
         page.Controls.Add(actions);
 
         void UpdateInvoiceStats()
