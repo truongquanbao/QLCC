@@ -749,12 +749,18 @@ public partial class FrmMainDashboard : Form
         if (!IsResident)
         {
             bool hideTopSearch =
-                title.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                title.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                title.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                breadcrumb.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                breadcrumb.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                breadcrumb.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0;
+                 title.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 title.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 title.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 title.IndexOf("phản ánh", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 title.IndexOf("thông báo", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 title.IndexOf("hợp đồng", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 breadcrumb.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 breadcrumb.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 breadcrumb.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 breadcrumb.IndexOf("phản ánh", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 breadcrumb.IndexOf("thông báo", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                 breadcrumb.IndexOf("hợp đồng", StringComparison.CurrentCultureIgnoreCase) >= 0;
 
             Panel search = null;
 
@@ -5842,108 +5848,430 @@ END";
     {
         var page = BeginPage("Phản ánh / Thông báo / Hợp đồng", "");
         int w = PageWorkWidth();
+        int gap = 12;
         int y = 72;
-        var complaintsData = ComplaintDAL.GetAllComplaints();
+
+        string activeTab = "complaints";
+        int complaintPage = 1;
+        const int pageSize = 10;
+
+        object[][] complaintRows =
+        {
+        new object[] { "☑", "PA240517-001", "Thang máy tòa A bị kẹt", "A-1205", "Thang máy", "Cao", "Đang xử lý", "17/05/2024 09:15" },
+        new object[] { "2", "PA240517-002", "Rò rỉ nước tại ban công", "B-0803", "Nước / Ống", "Trung bình", "Đang xử lý", "17/05/2024 10:02" },
+        new object[] { "3", "PA240517-003", "Đèn hành lang không sáng", "A-0512", "Điện chiếu sáng", "Thấp", "Đã tiếp nhận", "17/05/2024 11:20" },
+        new object[] { "4", "PA240517-004", "Tiếng ồn vào ban đêm", "B-1510", "An ninh / Trật tự", "Cao", "Đang xử lý", "17/05/2024 13:45" },
+        new object[] { "5", "PA240517-005", "Cửa kính sảnh bị nứt", "A-0102", "Cơ sở vật chất", "Trung bình", "Chờ phản hồi", "16/05/2024 16:30" },
+        new object[] { "6", "PA240516-021", "Nước yếu vào giờ cao điểm", "C-1210", "Nước / Ống", "Trung bình", "Đã xử lý", "16/05/2024 14:12" },
+        new object[] { "7", "PA240516-020", "Camera tầng hầm không hoạt động", "A-0908", "An ninh / Trật tự", "Cao", "Đang xử lý", "16/05/2024 09:41" },
+        new object[] { "8", "PA240515-018", "Bãi xe bị ngập khi mưa lớn", "B-0201", "Cơ sở vật chất", "Cao", "Đã xử lý", "15/05/2024 17:28" },
+        new object[] { "9", "PA240515-017", "Khuôn viên nhiều rác", "C-0506", "Vệ sinh", "Thấp", "Đã xử lý", "15/05/2024 11:05" },
+        new object[] { "10", "PA240515-016", "Điều hòa hành lang không mát", "A-1601", "Điều hòa", "Trung bình", "Đã tiếp nhận", "15/05/2024 09:32" },
+        new object[] { "11", "PA240514-015", "Thang máy kêu lớn", "B-1402", "Thang máy", "Cao", "Đang xử lý", "14/05/2024 08:20" },
+        new object[] { "12", "PA240514-014", "Mất nước tầng 9", "A-0901", "Nước / Ống", "Cao", "Chờ phản hồi", "14/05/2024 10:10" },
+        new object[] { "13", "PA240513-013", "Bóng đèn sảnh hỏng", "C-0101", "Điện chiếu sáng", "Thấp", "Đã xử lý", "13/05/2024 18:05" },
+        new object[] { "14", "PA240513-012", "Rác chưa được thu gom", "B-0304", "Vệ sinh", "Trung bình", "Đã tiếp nhận", "13/05/2024 09:40" },
+        new object[] { "15", "PA240512-011", "Khóa cửa tầng hầm hỏng", "A-0105", "Cơ sở vật chất", "Cao", "Đang xử lý", "12/05/2024 16:22" }
+    };
+
+        object[][] noticeRows =
+        {
+        new object[] { 1, "Bảo trì hệ thống PCCC định kỳ tháng 05/2024", "Khẩn", "Tòa A", "18/05/2024", "18/05/2024", "Đã gửi" },
+        new object[] { 2, "Thông báo tạm ngưng cấp nước", "Khẩn", "Tòa B, C", "20/05/2024", "20/05/2024", "Đã gửi" },
+        new object[] { 3, "Thông báo vệ sinh bể nước", "Thông thường", "Tòa A, B, C", "25/05/2024", "25/05/2024", "Đang soạn" },
+        new object[] { 4, "Cập nhật quy định gửi xe ô tô", "Thông thường", "Tất cả", "15/05/2024", "-", "Đã gửi" },
+        new object[] { 5, "Thay thẻ từ thang máy miễn phí tháng 05", "Thông thường", "Tất cả", "12/05/2024", "12/05/2024", "Đã gửi" }
+    };
+
+        object[][] contractRows =
+        {
+        new object[] { 1, "HD240201-001", "Nguyễn Văn An", "A-1205", "Hợp đồng mua bán", "28/05/2024", "11 ngày", "Sắp hết hạn" },
+        new object[] { 2, "HD231615-045", "Trần Thị Bình", "B-0803", "Hợp đồng thuê", "01/06/2024", "15 ngày", "Sắp hết hạn" },
+        new object[] { 3, "HD230722-032", "Lê Hoàng Nam", "C-0510", "Hợp đồng thuê", "05/06/2024", "19 ngày", "Sắp hết hạn" },
+        new object[] { 4, "HD230801-018", "Phạm Thu Hà", "A-0102", "Hợp đồng mua bán", "10/06/2024", "24 ngày", "Bình thường" },
+        new object[] { 5, "HD230930-009", "Đỗ Mạnh Hùng", "B-1604", "Hợp đồng thuê", "12/06/2024", "26 ngày", "Bình thường" }
+    };
 
         var actions = new Panel { Location = new Point(18, y), Size = new Size(w, 42), BackColor = ModernUi.Surface };
         page.Controls.Add(actions);
-        var receive = ModernUi.Button("+  Tiếp nhận phản ánh", ModernUi.Blue, 170, 38);
-        receive.Location = new Point(w - 520, 0);
+
+        var receive = ModernUi.Button("+  Tiếp nhận phản ánh", ModernUi.Blue, 190, 38);
+        receive.Location = new Point(w - 570, 0);
         actions.Controls.Add(receive);
-        var transfer = ModernUi.Button("⚒  Chuyển xử lý", ModernUi.Orange, 150, 38);
-        transfer.Location = new Point(w - 335, 0);
+
+        var transfer = ModernUi.Button("×  Chuyển xử lý", ModernUi.Orange, 175, 38);
+        transfer.Location = new Point(w - 365, 0);
         actions.Controls.Add(transfer);
-        var complete = ModernUi.Button("✓  Hoàn tất", ModernUi.Green, 140, 38);
-        complete.Location = new Point(w - 170, 0);
+
+        var complete = ModernUi.Button("✓  Hoàn tất", ModernUi.Green, 150, 38);
+        complete.Location = new Point(w - 175, 0);
         actions.Controls.Add(complete);
 
         y += 50;
+
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
-        filters.Size = new Size(w, 138);
-        string[] tabs = { "Phản ánh", "Thông báo", "Hợp đồng" };
-        for (int i = 0; i < tabs.Length; i++)
-        {
-            var tab = ModernUi.Label(tabs[i], 9.5f, i == 0 ? FontStyle.Bold : FontStyle.Regular, i == 0 ? ModernUi.Blue : ModernUi.Muted);
-            tab.Location = new Point(12 + i * 120, 4);
-            tab.Size = new Size(110, 26);
-            filters.Controls.Add(tab);
-        }
-        AddFilter(filters, "Tòa nhà", "Tất cả", 12, 34);
-        AddFilter(filters, "Căn hộ", "Tất cả", 180, 34);
-        AddFilter(filters, "Loại phản ánh", "Tất cả", 348, 34);
-        AddFilter(filters, "Ưu tiên", "Tất cả", 516, 34);
-        AddFilter(filters, "Trạng thái", "Tất cả", 684, 34);
-        AddFilter(filters, "Từ ngày", "01/05/2024", 12, 84);
-        AddFilter(filters, "Đến ngày", "17/05/2024", 180, 84);
+        filters.Size = new Size(w, 96);
         page.Controls.Add(filters);
 
-        y += 152;
-        int leftW = (int)(w * 0.52);
-        var list = ModernUi.Section($"Danh sách phản ánh ({complaintsData.Count:N0})", leftW, 400);
+        var tabComplaint = ModernUi.Label("▣  Phản ánh", 9.5f, FontStyle.Bold, ModernUi.Blue);
+        tabComplaint.Location = new Point(12, 4);
+        tabComplaint.Size = new Size(120, 24);
+        tabComplaint.Cursor = Cursors.Hand;
+        filters.Controls.Add(tabComplaint);
+
+        var tabNotice = ModernUi.Label("Thông báo", 9.5f, FontStyle.Regular, ModernUi.Muted);
+        tabNotice.Location = new Point(150, 4);
+        tabNotice.Size = new Size(120, 24);
+        tabNotice.Cursor = Cursors.Hand;
+        filters.Controls.Add(tabNotice);
+
+        var tabContract = ModernUi.Label("Hợp đồng", 9.5f, FontStyle.Regular, ModernUi.Muted);
+        tabContract.Location = new Point(288, 4);
+        tabContract.Size = new Size(120, 24);
+        tabContract.Cursor = Cursors.Hand;
+        filters.Controls.Add(tabContract);
+
+        ComboBox AddSmallCombo(string label, string[] items, int x, int width)
+        {
+            var lbl = ModernUi.Label(label, 8.2f, FontStyle.Bold, ModernUi.Text);
+            lbl.Location = new Point(x, 34);
+            lbl.Size = new Size(width, 18);
+            filters.Controls.Add(lbl);
+
+            var cbo = ModernUi.ComboBox(items, width);
+            cbo.Location = new Point(x, 54);
+            cbo.Height = 28;
+            filters.Controls.Add(cbo);
+            return cbo;
+        }
+
+        var cboBuilding = AddSmallCombo("Tòa nhà", new[] { "Tất cả", "Tòa A", "Tòa B", "Tòa C" }, 12, 130);
+        var cboApartment = AddSmallCombo("Căn hộ", new[] { "Tất cả", "A-1205", "B-0803", "A-0512", "B-1510" }, 154, 130);
+        var cboCategory = AddSmallCombo("Loại phản ánh", new[] { "Tất cả", "Thang máy", "Nước / Ống", "Điện chiếu sáng", "An ninh / Trật tự", "Cơ sở vật chất", "Vệ sinh", "Điều hòa" }, 296, 150);
+        var cboPriority = AddSmallCombo("Ưu tiên", new[] { "Tất cả", "Thấp", "Trung bình", "Cao" }, 458, 130);
+        var cboStatus = AddSmallCombo("Trạng thái", new[] { "Tất cả", "Đang xử lý", "Đã xử lý", "Đã tiếp nhận", "Chờ phản hồi" }, 600, 140);
+        var cboFrom = AddSmallCombo("Từ ngày", new[] { "01/05/2024", "10/05/2024", "15/05/2024" }, 752, 120);
+        var cboTo = AddSmallCombo("Đến ngày", new[] { "17/05/2024", "31/05/2024" }, 884, 120);
+
+        y += 110;
+
+        int leftW = (int)(w * 0.58);
+        int rightW = w - leftW - gap;
+
+        var list = ModernUi.Section("Danh sách phản ánh (128)", leftW, 390);
         list.Location = new Point(18, y);
-        var grid = CreateGrid(
-            new[] { "", "Mã phản ánh", "Tiêu đề", "Căn hộ", "Loại phản ánh", "Ưu tiên", "Trạng thái", "Ngày gửi" },
-            RowsOrEmpty(complaintsData.Take(50), 8, (c, i) => new object[]
-            {
-                i == 0 ? "☑" : (i + 1).ToString(),
-                $"PA{c.CreatedAt:yyMMdd}-{c.ComplaintID:000}",
-                c.Title,
-                c.ApartmentCode,
-                c.Category,
-                ViStatus(c.Priority),
-                ViStatus(c.Status),
-                DateTimeText(c.CreatedAt)
-            }));
-        grid.Location = new Point(12, 42);
-        grid.Size = new Size(list.Width - 24, 302);
-        list.Controls.Add(grid);
-        var paging = ModernUi.Label($"Hiển thị 1 - {Math.Min(50, complaintsData.Count)} / {complaintsData.Count} bản ghi",
-            9f, FontStyle.Regular, ModernUi.Text);
-        paging.Location = new Point(18, 354);
-        paging.Size = new Size(list.Width - 36, 30);
-        list.Controls.Add(paging);
         page.Controls.Add(list);
 
-        var detail = ModernUi.Section("Chi tiết phản ánh", w - leftW - 12, 400);
-        detail.Location = new Point(list.Right + 12, y);
-        AddComplaintDetail(detail, complaintsData.FirstOrDefault());
+        var grid = CreateGrid(
+            new[] { "", "Mã phản ánh", "Tiêu đề", "Căn hộ", "Loại phản ánh", "Ưu tiên", "Trạng thái", "Ngày gửi" },
+            Array.Empty<object[]>());
+
+        grid.Location = new Point(12, 42);
+        grid.Size = new Size(list.Width - 24, 280);
+        grid.ScrollBars = ScrollBars.Both;
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        grid.AllowUserToResizeColumns = true;
+        list.Controls.Add(grid);
+
+        var paging = ModernUi.Label("", 9f, FontStyle.Regular, ModernUi.Text);
+        paging.Location = new Point(18, 332);
+        paging.Size = new Size(list.Width - 36, 30);
+        paging.Cursor = Cursors.Hand;
+        list.Controls.Add(paging);
+
+        var detail = ModernUi.Section("Chi tiết phản ánh", rightW, 455);
+        detail.AutoScroll = true;
+
+        detail.Location = new Point(list.Right + gap, y);
         page.Controls.Add(detail);
 
-        y += 416;
-        var notices = ModernUi.Section("Thông báo mới nhất  3", (int)(w * 0.46), 238);
-        notices.Location = new Point(18, y);
-        var noticeGrid = CreateGrid(
-            new[] { "", "Tiêu đề", "Loại", "Tòa nhà", "Từ ngày", "Đến ngày", "Trạng thái" },
-            new object[][]
+        void SetWidths(DataGridView g, int[] widths)
+        {
+            g.ScrollBars = ScrollBars.Both;
+            g.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            for (int i = 0; i < g.Columns.Count && i < widths.Length; i++)
             {
-                new object[] { 1, "Bảo trì hệ thống PCCC định kỳ tháng 05/2024", "Khẩn", "Tòa A", "18/05/2024", "18/05/2024", "Đã gửi" },
-                new object[] { 2, "Thông báo tạm ngưng cấp nước", "Khẩn", "Tòa B, C", "20/05/2024", "20/05/2024", "Đã gửi" },
-                new object[] { 3, "Thông báo vệ sinh bể nước", "Thông thường", "Tòa A, B, C", "25/05/2024", "25/05/2024", "Đang soạn" },
-                new object[] { 4, "Cập nhật quy định gửi xe ô tô", "Thông thường", "Tất cả", "15/05/2024", "-", "Đã gửi" },
-                new object[] { 5, "Thay thẻ từ thang máy miễn phí tháng 05", "Thông thường", "Tất cả", "12/05/2024", "12/05/2024", "Đã gửi" }
-            });
-        noticeGrid.Location = new Point(12, 42);
-        noticeGrid.Size = new Size(notices.Width - 24, 150);
-        notices.Controls.Add(noticeGrid);
+                g.Columns[i].Width = widths[i];
+            }
+        }
+
+        void AddTitle(Control parent, string text, int x, int yPos)
+        {
+            var title = ModernUi.Label(text, 8.6f, FontStyle.Bold, ModernUi.Text);
+            title.Location = new Point(x, yPos);
+            title.Size = new Size(200, 22);
+            parent.Controls.Add(title);
+        }
+
+        void RenderDetail(object[] row)
+        {
+            detail.Controls.Clear();
+
+            AddTitle(detail, "Người gửi", 18, 42);
+            AddTitle(detail, "Người phụ trách", detail.Width / 2 + 20, 42);
+
+            var sender = ModernUi.Label("●  Nguyễn Văn An (Cư dân)\r\n    Căn hộ " + row[3] + " · Tòa A\r\n    0987 654 321", 8.6f, FontStyle.Regular, ModernUi.Text);
+            sender.Location = new Point(18, 66);
+            sender.Size = new Size(detail.Width / 2 - 34, 64);
+            detail.Controls.Add(sender);
+
+            var staff = ModernUi.Label("●  Trần Minh Tuấn (Kỹ thuật)\r\n    Phòng Kỹ thuật\r\n    0901 234 567", 8.6f, FontStyle.Regular, ModernUi.Text);
+            staff.Location = new Point(detail.Width / 2 + 20, 66);
+            staff.Size = new Size(detail.Width / 2 - 34, 64);
+            detail.Controls.Add(staff);
+
+            AddTitle(detail, "Nội dung phản ánh", 18, 138);
+
+            var content = new TextBox
+            {
+                Text = "Thang máy số 2 tại tòa A bị kẹt giữa tầng 8 và 9 khoảng 5 phút lúc 08:45 sáng nay, rất nguy hiểm cho người già và trẻ nhỏ.",
+                Location = new Point(18, 162),
+                Size = new Size(detail.Width / 2 - 34, 72),
+                Multiline = true,
+                ReadOnly = true,
+                Font = ModernUi.Font(8.5f)
+            };
+            detail.Controls.Add(content);
+
+            AddTitle(detail, "Trạng thái xử lý", detail.Width / 2 + 20, 138);
+            var status = ModernUi.ComboBox(new[] { "Đang xử lý", "Đã tiếp nhận", "Đã xử lý", "Chờ phản hồi" }, detail.Width / 2 - 34);
+            status.Location = new Point(detail.Width / 2 + 20, 162);
+            status.SelectedItem = row[6]?.ToString();
+            detail.Controls.Add(status);
+
+            AddTitle(detail, "Phản hồi xử lý", detail.Width / 2 + 20, 204);
+            var reply = new TextBox
+            {
+                Text = "Đã kiểm tra và xử lý tạm thời. Sẽ thay cảm biến mới trong ngày hôm nay.",
+                Location = new Point(detail.Width / 2 + 20, 228),
+                Size = new Size(detail.Width / 2 - 34, 64),
+                Multiline = true,
+                Font = ModernUi.Font(8.5f)
+            };
+            detail.Controls.Add(reply);
+
+            AddTitle(detail, "Ảnh đính kèm (2)", 18, 258);
+
+            for (int i = 0; i < 2; i++)
+            {
+                var img = new PictureBox
+                {
+                    Location = new Point(18 + i * 105, 272),
+                    Size = new Size(92, 74),
+                    BackColor = Color.FromArgb(220, 225, 232),
+                    BorderStyle = BorderStyle.FixedSingle,
+                    SizeMode = PictureBoxSizeMode.StretchImage
+                };
+                detail.Controls.Add(img);
+            }
+
+            var upload = ModernUi.OutlineButton("+ Thêm ảnh", 100, 28);
+            upload.Location = new Point(228, 306);
+            upload.Click += (_, _) =>
+            {
+                using var ofd = new OpenFileDialog
+                {
+                    Title = "Chọn ảnh phản ánh",
+                    Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp"
+                };
+
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    var img = detail.Controls.OfType<PictureBox>().FirstOrDefault();
+                    if (img != null)
+                    {
+                        img.Image = Image.FromFile(ofd.FileName);
+                    }
+                }
+            };
+            detail.Controls.Add(upload);
+
+            var rating = ModernUi.Label("Đánh giá hài lòng\r\n★ ★ ★ ★ ☆    (4/5)", 10f, FontStyle.Bold, ModernUi.Orange);
+            rating.Location = new Point(detail.Width / 2 + 20, 350);
+            rating.Size = new Size(220, 52);
+            detail.Controls.Add(rating);
+        }
+
+        void LoadComplaintPage()
+        {
+            IEnumerable<object[]> rows = complaintRows;
+
+            if (cboApartment.Text != "Tất cả") rows = rows.Where(r => r[3].ToString() == cboApartment.Text);
+            if (cboCategory.Text != "Tất cả") rows = rows.Where(r => r[4].ToString() == cboCategory.Text);
+            if (cboPriority.Text != "Tất cả") rows = rows.Where(r => r[5].ToString() == cboPriority.Text);
+            if (cboStatus.Text != "Tất cả") rows = rows.Where(r => r[6].ToString() == cboStatus.Text);
+
+            var filtered = rows.ToList();
+            int totalPages = Math.Max(1, (int)Math.Ceiling(filtered.Count / (double)pageSize));
+            complaintPage = Math.Min(Math.Max(1, complaintPage), totalPages);
+
+            var pageRows = filtered.Skip((complaintPage - 1) * pageSize).Take(pageSize).ToArray();
+
+            SetGridData(grid,
+                new[] { "", "Mã phản ánh", "Tiêu đề", "Căn hộ", "Loại phản ánh", "Ưu tiên", "Trạng thái", "Ngày gửi" },
+                pageRows);
+
+            SetWidths(grid, new[] { 48, 128, 210, 90, 140, 90, 120, 150 });
+
+            int start = filtered.Count == 0 ? 0 : (complaintPage - 1) * pageSize + 1;
+            int end = Math.Min(complaintPage * pageSize, filtered.Count);
+            paging.Text = $"Hiển thị {start} - {end} / {filtered.Count} bản ghi      ‹    1    2    3    4    5    ...    {totalPages}    ›";
+
+            if (pageRows.Length > 0)
+            {
+                RenderDetail(pageRows[0]);
+            }
+        }
+
+        void SetActiveTab(string tab)
+        {
+            activeTab = tab;
+
+            tabComplaint.ForeColor = tab == "complaints" ? ModernUi.Blue : ModernUi.Muted;
+            tabNotice.ForeColor = tab == "notices" ? ModernUi.Blue : ModernUi.Muted;
+            tabContract.ForeColor = tab == "contracts" ? ModernUi.Blue : ModernUi.Muted;
+
+            if (tab == "complaints")
+            {
+                complaintPage = 1;
+                LoadComplaintPage();
+                return;
+            }
+
+            if (tab == "notices")
+            {
+                SetGridData(grid,
+                    new[] { "", "Tiêu đề", "Loại", "Tòa nhà", "Từ ngày", "Đến ngày", "Trạng thái" },
+                    noticeRows);
+                SetWidths(grid, new[] { 50, 260, 100, 100, 120, 120, 110 });
+                paging.Text = $"Hiển thị 1 - {noticeRows.Length} / {noticeRows.Length} thông báo";
+                detail.Controls.Clear();
+                AddTitle(detail, "Chi tiết thông báo", 18, 42);
+                return;
+            }
+
+            SetGridData(grid,
+                new[] { "", "Mã hợp đồng", "Khách hàng", "Căn hộ", "Loại hợp đồng", "Ngày hết hạn", "Số ngày còn lại", "Trạng thái" },
+                contractRows);
+            SetWidths(grid, new[] { 50, 130, 160, 90, 150, 120, 120, 120 });
+            paging.Text = $"Hiển thị 1 - {contractRows.Length} / {contractRows.Length} hợp đồng";
+            detail.Controls.Clear();
+            AddTitle(detail, "Chi tiết hợp đồng", 18, 42);
+        }
+
+        tabComplaint.Click += (_, _) => SetActiveTab("complaints");
+        tabNotice.Click += (_, _) => SetActiveTab("notices");
+        tabContract.Click += (_, _) => SetActiveTab("contracts");
+
+        cboBuilding.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+        cboApartment.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+        cboCategory.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+        cboPriority.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+        cboStatus.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+        cboFrom.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+        cboTo.SelectedIndexChanged += (_, _) => { complaintPage = 1; LoadComplaintPage(); };
+
+        grid.CellClick += (_, e) =>
+        {
+            if (e.RowIndex < 0 || activeTab != "complaints") return;
+
+            object[] row = new object[grid.Columns.Count];
+            for (int i = 0; i < grid.Columns.Count; i++)
+            {
+                row[i] = grid.Rows[e.RowIndex].Cells[i].Value ?? "";
+            }
+
+            RenderDetail(row);
+        };
+
+        void ChangeSelectedStatus(string status)
+        {
+            if (activeTab != "complaints" || grid.CurrentRow == null)
+            {
+                MessageBox.Show("Vui lòng chọn một phản ánh trước.", "Thông báo");
+                return;
+            }
+
+            grid.CurrentRow.Cells[6].Value = status;
+
+            object[] row = new object[grid.Columns.Count];
+            for (int i = 0; i < grid.Columns.Count; i++)
+            {
+                row[i] = grid.CurrentRow.Cells[i].Value ?? "";
+            }
+
+            RenderDetail(row);
+        }
+
+        paging.Click += (_, _) =>
+        {
+            if (activeTab != "complaints") return;
+            complaintPage++;
+            int maxPage = Math.Max(1, (int)Math.Ceiling(complaintRows.Length / (double)pageSize));
+            if (complaintPage > maxPage) complaintPage = 1;
+            LoadComplaintPage();
+        };
+
+        SetActiveTab("complaints");
+
+        y += 408;
+
+        int bottomW = (w - gap) / 2;
+
+        var notices = ModernUi.Section("Thông báo mới nhất   3", bottomW, 238);
+        notices.Location = new Point(18, y);
         page.Controls.Add(notices);
 
-        var contracts = ModernUi.Section("Hợp đồng sắp hết hạn (trong 30 ngày)", w - notices.Width - 12, 238);
-        contracts.Location = new Point(notices.Right + 12, y);
-        var contractGrid = CreateGrid(
-            new[] { "", "Mã hợp đồng", "Khách hàng", "Căn hộ", "Loại hợp đồng", "Ngày hết hạn", "Số ngày còn lại", "Trạng thái" },
-            new object[][]
-            {
-                new object[] { 1, "HD240201-001", "Nguyễn Văn An", "A-1205", "Hợp đồng mua bán", "28/05/2024", "11 ngày", "Sắp hết hạn" },
-                new object[] { 2, "HD231615-045", "Trần Thị Bình", "B-0803", "Hợp đồng thuê", "01/06/2024", "15 ngày", "Sắp hết hạn" },
-                new object[] { 3, "HD230722-032", "Lê Hoàng Nam", "C-0510", "Hợp đồng thuê", "05/06/2024", "19 ngày", "Sắp hết hạn" },
-                new object[] { 4, "HD230801-018", "Phạm Thu Hà", "A-0102", "Hợp đồng mua bán", "10/06/2024", "24 ngày", "Bình thường" },
-                new object[] { 5, "HD230930-009", "Đỗ Mạnh Hùng", "B-1604", "Hợp đồng thuê", "12/06/2024", "26 ngày", "Bình thường" }
-            });
-        contractGrid.Location = new Point(12, 42);
-        contractGrid.Size = new Size(contracts.Width - 24, 150);
-        contracts.Controls.Add(contractGrid);
+        var noticeGrid = CreateGrid(new[] { "", "Tiêu đề", "Loại", "Tòa nhà", "Từ ngày", "Đến ngày", "Trạng thái" }, noticeRows);
+        noticeGrid.Location = new Point(12, 42);
+        noticeGrid.Size = new Size(notices.Width - 24, 140);
+        noticeGrid.ScrollBars = ScrollBars.Both;
+        noticeGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        notices.Controls.Add(noticeGrid);
+        SetWidths(noticeGrid, new[] { 50, 260, 100, 100, 120, 120, 110 });
+
+        var viewAllNotice = new LinkLabel
+        {
+            Text = "Xem tất cả thông báo  →",
+            Location = new Point(18, 198),
+            Size = new Size(220, 28),
+            Font = ModernUi.Font(9f, FontStyle.Bold),
+            LinkColor = ModernUi.Blue
+        };
+        viewAllNotice.Click += (_, _) => SetActiveTab("notices");
+        notices.Controls.Add(viewAllNotice);
+
+        var contracts = ModernUi.Section("Hợp đồng sắp hết hạn (trong 30 ngày)", bottomW, 238);
+        contracts.Location = new Point(notices.Right + gap, y);
         page.Controls.Add(contracts);
+
+        var extendBtn = ModernUi.Button("Gia hạn hợp đồng", ModernUi.Blue, 130, 28);
+        extendBtn.Location = new Point(contracts.Width - 150, 12);
+        contracts.Controls.Add(extendBtn);
+        extendBtn.Click += (_, _) => MessageBox.Show("Mở chức năng gia hạn hợp đồng.", "Gia hạn hợp đồng");
+
+        var contractGrid = CreateGrid(new[] { "", "Mã hợp đồng", "Khách hàng", "Căn hộ", "Loại hợp đồng", "Ngày hết hạn", "Số ngày còn lại", "Trạng thái" }, contractRows);
+        contractGrid.Location = new Point(12, 42);
+        contractGrid.Size = new Size(contracts.Width - 24, 140);
+        contractGrid.ScrollBars = ScrollBars.Both;
+        contractGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        contracts.Controls.Add(contractGrid);
+        SetWidths(contractGrid, new[] { 50, 130, 160, 90, 150, 120, 120, 120 });
+
+        var viewAllContract = new LinkLabel
+        {
+            Text = "Xem tất cả hợp đồng  →",
+            Location = new Point(18, 198),
+            Size = new Size(220, 28),
+            Font = ModernUi.Font(9f, FontStyle.Bold),
+            LinkColor = ModernUi.Blue
+        };
+        viewAllContract.Click += (_, _) => SetActiveTab("contracts");
+        contracts.Controls.Add(viewAllContract);
+
+        page.AutoScroll = true;
+        page.AutoScrollMinSize = new Size(0, y + 300);
     }
 
     private void RenderVehicles()
