@@ -23,7 +23,10 @@ public class VehicleBLL
         string model,
         int yearMade,
         string? color = null,
-        string? note = null)
+        string? note = null,
+        string? parkingArea = null,
+        string? cardNumber = null,
+        DateTime? expiresAt = null)
     {
         try
         {
@@ -40,7 +43,7 @@ public class VehicleBLL
             if (string.IsNullOrWhiteSpace(vehicleType))
                 return (false, "Vehicle type is required.", 0);
 
-            var validTypes = new[] { "Car", "Motorcycle", "Truck", "Bus", "Bicycle", "Scooter", "Other" };
+            var validTypes = new[] { "Car", "Motorcycle", "Motorbike", "Truck", "Bus", "Bicycle", "ElectricBike", "Scooter", "Other" };
             if (!validTypes.ToList().Contains(vehicleType))
                 return (false, "Invalid vehicle type.", 0);
 
@@ -74,9 +77,9 @@ public class VehicleBLL
                 residentID,
                 vehicleType,
                 licensePlate,
-                color,
+                color ?? string.Empty,
                 brand,
-                BuildVehicleNote(model, yearMade, note)
+                BuildVehicleNote(model, yearMade, note, parkingArea, cardNumber, expiresAt)
             );
 
             if (vehicleID > 0)
@@ -105,7 +108,10 @@ public class VehicleBLL
         string model,
         int yearMade,
         string? color = null,
-        string? note = null)
+        string? note = null,
+        string? parkingArea = null,
+        string? cardNumber = null,
+        DateTime? expiresAt = null)
     {
         try
         {
@@ -128,7 +134,7 @@ public class VehicleBLL
             if (yearMade < 1980 || yearMade > DateTime.Now.Year)
                 return (false, $"Year made must be between 1980 and {DateTime.Now.Year}.");
 
-            var validTypes = new[] { "Car", "Motorcycle", "Truck", "Bus", "Bicycle", "Scooter", "Other" };
+            var validTypes = new[] { "Car", "Motorcycle", "Motorbike", "Truck", "Bus", "Bicycle", "ElectricBike", "Scooter", "Other" };
             if (!validTypes.ToList().Contains(vehicleType))
                 return (false, "Invalid vehicle type.");
 
@@ -145,10 +151,11 @@ public class VehicleBLL
             // Update vehicle
             var success = VehicleDAL.UpdateVehicle(
                 vehicleID,
+                licensePlate,
                 vehicleType,
-                color,
+                color ?? string.Empty,
                 brand,
-                BuildVehicleNote(model, yearMade, note)
+                BuildVehicleNote(model, yearMade, note, parkingArea, cardNumber, expiresAt)
             );
 
             if (success)
@@ -198,6 +205,32 @@ public class VehicleBLL
     }
 
     /// <summary>
+    /// Update vehicle status only.
+    /// </summary>
+    public static (bool Success, string Message) UpdateVehicleStatus(int vehicleID, string status)
+    {
+        try
+        {
+            if (vehicleID <= 0)
+                return (false, "Invalid vehicle ID.");
+
+            var validStatuses = new[] { "Active", "Inactive", "Pending", "Expired", "Sold" };
+            if (!validStatuses.Contains(status))
+                return (false, "Invalid vehicle status.");
+
+            var success = VehicleDAL.UpdateVehicleStatus(vehicleID, status);
+            return success
+                ? (true, "Vehicle status updated successfully.")
+                : (false, "Failed to update vehicle status.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating vehicle status");
+            return (false, $"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Get vehicles by resident
     /// </summary>
     public static List<dynamic> GetVehiclesByResident(int residentID)
@@ -216,10 +249,13 @@ public class VehicleBLL
         }
     }
 
-    private static string? BuildVehicleNote(string model, int yearMade, string? note)
+    private static string? BuildVehicleNote(string model, int yearMade, string? note, string? parkingArea = null, string? cardNumber = null, DateTime? expiresAt = null)
     {
         string safeNote = note ?? string.Empty;
-        return $"MODEL={model};YEAR={yearMade};NOTE={safeNote}";
+        string safeArea = parkingArea ?? string.Empty;
+        string safeCard = cardNumber ?? string.Empty;
+        string safeExpires = expiresAt.HasValue ? expiresAt.Value.ToString("yyyy-MM-dd") : string.Empty;
+        return $"MODEL={model};YEAR={yearMade};AREA={safeArea};CARD={safeCard};EXPIRES={safeExpires};NOTE={safeNote}";
     }
 
     /// <summary>

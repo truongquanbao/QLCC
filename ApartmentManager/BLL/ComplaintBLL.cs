@@ -20,6 +20,15 @@ public class ComplaintBLL
         string title,
         string description,
         string priority = "Medium")
+        => CreateComplaint(residentID, title, description, "General", priority, null);
+
+    public static (bool Success, string Message, int ComplaintID) CreateComplaint(
+        int residentID,
+        string title,
+        string description,
+        string category,
+        string priority,
+        string imageAttachmentPath)
     {
         try
         {
@@ -43,6 +52,9 @@ public class ComplaintBLL
             if (!validPriorities.ToList().Contains(priority))
                 return (false, "Invalid priority level.", 0);
 
+            if (string.IsNullOrWhiteSpace(category))
+                category = "General";
+
             // Check if resident exists
             var resident = ResidentDAL.GetResidentByID(residentID);
             if (resident == null)
@@ -54,8 +66,9 @@ public class ComplaintBLL
                 resident.ApartmentID,
                 title,
                 description,
-                "General",
-                priority
+                category,
+                priority,
+                imageAttachmentPath
             );
 
             if (complaintID > 0)
@@ -191,6 +204,33 @@ public class ComplaintBLL
         catch (Exception ex)
         {
             Log.Error(ex, "Error resolving complaint");
+            return (false, $"Error: {ex.Message}");
+        }
+    }
+
+    public static (bool Success, string Message) UpdateComplaintStatus(int complaintID, string status)
+    {
+        try
+        {
+            if (complaintID <= 0)
+                return (false, "Invalid complaint ID.");
+
+            var validStatuses = new[] { "New", "Open", "InProgress", "Resolved", "Closed" };
+            if (!validStatuses.Contains(status))
+                return (false, "Invalid complaint status.");
+
+            var complaint = ComplaintDAL.GetComplaintByID(complaintID);
+            if (complaint == null)
+                return (false, "Complaint not found.");
+
+            var success = ComplaintDAL.UpdateComplaintStatus(complaintID, status);
+            return success
+                ? (true, "Complaint status updated successfully.")
+                : (false, "Failed to update complaint status.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating complaint status");
             return (false, $"Error: {ex.Message}");
         }
     }

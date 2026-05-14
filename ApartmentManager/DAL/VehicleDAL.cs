@@ -11,6 +11,18 @@ namespace ApartmentManager.DAL;
 /// </summary>
 public class VehicleDAL
 {
+    private const string VehicleSelect = @"
+                SELECT v.VehicleID, v.ResidentID, r.FullName, v.VehicleType, v.LicensePlate,
+                       v.Color, v.Brand, v.Status, v.Note, v.CreatedAt, v.UpdatedAt,
+                       r.Phone, r.ApartmentID, a.ApartmentCode, b.BuildingName, bl.BlockName, f.FloorNumber
+                FROM Vehicles v
+                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
+                LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
+                LEFT JOIN Floors f ON a.FloorID = f.FloorID
+                LEFT JOIN Blocks bl ON f.BlockID = bl.BlockID
+                LEFT JOIN Buildings b ON bl.BuildingID = b.BuildingID
+            ";
+
     /// <summary>
     /// Get vehicle by ID
     /// </summary>
@@ -18,11 +30,7 @@ public class VehicleDAL
     {
         try
         {
-            const string query = @"
-                SELECT v.VehicleID, v.ResidentID, r.FullName, v.VehicleType, v.LicensePlate,
-                       v.Color, v.Brand, v.Status, v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Vehicles v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
+            const string query = VehicleSelect + @"
                 WHERE v.VehicleID = @VehicleID
             ";
 
@@ -57,11 +65,7 @@ public class VehicleDAL
     {
         try
         {
-            const string query = @"
-                SELECT v.VehicleID, v.ResidentID, r.FullName, v.VehicleType, v.LicensePlate,
-                       v.Color, v.Brand, v.Status, v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Vehicles v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
+            const string query = VehicleSelect + @"
                 WHERE v.LicensePlate = @LicensePlate
             ";
 
@@ -98,11 +102,7 @@ public class VehicleDAL
 
         try
         {
-            const string query = @"
-                SELECT v.VehicleID, v.ResidentID, r.FullName, v.VehicleType, v.LicensePlate,
-                       v.Color, v.Brand, v.Status, v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Vehicles v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
+            const string query = VehicleSelect + @"
                 WHERE v.ResidentID = @ResidentID
                 ORDER BY v.CreatedAt DESC
             ";
@@ -139,11 +139,7 @@ public class VehicleDAL
 
         try
         {
-            const string query = @"
-                SELECT v.VehicleID, v.ResidentID, r.FullName, v.VehicleType, v.LicensePlate,
-                       v.Color, v.Brand, v.Status, v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Vehicles v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
+            const string query = VehicleSelect + @"
                 ORDER BY r.FullName, v.LicensePlate
             ";
 
@@ -172,8 +168,8 @@ public class VehicleDAL
     /// <summary>
     /// Create vehicle
     /// </summary>
-    public static int CreateVehicle(int residentID, string vehicleType, string licensePlate, 
-                                    string color, string brand, string? note = null)
+    public static int CreateVehicle(int residentID, string vehicleType, string licensePlate,
+                                    string color, string brand, string note = null)
     {
         try
         {
@@ -223,7 +219,7 @@ public class VehicleDAL
     /// <summary>
     /// Update vehicle
     /// </summary>
-    public static bool UpdateVehicle(int vehicleID, string vehicleType, string color, string brand, string? note = null)
+    public static bool UpdateVehicle(int vehicleID, string vehicleType, string color, string brand, string note = null)
     {
         try
         {
@@ -248,6 +244,50 @@ public class VehicleDAL
 
                     Log.Information("Vehicle updated: {VehicleID}", vehicleID);
                     return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating vehicle: {VehicleID}", vehicleID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Update vehicle including license plate.
+    /// </summary>
+    public static bool UpdateVehicle(int vehicleID, string licensePlate, string vehicleType, string color, string brand, string note = null)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Vehicles
+                SET LicensePlate = @LicensePlate,
+                    VehicleType = @VehicleType,
+                    Color = @Color,
+                    Brand = @Brand,
+                    Note = @Note,
+                    UpdatedAt = GETDATE()
+                WHERE VehicleID = @VehicleID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@VehicleID", vehicleID);
+                    command.Parameters.AddWithValue("@LicensePlate", licensePlate);
+                    command.Parameters.AddWithValue("@VehicleType", vehicleType);
+                    command.Parameters.AddWithValue("@Color", color ?? string.Empty);
+                    command.Parameters.AddWithValue("@Brand", brand ?? string.Empty);
+                    command.Parameters.AddWithValue("@Note", note ?? (object)DBNull.Value);
+
+                    connection.Open();
+                    int affected = command.ExecuteNonQuery();
+
+                    Log.Information("Vehicle updated: {VehicleID}", vehicleID);
+                    return affected > 0;
                 }
             }
         }
@@ -358,47 +398,113 @@ public class VehicleDAL
     /// </summary>
     private static dynamic MapVehicle(SqlDataReader reader)
     {
-        string? rawNote = reader.IsDBNull(8) ? null : reader.GetString(8);
-        string? note = rawNote;
-        string model = string.Empty;
-        int yearMade = DateTime.Now.Year;
+        int vehicleID = reader.GetInt32(0);
+        string vehicleType = reader.GetString(3);
+        string rawNote = reader.IsDBNull(8) ? string.Empty : reader.GetString(8);
+        var metadata = ParseVehicleNote(rawNote);
 
-        if (!string.IsNullOrWhiteSpace(rawNote) && rawNote.StartsWith("MODEL=", StringComparison.OrdinalIgnoreCase))
+        string model = metadata.TryGetValue("MODEL", out var modelValue) ? modelValue : string.Empty;
+        string note = metadata.TryGetValue("NOTE", out var noteValue) ? noteValue : rawNote;
+        string cardNumber = metadata.TryGetValue("CARD", out var cardValue) && !string.IsNullOrWhiteSpace(cardValue)
+            ? cardValue
+            : $"TH{vehicleID:000000}";
+        string parkingArea = metadata.TryGetValue("AREA", out var areaValue) && !string.IsNullOrWhiteSpace(areaValue)
+            ? areaValue
+            : InferParkingArea(vehicleType, note);
+
+        int yearMade = DateTime.Now.Year;
+        if (metadata.TryGetValue("YEAR", out var yearValue) &&
+            int.TryParse(yearValue, out var parsedYear))
         {
-            foreach (var part in rawNote.Split(';', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (part.StartsWith("MODEL=", StringComparison.OrdinalIgnoreCase))
-                {
-                    model = part.Substring("MODEL=".Length);
-                }
-                else if (part.StartsWith("YEAR=", StringComparison.OrdinalIgnoreCase) &&
-                         int.TryParse(part.Substring("YEAR=".Length), out var parsedYear))
-                {
-                    yearMade = parsedYear;
-                }
-                else if (part.StartsWith("NOTE=", StringComparison.OrdinalIgnoreCase))
-                {
-                    note = part.Substring("NOTE=".Length);
-                }
-            }
+            yearMade = parsedYear;
+        }
+
+        DateTime createdAt = reader.GetDateTime(9);
+        DateTime expiredAt = createdAt.AddYears(1);
+        if (metadata.TryGetValue("EXPIRES", out var expiresValue) &&
+            DateTime.TryParse(expiresValue, out var parsedExpires))
+        {
+            expiredAt = parsedExpires;
         }
 
         return new
         {
-            VehicleID = reader.GetInt32(0),
+            VehicleID = vehicleID,
             ResidentID = reader.GetInt32(1),
             FullName = reader.GetString(2),
-            VehicleType = reader.GetString(3),
+            ResidentName = reader.GetString(2),
+            OwnerName = reader.GetString(2),
+            VehicleType = vehicleType,
             LicensePlate = reader.GetString(4),
+            PlateNumber = reader.GetString(4),
             Color = reader.GetString(5),
             Brand = reader.GetString(6),
             Status = reader.GetString(7),
             Model = model,
             YearMade = yearMade,
             Note = note,
-            CreatedAt = reader.GetDateTime(9),
-            UpdatedAt = reader.GetDateTime(10)
+            RawNote = rawNote,
+            CardNumber = cardNumber,
+            ParkingArea = parkingArea,
+            Area = parkingArea,
+            ExpiredAt = expiredAt,
+            CreatedAt = createdAt,
+            RegisteredAt = createdAt,
+            UpdatedAt = reader.GetDateTime(10),
+            Phone = reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+            ApartmentID = reader.IsDBNull(12) ? 0 : reader.GetInt32(12),
+            ApartmentCode = reader.IsDBNull(13) ? string.Empty : reader.GetString(13),
+            BuildingName = reader.IsDBNull(14) ? string.Empty : reader.GetString(14),
+            BlockName = reader.IsDBNull(15) ? string.Empty : reader.GetString(15),
+            FloorNumber = reader.IsDBNull(16) ? 0 : reader.GetInt32(16)
         };
+    }
+
+    private static Dictionary<string, string> ParseVehicleNote(string rawNote)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(rawNote) || !rawNote.Contains('='))
+        {
+            return values;
+        }
+
+        foreach (var part in rawNote.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int separator = part.IndexOf('=');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            string key = part.Substring(0, separator).Trim();
+            string value = separator + 1 < part.Length ? part.Substring(separator + 1).Trim() : string.Empty;
+            values[key] = value;
+        }
+
+        return values;
+    }
+
+    private static string InferParkingArea(string vehicleType, string note)
+    {
+        string combined = $"{vehicleType} {note}";
+        if (combined.Contains("B2", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Hầm B2";
+        }
+
+        if (combined.Contains("B1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(vehicleType, "Car", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Hầm B1";
+        }
+
+        if (string.Equals(vehicleType, "Bicycle", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(vehicleType, "ElectricBike", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Khu xe đạp";
+        }
+
+        return "Khu ngoài trời";
     }
 }
 

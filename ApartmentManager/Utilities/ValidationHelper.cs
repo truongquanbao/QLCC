@@ -93,12 +93,14 @@ public static class ValidationHelper
         if (string.IsNullOrWhiteSpace(licensePlate))
             return false;
 
-        var cleaned = licensePlate.Replace(" ", "").ToUpper();
+        var cleaned = licensePlate.Replace(" ", "").ToUpperInvariant();
 
-        // Vietnamese format: 2 digits - 4 digits - 2 letters (e.g., 30-12345-AB)
-        // Also accepts: XX-0000-XX format
+        // Common Vietnamese formats: 51G-248.68, 59X2-120.05, 30-12345-AB.
+        // The final fallback keeps internal asset plates such as BIKE-F301 valid.
         return Regex.IsMatch(cleaned, @"^\d{2}-\d{4,5}-[A-Z]{2}$") ||
-               Regex.IsMatch(cleaned, @"^[A-Z]{2}\d{1,3}[A-Z]{2}\d{3,4}$"); // Alternative format
+               Regex.IsMatch(cleaned, @"^\d{2}[A-Z]\d?-\d{3}\.\d{2}$") ||
+               Regex.IsMatch(cleaned, @"^[A-Z]{2}\d{1,3}[A-Z]{2}\d{3,4}$") ||
+               Regex.IsMatch(cleaned, @"^[A-Z0-9]{2,8}-[A-Z0-9]{2,8}$");
     }
 
     /// <summary>

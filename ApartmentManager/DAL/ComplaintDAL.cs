@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.Utilities;
@@ -20,8 +20,10 @@ public class ComplaintDAL
         {
             const string query = @"
                 SELECT c.ComplaintID, c.ResidentID, r.FullName, c.ApartmentID, a.ApartmentCode,
-                       c.Title, c.Description, c.Category, c.Priority, c.Status, c.AssignedToUserID,
-                       ISNULL(u.Username, 'Unassigned') as AssignedTo, c.CreatedAt, c.UpdatedAt
+                       c.Title, c.Description, c.Category, c.ComplaintType, c.Priority, c.Status, c.AssignedToUserID,
+                       ISNULL(u.Username, 'Unassigned') as AssignedTo,
+                       ISNULL(NULLIF(u.FullName, ''), ISNULL(u.Username, N'Chưa phân công')) as AssignedToName,
+                       c.ResolutionNotes, c.ImageAttachmentPath, c.SatisfactionRating, c.CreatedAt, c.UpdatedAt
                 FROM Complaints c
                 INNER JOIN Residents r ON c.ResidentID = r.ResidentID
                 INNER JOIN Apartments a ON c.ApartmentID = a.ApartmentID
@@ -64,8 +66,10 @@ public class ComplaintDAL
         {
             const string query = @"
                 SELECT c.ComplaintID, c.ResidentID, r.FullName, c.ApartmentID, a.ApartmentCode,
-                       c.Title, c.Description, c.Category, c.Priority, c.Status, c.AssignedToUserID,
-                       ISNULL(u.Username, 'Unassigned') as AssignedTo, c.CreatedAt, c.UpdatedAt
+                       c.Title, c.Description, c.Category, c.ComplaintType, c.Priority, c.Status, c.AssignedToUserID,
+                       ISNULL(u.Username, 'Unassigned') as AssignedTo,
+                       ISNULL(NULLIF(u.FullName, ''), ISNULL(u.Username, N'Chưa phân công')) as AssignedToName,
+                       c.ResolutionNotes, c.ImageAttachmentPath, c.SatisfactionRating, c.CreatedAt, c.UpdatedAt
                 FROM Complaints c
                 INNER JOIN Residents r ON c.ResidentID = r.ResidentID
                 INNER JOIN Apartments a ON c.ApartmentID = a.ApartmentID
@@ -106,8 +110,10 @@ public class ComplaintDAL
         {
             const string query = @"
                 SELECT c.ComplaintID, c.ResidentID, r.FullName, c.ApartmentID, a.ApartmentCode,
-                       c.Title, c.Description, c.Category, c.Priority, c.Status, c.AssignedToUserID,
-                       ISNULL(u.Username, 'Unassigned') as AssignedTo, c.CreatedAt, c.UpdatedAt
+                       c.Title, c.Description, c.Category, c.ComplaintType, c.Priority, c.Status, c.AssignedToUserID,
+                       ISNULL(u.Username, 'Unassigned') as AssignedTo,
+                       ISNULL(NULLIF(u.FullName, ''), ISNULL(u.Username, N'Chưa phân công')) as AssignedToName,
+                       c.ResolutionNotes, c.ImageAttachmentPath, c.SatisfactionRating, c.CreatedAt, c.UpdatedAt
                 FROM Complaints c
                 INNER JOIN Residents r ON c.ResidentID = r.ResidentID
                 INNER JOIN Apartments a ON c.ApartmentID = a.ApartmentID
@@ -150,8 +156,10 @@ public class ComplaintDAL
         {
             const string query = @"
                 SELECT c.ComplaintID, c.ResidentID, r.FullName, c.ApartmentID, a.ApartmentCode,
-                       c.Title, c.Description, c.Category, c.Priority, c.Status, c.AssignedToUserID,
-                       ISNULL(u.Username, 'Unassigned') as AssignedTo, c.CreatedAt, c.UpdatedAt
+                       c.Title, c.Description, c.Category, c.ComplaintType, c.Priority, c.Status, c.AssignedToUserID,
+                       ISNULL(u.Username, 'Unassigned') as AssignedTo,
+                       ISNULL(NULLIF(u.FullName, ''), ISNULL(u.Username, N'Chưa phân công')) as AssignedToName,
+                       c.ResolutionNotes, c.ImageAttachmentPath, c.SatisfactionRating, c.CreatedAt, c.UpdatedAt
                 FROM Complaints c
                 INNER JOIN Residents r ON c.ResidentID = r.ResidentID
                 INNER JOIN Apartments a ON c.ApartmentID = a.ApartmentID
@@ -194,8 +202,10 @@ public class ComplaintDAL
         {
             const string query = @"
                 SELECT c.ComplaintID, c.ResidentID, r.FullName, c.ApartmentID, a.ApartmentCode,
-                       c.Title, c.Description, c.Category, c.Priority, c.Status, c.AssignedToUserID,
-                       ISNULL(u.Username, 'Unassigned') as AssignedTo, c.CreatedAt, c.UpdatedAt
+                       c.Title, c.Description, c.Category, c.ComplaintType, c.Priority, c.Status, c.AssignedToUserID,
+                       ISNULL(u.Username, 'Unassigned') as AssignedTo,
+                       ISNULL(NULLIF(u.FullName, ''), ISNULL(u.Username, N'Chưa phân công')) as AssignedToName,
+                       c.ResolutionNotes, c.ImageAttachmentPath, c.SatisfactionRating, c.CreatedAt, c.UpdatedAt
                 FROM Complaints c
                 INNER JOIN Residents r ON c.ResidentID = r.ResidentID
                 INNER JOIN Apartments a ON c.ApartmentID = a.ApartmentID
@@ -231,13 +241,13 @@ public class ComplaintDAL
     /// Create complaint
     /// </summary>
     public static int CreateComplaint(int residentID, int apartmentID, string title, string description,
-                                      string category, string priority)
+                                      string category, string priority, string imageAttachmentPath = null)
     {
         try
         {
             const string query = @"
-                INSERT INTO Complaints (ResidentID, ApartmentID, Title, Description, Category, Priority, Status)
-                VALUES (@ResidentID, @ApartmentID, @Title, @Description, @Category, @Priority, 'Open')
+                INSERT INTO Complaints (ResidentID, ApartmentID, Title, Description, Category, ComplaintType, Priority, Status, ImageAttachmentPath)
+                VALUES (@ResidentID, @ApartmentID, @Title, @Description, @Category, @Category, @Priority, 'New', NULLIF(@ImageAttachmentPath, N''))
                 SELECT SCOPE_IDENTITY()
             ";
 
@@ -251,6 +261,7 @@ public class ComplaintDAL
                     command.Parameters.AddWithValue("@Description", description);
                     command.Parameters.AddWithValue("@Category", category);
                     command.Parameters.AddWithValue("@Priority", priority);
+                    command.Parameters.AddWithValue("@ImageAttachmentPath", imageAttachmentPath ?? string.Empty);
 
                     connection.Open();
                     var result = command.ExecuteScalar();
@@ -376,7 +387,7 @@ public class ComplaintDAL
         {
             const string query = @"
                 UPDATE Complaints
-                SET AssignedToUserID = @UserID, UpdatedAt = GETDATE()
+                SET AssignedToUserID = NULLIF(@UserID, 0), UpdatedAt = GETDATE()
                 WHERE ComplaintID = @ComplaintID
             ";
 
@@ -484,12 +495,20 @@ public class ComplaintDAL
             Title = reader.GetString(5),
             Description = reader.GetString(6),
             Category = reader.GetString(7),
-            Priority = reader.GetString(8),
-            Status = reader.GetString(9),
-            AssignedToUserID = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
-            AssignedTo = reader.GetString(11),
-            CreatedAt = reader.GetDateTime(12),
-            UpdatedAt = reader.GetDateTime(13)
+            ComplaintType = reader.IsDBNull(8) ? "" : reader.GetString(8),
+            Priority = reader.GetString(9),
+            Status = reader.GetString(10),
+            AssignedToUserID = reader.IsDBNull(11) ? (int?)null : reader.GetInt32(11),
+            AssignedTo = reader.GetString(12),
+            AssignedToName = reader.GetString(13),
+            ResolutionNotes = reader.IsDBNull(14) ? "" : reader.GetString(14),
+            ResolutionNote = reader.IsDBNull(14) ? "" : reader.GetString(14),
+            ImageAttachmentPath = reader.IsDBNull(15) ? "" : reader.GetString(15),
+            SatisfactionRating = reader.IsDBNull(16) ? (int?)null : reader.GetInt32(16),
+            CreatedAt = reader.GetDateTime(17),
+            UpdatedAt = reader.GetDateTime(18),
+            ReportDate = reader.GetDateTime(17),
+            CompletionDate = reader.GetString(10) is "Resolved" or "Closed" ? reader.GetDateTime(18) : (DateTime?)null
         };
     }
 }
