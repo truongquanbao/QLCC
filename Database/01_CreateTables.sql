@@ -223,6 +223,9 @@ CREATE TABLE dbo.FeeTypes
     Description NVARCHAR(MAX) NOT NULL CONSTRAINT DF_FeeTypes_Description DEFAULT N'',
     UnitOfMeasurement NVARCHAR(50) NOT NULL CONSTRAINT DF_FeeTypes_UnitOfMeasurement DEFAULT N'VND',
     Status NVARCHAR(20) NOT NULL CONSTRAINT DF_FeeTypes_Status DEFAULT N'Active',
+    CalculationType NVARCHAR(50) NOT NULL CONSTRAINT DF_FeeTypes_CalculationType DEFAULT N'Fixed',
+    FundID INT NULL,
+    IsActive BIT NOT NULL CONSTRAINT DF_FeeTypes_IsActive DEFAULT 1,
     CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_FeeTypes_CreatedAt DEFAULT GETDATE(),
     UpdatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_FeeTypes_UpdatedAt DEFAULT GETDATE()
 );
@@ -241,11 +244,18 @@ CREATE TABLE dbo.Invoices
     PaymentStatus NVARCHAR(20) NOT NULL CONSTRAINT DF_Invoices_PaymentStatus DEFAULT N'Unpaid',
     TotalAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Invoices_TotalAmount DEFAULT 0,
     PaidAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Invoices_PaidAmount DEFAULT 0,
+    RemainingAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Invoices_RemainingAmount DEFAULT 0,
+    PaidAt DATETIME2(0) NULL,
+    ConfirmedBy INT NULL,
+    CancelReason NVARCHAR(500) NULL,
+    AdjustmentNote NVARCHAR(500) NULL,
     Note NVARCHAR(MAX) NULL,
     CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Invoices_CreatedAt DEFAULT GETDATE(),
     UpdatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Invoices_UpdatedAt DEFAULT GETDATE(),
     CONSTRAINT FK_Invoices_Apartments
-        FOREIGN KEY (ApartmentID) REFERENCES dbo.Apartments(ApartmentID)
+        FOREIGN KEY (ApartmentID) REFERENCES dbo.Apartments(ApartmentID),
+    CONSTRAINT FK_Invoices_ConfirmedBy
+        FOREIGN KEY (ConfirmedBy) REFERENCES dbo.Users(UserID)
 );
 GO
 
@@ -393,4 +403,422 @@ CREATE TABLE dbo.SystemConfig
         FOREIGN KEY (UpdatedBy) REFERENCES dbo.Users(UserID)
         ON DELETE SET NULL
 );
+GO
+
+CREATE TABLE dbo.Assets
+(
+    AssetID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Assets PRIMARY KEY,
+    AssetCode NVARCHAR(50) NOT NULL,
+    AssetName NVARCHAR(200) NOT NULL,
+    AssetType NVARCHAR(100) NOT NULL,
+    Location NVARCHAR(200) NOT NULL,
+    PurchaseDate DATE NULL,
+    Condition NVARCHAR(50) NOT NULL CONSTRAINT DF_Assets_Condition DEFAULT N'Tốt',
+    LastMaintenanceDate DATE NULL,
+    NextMaintenanceDate DATE NULL,
+    RepairCost DECIMAL(18,2) NOT NULL CONSTRAINT DF_Assets_RepairCost DEFAULT 0,
+    Note NVARCHAR(MAX) NULL,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Assets_CreatedAt DEFAULT GETDATE(),
+    UpdatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Assets_UpdatedAt DEFAULT GETDATE()
+);
+GO
+
+CREATE UNIQUE INDEX UX_Assets_AssetCode ON dbo.Assets(AssetCode);
+GO
+
+CREATE TABLE dbo.MaintenanceSchedules
+(
+    MaintenanceID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceSchedules PRIMARY KEY,
+    AssetID INT NOT NULL,
+    Category NVARCHAR(100) NOT NULL,
+    ScheduledDate DATE NOT NULL,
+    Status NVARCHAR(50) NOT NULL CONSTRAINT DF_MaintenanceSchedules_Status DEFAULT N'Chờ xử lý',
+    AssignedTo NVARCHAR(150) NULL,
+    Note NVARCHAR(MAX) NULL,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_MaintenanceSchedules_CreatedAt DEFAULT GETDATE(),
+    UpdatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_MaintenanceSchedules_UpdatedAt DEFAULT GETDATE(),
+    CONSTRAINT FK_MaintenanceSchedules_Assets
+        FOREIGN KEY (AssetID) REFERENCES dbo.Assets(AssetID)
+);
+GO
+
+CREATE TABLE dbo.Funds
+(
+    FundID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Funds PRIMARY KEY,
+    FundName NVARCHAR(150) NOT NULL,
+    Description NVARCHAR(500) NULL,
+    InitialBalance DECIMAL(18,2) NOT NULL CONSTRAINT DF_Funds_InitialBalance DEFAULT 0,
+    IsActive BIT NOT NULL CONSTRAINT DF_Funds_IsActive DEFAULT 1,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Funds_CreatedAt DEFAULT GETDATE()
+);
+GO
+
+CREATE UNIQUE INDEX UX_Funds_FundName ON dbo.Funds(FundName);
+GO
+
+ALTER TABLE dbo.FeeTypes
+ADD CONSTRAINT FK_FeeTypes_Funds
+    FOREIGN KEY (FundID) REFERENCES dbo.Funds(FundID);
+GO
+
+ALTER TABLE dbo.FeeTypes
+ADD CONSTRAINT CK_FeeTypes_CalculationType
+    CHECK (CalculationType IN (N'Fixed', N'PerArea', N'PerVehicle', N'Manual'));
+GO
+
+CREATE TABLE dbo.PaymentAccounts
+(
+    PaymentAccountID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PaymentAccounts PRIMARY KEY,
+    AccountName NVARCHAR(150) NOT NULL,
+    AccountType NVARCHAR(50) NOT NULL,
+    BankName NVARCHAR(150) NULL,
+    AccountNumber NVARCHAR(100) NULL,
+    AccountHolder NVARCHAR(150) NULL,
+    QRImagePath NVARCHAR(500) NULL,
+    IsActive BIT NOT NULL CONSTRAINT DF_PaymentAccounts_IsActive DEFAULT 1,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_PaymentAccounts_CreatedAt DEFAULT GETDATE(),
+    CONSTRAINT CK_PaymentAccounts_AccountType
+        CHECK (AccountType IN (N'Cash', N'Bank', N'QR', N'EWallet'))
+);
+GO
+
+CREATE TABLE dbo.ExpenseCategories
+(
+    ExpenseCategoryID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ExpenseCategories PRIMARY KEY,
+    CategoryName NVARCHAR(150) NOT NULL,
+    Description NVARCHAR(500) NULL,
+    IsActive BIT NOT NULL CONSTRAINT DF_ExpenseCategories_IsActive DEFAULT 1,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_ExpenseCategories_CreatedAt DEFAULT GETDATE()
+);
+GO
+
+CREATE UNIQUE INDEX UX_ExpenseCategories_CategoryName ON dbo.ExpenseCategories(CategoryName);
+GO
+
+CREATE TABLE dbo.Vendors
+(
+    VendorID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Vendors PRIMARY KEY,
+    VendorName NVARCHAR(200) NOT NULL,
+    Phone NVARCHAR(30) NULL,
+    Email NVARCHAR(150) NULL,
+    Address NVARCHAR(300) NULL,
+    TaxCode NVARCHAR(50) NULL,
+    BankAccount NVARCHAR(100) NULL,
+    BankName NVARCHAR(150) NULL,
+    IsActive BIT NOT NULL CONSTRAINT DF_Vendors_IsActive DEFAULT 1,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Vendors_CreatedAt DEFAULT GETDATE()
+);
+GO
+
+CREATE UNIQUE INDEX UX_Vendors_VendorName ON dbo.Vendors(VendorName);
+GO
+
+CREATE TABLE dbo.Payments
+(
+    PaymentID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Payments PRIMARY KEY,
+    PaymentCode NVARCHAR(50) NOT NULL,
+    InvoiceID INT NOT NULL,
+    ApartmentID INT NOT NULL,
+    ResidentID INT NULL,
+    PaymentAccountID INT NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+    PaymentMethod NVARCHAR(50) NOT NULL,
+    PaymentDate DATETIME2(0) NOT NULL CONSTRAINT DF_Payments_PaymentDate DEFAULT GETDATE(),
+    TransactionCode NVARCHAR(100) NULL,
+    ProofImagePath NVARCHAR(500) NULL,
+    PaymentStatus NVARCHAR(50) NOT NULL CONSTRAINT DF_Payments_PaymentStatus DEFAULT N'Pending',
+    ConfirmedBy INT NULL,
+    ConfirmedAt DATETIME2(0) NULL,
+    RejectedReason NVARCHAR(500) NULL,
+    CancelReason NVARCHAR(500) NULL,
+    Note NVARCHAR(500) NULL,
+    CreatedBy INT NULL,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Payments_CreatedAt DEFAULT GETDATE(),
+    CONSTRAINT FK_Payments_Invoices FOREIGN KEY (InvoiceID) REFERENCES dbo.Invoices(InvoiceID),
+    CONSTRAINT FK_Payments_Apartments FOREIGN KEY (ApartmentID) REFERENCES dbo.Apartments(ApartmentID),
+    CONSTRAINT FK_Payments_Residents FOREIGN KEY (ResidentID) REFERENCES dbo.Residents(ResidentID),
+    CONSTRAINT FK_Payments_PaymentAccounts FOREIGN KEY (PaymentAccountID) REFERENCES dbo.PaymentAccounts(PaymentAccountID),
+    CONSTRAINT FK_Payments_ConfirmedBy FOREIGN KEY (ConfirmedBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT FK_Payments_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT CK_Payments_PaymentMethod CHECK (PaymentMethod IN (N'Cash', N'BankTransfer', N'QR', N'EWallet', N'Other')),
+    CONSTRAINT CK_Payments_PaymentStatus CHECK (PaymentStatus IN (N'Pending', N'Confirmed', N'Rejected', N'Cancelled', N'Refunded'))
+);
+GO
+
+CREATE UNIQUE INDEX UX_Payments_PaymentCode ON dbo.Payments(PaymentCode);
+GO
+
+CREATE INDEX IX_Payments_InvoiceID_Status ON dbo.Payments(InvoiceID, PaymentStatus);
+GO
+
+CREATE INDEX IX_Payments_ResidentID ON dbo.Payments(ResidentID, PaymentDate DESC);
+GO
+
+CREATE TABLE dbo.Receipts
+(
+    ReceiptID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Receipts PRIMARY KEY,
+    ReceiptCode NVARCHAR(50) NOT NULL,
+    PaymentID INT NOT NULL,
+    InvoiceID INT NOT NULL,
+    ApartmentID INT NOT NULL,
+    PayerName NVARCHAR(150) NOT NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+    ReceiptDate DATETIME2(0) NOT NULL CONSTRAINT DF_Receipts_ReceiptDate DEFAULT GETDATE(),
+    CreatedBy INT NOT NULL,
+    Note NVARCHAR(500) NULL,
+    CONSTRAINT FK_Receipts_Payments FOREIGN KEY (PaymentID) REFERENCES dbo.Payments(PaymentID),
+    CONSTRAINT FK_Receipts_Invoices FOREIGN KEY (InvoiceID) REFERENCES dbo.Invoices(InvoiceID),
+    CONSTRAINT FK_Receipts_Apartments FOREIGN KEY (ApartmentID) REFERENCES dbo.Apartments(ApartmentID),
+    CONSTRAINT FK_Receipts_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID)
+);
+GO
+
+CREATE UNIQUE INDEX UX_Receipts_ReceiptCode ON dbo.Receipts(ReceiptCode);
+GO
+
+CREATE UNIQUE INDEX UX_Receipts_PaymentID ON dbo.Receipts(PaymentID);
+GO
+
+CREATE TABLE dbo.Expenses
+(
+    ExpenseID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Expenses PRIMARY KEY,
+    ExpenseCode NVARCHAR(50) NOT NULL,
+    ExpenseCategoryID INT NOT NULL,
+    VendorID INT NULL,
+    FundID INT NULL,
+    Title NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(500) NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+    ExpenseDate DATETIME2(0) NOT NULL,
+    PaymentMethod NVARCHAR(50) NOT NULL,
+    ReceiverName NVARCHAR(150) NULL,
+    ReceiptImagePath NVARCHAR(500) NULL,
+    ExpenseStatus NVARCHAR(50) NOT NULL CONSTRAINT DF_Expenses_ExpenseStatus DEFAULT N'Draft',
+    CreatedBy INT NOT NULL,
+    ApprovedBy INT NULL,
+    ApprovedAt DATETIME2(0) NULL,
+    PaidBy INT NULL,
+    PaidAt DATETIME2(0) NULL,
+    RejectedReason NVARCHAR(500) NULL,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Expenses_CreatedAt DEFAULT GETDATE(),
+    CONSTRAINT FK_Expenses_ExpenseCategories FOREIGN KEY (ExpenseCategoryID) REFERENCES dbo.ExpenseCategories(ExpenseCategoryID),
+    CONSTRAINT FK_Expenses_Vendors FOREIGN KEY (VendorID) REFERENCES dbo.Vendors(VendorID),
+    CONSTRAINT FK_Expenses_Funds FOREIGN KEY (FundID) REFERENCES dbo.Funds(FundID),
+    CONSTRAINT FK_Expenses_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT FK_Expenses_ApprovedBy FOREIGN KEY (ApprovedBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT FK_Expenses_PaidBy FOREIGN KEY (PaidBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT CK_Expenses_PaymentMethod CHECK (PaymentMethod IN (N'Cash', N'BankTransfer', N'Other')),
+    CONSTRAINT CK_Expenses_Status CHECK (ExpenseStatus IN (N'Draft', N'PendingApproval', N'Approved', N'Rejected', N'Paid', N'Cancelled'))
+);
+GO
+
+CREATE UNIQUE INDEX UX_Expenses_ExpenseCode ON dbo.Expenses(ExpenseCode);
+GO
+
+CREATE TABLE dbo.PaymentVouchers
+(
+    VoucherID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PaymentVouchers PRIMARY KEY,
+    VoucherCode NVARCHAR(50) NOT NULL,
+    ExpenseID INT NOT NULL,
+    PayeeName NVARCHAR(150) NOT NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+    VoucherDate DATETIME2(0) NOT NULL CONSTRAINT DF_PaymentVouchers_VoucherDate DEFAULT GETDATE(),
+    CreatedBy INT NOT NULL,
+    Note NVARCHAR(500) NULL,
+    CONSTRAINT FK_PaymentVouchers_Expenses FOREIGN KEY (ExpenseID) REFERENCES dbo.Expenses(ExpenseID),
+    CONSTRAINT FK_PaymentVouchers_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID)
+);
+GO
+
+CREATE UNIQUE INDEX UX_PaymentVouchers_VoucherCode ON dbo.PaymentVouchers(VoucherCode);
+GO
+
+CREATE UNIQUE INDEX UX_PaymentVouchers_ExpenseID ON dbo.PaymentVouchers(ExpenseID);
+GO
+
+CREATE TABLE dbo.FundTransactions
+(
+    FundTransactionID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FundTransactions PRIMARY KEY,
+    FundID INT NOT NULL,
+    TransactionType NVARCHAR(50) NOT NULL,
+    ReferenceType NVARCHAR(50) NULL,
+    ReferenceID INT NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+    TransactionDate DATETIME2(0) NOT NULL CONSTRAINT DF_FundTransactions_TransactionDate DEFAULT GETDATE(),
+    CreatedBy INT NOT NULL,
+    Note NVARCHAR(500) NULL,
+    CONSTRAINT FK_FundTransactions_Funds FOREIGN KEY (FundID) REFERENCES dbo.Funds(FundID),
+    CONSTRAINT FK_FundTransactions_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT CK_FundTransactions_TransactionType CHECK (TransactionType IN (N'Income', N'Expense', N'Adjustment'))
+);
+GO
+
+CREATE INDEX IX_FundTransactions_FundID_TransactionDate ON dbo.FundTransactions(FundID, TransactionDate DESC);
+GO
+
+CREATE TABLE dbo.FinancialPeriods
+(
+    PeriodID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FinancialPeriods PRIMARY KEY,
+    [Month] INT NOT NULL,
+    [Year] INT NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    Status NVARCHAR(50) NOT NULL CONSTRAINT DF_FinancialPeriods_Status DEFAULT N'Open',
+    ClosedBy INT NULL,
+    ClosedAt DATETIME2(0) NULL,
+    Note NVARCHAR(500) NULL,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_FinancialPeriods_CreatedAt DEFAULT GETDATE(),
+    CONSTRAINT FK_FinancialPeriods_ClosedBy FOREIGN KEY (ClosedBy) REFERENCES dbo.Users(UserID),
+    CONSTRAINT CK_FinancialPeriods_Status CHECK (Status IN (N'Open', N'Closed'))
+);
+GO
+
+CREATE UNIQUE INDEX UX_FinancialPeriods_Month_Year ON dbo.FinancialPeriods([Month], [Year]);
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_ConfirmPayment
+    @PaymentID INT,
+    @ConfirmedBy INT,
+    @ConfirmationNote NVARCHAR(500) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @InvoiceID INT;
+    DECLARE @ApartmentID INT;
+    DECLARE @Amount DECIMAL(18,2);
+    DECLARE @PaymentStatus NVARCHAR(50);
+    DECLARE @InvoiceTotal DECIMAL(18,2);
+    DECLARE @InvoicePaid DECIMAL(18,2);
+    DECLARE @InvoiceRemaining DECIMAL(18,2);
+    DECLARE @InvoiceDueDate DATE;
+    DECLARE @PeriodStatus NVARCHAR(50);
+    DECLARE @PayerName NVARCHAR(150);
+    DECLARE @FundID INT;
+    DECLARE @NewPaidAmount DECIMAL(18,2);
+    DECLARE @NewRemainingAmount DECIMAL(18,2);
+    DECLARE @NewInvoiceStatus NVARCHAR(50);
+    DECLARE @ReceiptCode NVARCHAR(50);
+
+    BEGIN TRANSACTION;
+
+    SELECT
+        @InvoiceID = p.InvoiceID,
+        @ApartmentID = p.ApartmentID,
+        @Amount = p.Amount,
+        @PaymentStatus = p.PaymentStatus,
+        @PayerName = COALESCE(r.FullName, u.FullName, N'Cư dân')
+    FROM dbo.Payments p
+    LEFT JOIN dbo.Residents r ON p.ResidentID = r.ResidentID
+    LEFT JOIN dbo.Users u ON p.CreatedBy = u.UserID
+    WHERE p.PaymentID = @PaymentID;
+
+    IF @InvoiceID IS NULL
+    BEGIN
+        RAISERROR(N'Payment does not exist.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF @PaymentStatus <> N'Pending'
+    BEGIN
+        RAISERROR(N'Only pending payments can be confirmed.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    SELECT
+        @InvoiceTotal = i.TotalAmount,
+        @InvoicePaid = i.PaidAmount,
+        @InvoiceRemaining = i.RemainingAmount,
+        @InvoiceDueDate = i.DueDate,
+        @PeriodStatus = fp.Status
+    FROM dbo.Invoices i
+    LEFT JOIN dbo.FinancialPeriods fp
+        ON fp.[Month] = i.[Month]
+       AND fp.[Year] = i.[Year]
+    WHERE i.InvoiceID = @InvoiceID;
+
+    IF @PeriodStatus = N'Closed'
+    BEGIN
+        RAISERROR(N'Cannot confirm payment in a closed financial period.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF @Amount <= 0
+    BEGIN
+        RAISERROR(N'Payment amount must be greater than 0.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF @Amount > @InvoiceRemaining
+    BEGIN
+        RAISERROR(N'Payment amount exceeds invoice remaining amount.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    SET @NewPaidAmount = @InvoicePaid + @Amount;
+    SET @NewRemainingAmount = CASE WHEN @InvoiceTotal - @NewPaidAmount < 0 THEN 0 ELSE @InvoiceTotal - @NewPaidAmount END;
+    SET @NewInvoiceStatus = CASE
+        WHEN @NewRemainingAmount = 0 THEN N'Paid'
+        WHEN @NewPaidAmount > 0 THEN N'PartiallyPaid'
+        WHEN @InvoiceDueDate < CAST(GETDATE() AS DATE) THEN N'Overdue'
+        ELSE N'Unpaid'
+    END;
+
+    SELECT TOP (1) @FundID = ft.FundID
+    FROM dbo.InvoiceDetails id
+    INNER JOIN dbo.FeeTypes ft ON id.FeeTypeID = ft.FeeTypeID
+    WHERE id.InvoiceID = @InvoiceID
+      AND ft.FundID IS NOT NULL
+    ORDER BY id.InvoiceDetailID;
+
+    IF @FundID IS NULL
+    BEGIN
+        SELECT TOP (1) @FundID = FundID
+        FROM dbo.Funds
+        WHERE FundName = N'Quỹ vận hành'
+          AND IsActive = 1;
+    END;
+
+    UPDATE dbo.Payments
+    SET PaymentStatus = N'Confirmed',
+        ConfirmedBy = @ConfirmedBy,
+        ConfirmedAt = GETDATE(),
+        Note = COALESCE(@ConfirmationNote, Note)
+    WHERE PaymentID = @PaymentID;
+
+    UPDATE dbo.Invoices
+    SET PaidAmount = @NewPaidAmount,
+        RemainingAmount = @NewRemainingAmount,
+        PaymentStatus = @NewInvoiceStatus,
+        ConfirmedBy = @ConfirmedBy,
+        PaidAt = CASE WHEN @NewRemainingAmount = 0 THEN GETDATE() ELSE PaidAt END,
+        UpdatedAt = GETDATE()
+    WHERE InvoiceID = @InvoiceID;
+
+    SET @ReceiptCode = CONCAT(N'RCP-', CONVERT(VARCHAR(8), GETDATE(), 112), N'-', RIGHT(CONCAT(N'000000', CAST(@PaymentID AS NVARCHAR(20))), 6));
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Receipts WHERE PaymentID = @PaymentID)
+    BEGIN
+        INSERT INTO dbo.Receipts
+            (ReceiptCode, PaymentID, InvoiceID, ApartmentID, PayerName, Amount, ReceiptDate, CreatedBy, Note)
+        VALUES
+            (@ReceiptCode, @PaymentID, @InvoiceID, @ApartmentID, @PayerName, @Amount, GETDATE(), @ConfirmedBy, @ConfirmationNote);
+    END;
+
+    IF @FundID IS NOT NULL
+    BEGIN
+        INSERT INTO dbo.FundTransactions
+            (FundID, TransactionType, ReferenceType, ReferenceID, Amount, TransactionDate, CreatedBy, Note)
+        VALUES
+            (@FundID, N'Income', N'Payment', @PaymentID, @Amount, GETDATE(), @ConfirmedBy, COALESCE(@ConfirmationNote, CONCAT(N'Confirmed payment ', @PaymentID)));
+    END;
+
+    COMMIT TRANSACTION;
+END;
 GO

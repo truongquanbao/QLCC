@@ -11,6 +11,23 @@ namespace ApartmentManager.DAL;
 /// </summary>
 public class VisitorDAL
 {
+    private const string VisitorSelect = @"
+                SELECT v.VisitorID, v.ResidentID, r.FullName as ResidentName, v.VisitorName,
+                       v.Phone, v.Email, v.IDNumber, v.Purpose, v.ArrivalTime, v.DepartureTime,
+                       v.Status, v.ApprovedByUserID, ISNULL(u.Username, '') as ApprovedBy,
+                       v.Note, v.CreatedAt, v.UpdatedAt,
+                       r.ApartmentID, ISNULL(a.ApartmentCode, '') as ApartmentCode,
+                       ISNULL(b.BuildingName, '') as BuildingName,
+                       ISNULL(bl.BlockName, '') as BlockName
+                FROM Visitors v
+                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
+                LEFT JOIN Apartments a ON r.ApartmentID = a.ApartmentID
+                LEFT JOIN Floors f ON a.FloorID = f.FloorID
+                LEFT JOIN Blocks bl ON f.BlockID = bl.BlockID
+                LEFT JOIN Buildings b ON bl.BuildingID = b.BuildingID
+                LEFT JOIN Users u ON v.ApprovedByUserID = u.UserID
+            ";
+
     /// <summary>
     /// Get visitor by ID
     /// </summary>
@@ -18,14 +35,7 @@ public class VisitorDAL
     {
         try
         {
-            const string query = @"
-                SELECT v.VisitorID, v.ResidentID, r.FullName as ResidentName, v.VisitorName,
-                       v.Phone, v.Email, v.IDNumber, v.Purpose, v.ArrivalTime, v.DepartureTime,
-                       v.Status, v.ApprovedByUserID, ISNULL(u.Username, '') as ApprovedBy,
-                       v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Visitors v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
-                LEFT JOIN Users u ON v.ApprovedByUserID = u.UserID
+            const string query = VisitorSelect + @"
                 WHERE v.VisitorID = @VisitorID
             ";
 
@@ -62,14 +72,7 @@ public class VisitorDAL
 
         try
         {
-            const string query = @"
-                SELECT v.VisitorID, v.ResidentID, r.FullName as ResidentName, v.VisitorName,
-                       v.Phone, v.Email, v.IDNumber, v.Purpose, v.ArrivalTime, v.DepartureTime,
-                       v.Status, v.ApprovedByUserID, ISNULL(u.Username, '') as ApprovedBy,
-                       v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Visitors v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
-                LEFT JOIN Users u ON v.ApprovedByUserID = u.UserID
+            const string query = VisitorSelect + @"
                 ORDER BY v.CreatedAt DESC
             ";
 
@@ -104,14 +107,7 @@ public class VisitorDAL
 
         try
         {
-            const string query = @"
-                SELECT v.VisitorID, v.ResidentID, r.FullName as ResidentName, v.VisitorName,
-                       v.Phone, v.Email, v.IDNumber, v.Purpose, v.ArrivalTime, v.DepartureTime,
-                       v.Status, v.ApprovedByUserID, ISNULL(u.Username, '') as ApprovedBy,
-                       v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Visitors v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
-                LEFT JOIN Users u ON v.ApprovedByUserID = u.UserID
+            const string query = VisitorSelect + @"
                 WHERE v.ResidentID = @ResidentID
                 ORDER BY v.CreatedAt DESC
             ";
@@ -148,14 +144,7 @@ public class VisitorDAL
 
         try
         {
-            const string query = @"
-                SELECT v.VisitorID, v.ResidentID, r.FullName as ResidentName, v.VisitorName,
-                       v.Phone, v.Email, v.IDNumber, v.Purpose, v.ArrivalTime, v.DepartureTime,
-                       v.Status, v.ApprovedByUserID, ISNULL(u.Username, '') as ApprovedBy,
-                       v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Visitors v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
-                LEFT JOIN Users u ON v.ApprovedByUserID = u.UserID
+            const string query = VisitorSelect + @"
                 WHERE v.Status = 'Pending'
                 ORDER BY v.CreatedAt ASC
             ";
@@ -191,14 +180,7 @@ public class VisitorDAL
 
         try
         {
-            const string query = @"
-                SELECT v.VisitorID, v.ResidentID, r.FullName as ResidentName, v.VisitorName,
-                       v.Phone, v.Email, v.IDNumber, v.Purpose, v.ArrivalTime, v.DepartureTime,
-                       v.Status, v.ApprovedByUserID, ISNULL(u.Username, '') as ApprovedBy,
-                       v.Note, v.CreatedAt, v.UpdatedAt
-                FROM Visitors v
-                INNER JOIN Residents r ON v.ResidentID = r.ResidentID
-                LEFT JOIN Users u ON v.ApprovedByUserID = u.UserID
+            const string query = VisitorSelect + @"
                 WHERE v.ArrivalTime >= @StartDate AND v.ArrivalTime <= @EndDate
                 ORDER BY v.ArrivalTime DESC
             ";
@@ -276,7 +258,13 @@ public class VisitorDAL
     public static int RegisterVisitor(int residentID, string visitorName, string phone, string email,
                                       string visitorType, string purpose)
     {
-        return RegisterVisitor(residentID, visitorName, phone, email, visitorType, purpose, DateTime.Now, null);
+        return RegisterVisitor(residentID, visitorName, phone, email, "", purpose, DateTime.Now, BuildVisitorNote(visitorType, ""));
+    }
+
+    public static int RegisterVisitor(int residentID, string visitorName, string phone, string email,
+                                      string idNumber, string visitorType, string purpose, DateTime arrivalTime, string note = null)
+    {
+        return RegisterVisitor(residentID, visitorName, phone, email, idNumber, purpose, arrivalTime, BuildVisitorNote(visitorType, note));
     }
 
     /// <summary>
@@ -288,7 +276,7 @@ public class VisitorDAL
         {
             const string query = @"
                 UPDATE Visitors
-                SET Status = 'Approved', ApprovedByUserID = @UserID, UpdatedAt = GETDATE()
+                SET Status = 'Approved', ApprovedByUserID = NULLIF(@UserID, 0), UpdatedAt = GETDATE()
                 WHERE VisitorID = @VisitorID
             ";
 
@@ -358,7 +346,7 @@ public class VisitorDAL
         {
             const string query = @"
                 UPDATE Visitors
-                SET Status = 'Rejected', ApprovedByUserID = @UserID, UpdatedAt = GETDATE()
+                SET Status = 'Rejected', ApprovedByUserID = NULLIF(@UserID, 0), UpdatedAt = GETDATE()
                 WHERE VisitorID = @VisitorID
             ";
 
@@ -393,7 +381,7 @@ public class VisitorDAL
         {
             const string query = @"
                 UPDATE Visitors
-                SET DepartureTime = @DepartureTime, UpdatedAt = GETDATE()
+                SET DepartureTime = @DepartureTime, Status = 'CheckedOut', UpdatedAt = GETDATE()
                 WHERE VisitorID = @VisitorID
             ";
 
@@ -454,7 +442,10 @@ public class VisitorDAL
     private static dynamic MapVisitor(SqlDataReader reader)
     {
         string? idNumber = reader.GetString(6);
-        string? note = reader.IsDBNull(13) ? null : reader.GetString(13);
+        string rawNote = reader.IsDBNull(13) ? string.Empty : reader.GetString(13);
+        var metadata = ParseVisitorNote(rawNote);
+        string visitorType = ResolveVisitorType(metadata, rawNote, reader.GetString(7));
+        string note = metadata.TryGetValue("NOTE", out var noteValue) ? noteValue : (IsVisitorType(rawNote) ? string.Empty : rawNote);
         DateTime? checkOutTime = reader.IsDBNull(9) ? null : reader.GetDateTime(9);
 
         return new
@@ -466,7 +457,7 @@ public class VisitorDAL
             Phone = reader.GetString(4),
             Email = reader.GetString(5),
             IDNumber = idNumber,
-            VisitorType = !string.IsNullOrWhiteSpace(idNumber) ? idNumber : (note ?? string.Empty),
+            VisitorType = visitorType,
             Purpose = reader.GetString(7),
             CheckInTime = reader.GetDateTime(8),
             ArrivalTime = reader.GetDateTime(8),
@@ -477,8 +468,91 @@ public class VisitorDAL
             ApprovedBy = reader.GetString(12),
             Note = note,
             CreatedAt = reader.GetDateTime(14),
-            UpdatedAt = reader.GetDateTime(15)
+            UpdatedAt = reader.GetDateTime(15),
+            ApartmentID = reader.IsDBNull(16) ? 0 : reader.GetInt32(16),
+            ApartmentCode = reader.GetString(17),
+            BuildingName = reader.GetString(18),
+            BlockName = reader.GetString(19)
         };
+    }
+
+    private static string BuildVisitorNote(string visitorType, string note)
+    {
+        string safeType = string.IsNullOrWhiteSpace(visitorType) ? "Guest" : visitorType.Trim();
+        string safeNote = note ?? string.Empty;
+        return $"TYPE={safeType};NOTE={safeNote}";
+    }
+
+    private static Dictionary<string, string> ParseVisitorNote(string rawNote)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(rawNote) || !rawNote.Contains('='))
+        {
+            return values;
+        }
+
+        foreach (var part in rawNote.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int separator = part.IndexOf('=');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            string key = part.Substring(0, separator).Trim();
+            string value = separator + 1 < part.Length ? part.Substring(separator + 1).Trim() : string.Empty;
+            values[key] = value;
+        }
+
+        return values;
+    }
+
+    private static string ResolveVisitorType(Dictionary<string, string> metadata, string rawNote, string purpose)
+    {
+        if (metadata.TryGetValue("TYPE", out var type) && IsVisitorType(type))
+        {
+            return type;
+        }
+
+        if (IsVisitorType(rawNote))
+        {
+            return rawNote;
+        }
+
+        string text = $"{rawNote} {purpose}";
+        if (text.Contains("giao", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("ship", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("delivery", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Delivery";
+        }
+
+        if (text.Contains("sửa", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("lắp", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("dịch vụ", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("service", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("nhà thầu", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Service";
+        }
+
+        if (text.Contains("gia đình", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("người thân", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("family", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Family";
+        }
+
+        return "Guest";
+    }
+
+    private static bool IsVisitorType(string value)
+    {
+        return string.Equals(value, "Guest", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "Delivery", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "Service", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "Family", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "Other", StringComparison.OrdinalIgnoreCase);
     }
 }
 

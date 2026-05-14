@@ -1,93 +1,172 @@
 -- =====================================================
--- APARTMENT MANAGER - VERIFICATION SCRIPT
--- Run this after importing the database
+-- APARTMENT MANAGER - DATABASE VERIFICATION SCRIPT
+-- Run this after importing the reset demo database.
 -- =====================================================
 
 USE ApartmentManagerDB;
 GO
 
-PRINT N'===== TABLES =====';
-SELECT TABLE_NAME
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA = N'dbo'
-ORDER BY TABLE_NAME;
+SET NOCOUNT ON;
 GO
 
-PRINT N'===== USERS =====';
+DECLARE @ActiveResidentCount INT = (SELECT COUNT(*) FROM dbo.Residents WHERE Status = N'Active');
+DECLARE @BuildingCount INT = (SELECT COUNT(*) FROM dbo.Buildings);
+DECLARE @ApartmentCount INT = (SELECT COUNT(*) FROM dbo.Apartments);
+DECLARE @AssetCount INT = (SELECT COUNT(*) FROM dbo.Assets);
+DECLARE @MaintenanceCount INT = (SELECT COUNT(*) FROM dbo.MaintenanceSchedules);
+DECLARE @VehicleCount INT = (SELECT COUNT(*) FROM dbo.Vehicles);
+DECLARE @VisitorCount INT = (SELECT COUNT(*) FROM dbo.Visitors);
+DECLARE @ComplaintCount INT = (SELECT COUNT(*) FROM dbo.Complaints);
+DECLARE @NotificationCount INT = (SELECT COUNT(*) FROM dbo.Notifications);
+DECLARE @InvoiceCount INT = (SELECT COUNT(*) FROM dbo.Invoices);
+DECLARE @PaymentCount INT = (SELECT COUNT(*) FROM dbo.Payments);
+DECLARE @ReceiptCount INT = (SELECT COUNT(*) FROM dbo.Receipts);
+DECLARE @FinancialPeriodCount INT = (SELECT COUNT(*) FROM dbo.FinancialPeriods);
+DECLARE @ExpenseCount INT = (SELECT COUNT(*) FROM dbo.Expenses);
+
+IF @ActiveResidentCount <> 200
+BEGIN
+    THROW 52000, 'Verification failed: active resident count must be exactly 200.', 1;
+END;
+
+IF @BuildingCount <> 3
+BEGIN
+    THROW 52001, 'Verification failed: demo database must contain exactly 3 buildings.', 1;
+END;
+
+IF @ApartmentCount < 300
+BEGIN
+    THROW 52002, 'Verification failed: apartment inventory is lower than expected.', 1;
+END;
+
+IF @AssetCount = 0 OR @MaintenanceCount = 0 OR @VehicleCount = 0 OR @VisitorCount = 0
+   OR @ComplaintCount = 0 OR @NotificationCount = 0 OR @InvoiceCount = 0 OR @PaymentCount = 0
+   OR @ReceiptCount = 0 OR @FinancialPeriodCount = 0 OR @ExpenseCount = 0
+BEGIN
+    THROW 52003, 'Verification failed: one or more operational demo modules have no data.', 1;
+END;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.Residents r
+    LEFT JOIN dbo.Apartments a ON a.ApartmentID = r.ApartmentID
+    WHERE a.ApartmentID IS NULL
+)
+BEGIN
+    THROW 52004, 'Verification failed: resident orphan rows detected.', 1;
+END;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.Apartments a
+    LEFT JOIN dbo.Floors f ON f.FloorID = a.FloorID
+    WHERE f.FloorID IS NULL
+)
+BEGIN
+    THROW 52005, 'Verification failed: apartment orphan rows detected.', 1;
+END;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.Invoices i
+    LEFT JOIN dbo.Apartments a ON a.ApartmentID = i.ApartmentID
+    WHERE a.ApartmentID IS NULL
+)
+BEGIN
+    THROW 52006, 'Verification failed: invoice orphan rows detected.', 1;
+END;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.Payments p
+    LEFT JOIN dbo.Invoices i ON i.InvoiceID = p.InvoiceID
+    LEFT JOIN dbo.Apartments a ON a.ApartmentID = p.ApartmentID
+    LEFT JOIN dbo.Residents r ON r.ResidentID = p.ResidentID
+    WHERE i.InvoiceID IS NULL
+       OR a.ApartmentID IS NULL
+       OR (p.ResidentID IS NOT NULL AND r.ResidentID IS NULL)
+)
+BEGIN
+    THROW 52007, 'Verification failed: payment orphan rows detected.', 1;
+END;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.MaintenanceSchedules m
+    LEFT JOIN dbo.Assets a ON a.AssetID = m.AssetID
+    WHERE a.AssetID IS NULL
+)
+BEGIN
+    THROW 52008, 'Verification failed: asset maintenance orphan rows detected.', 1;
+END;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.Invoices
+    WHERE RemainingAmount <> CASE WHEN TotalAmount - PaidAmount < 0 THEN 0 ELSE TotalAmount - PaidAmount END
+)
+BEGIN
+    THROW 52009, 'Verification failed: invoice remaining amount mismatch detected.', 1;
+END;
+
+PRINT N'===== DATABASE SUMMARY =====';
+SELECT N'Buildings' AS Metric, @BuildingCount AS [Value]
+UNION ALL SELECT N'Apartments', @ApartmentCount
+UNION ALL SELECT N'Active residents', @ActiveResidentCount
+UNION ALL SELECT N'Vehicles', @VehicleCount
+UNION ALL SELECT N'Visitors', @VisitorCount
+UNION ALL SELECT N'Complaints', @ComplaintCount
+UNION ALL SELECT N'Notifications', @NotificationCount
+UNION ALL SELECT N'Invoices', @InvoiceCount
+UNION ALL SELECT N'Payments', @PaymentCount
+UNION ALL SELECT N'Receipts', @ReceiptCount
+UNION ALL SELECT N'Financial periods', @FinancialPeriodCount
+UNION ALL SELECT N'Expenses', @ExpenseCount
+UNION ALL SELECT N'Assets', @AssetCount
+UNION ALL SELECT N'Maintenance schedules', @MaintenanceCount;
+
+PRINT N'===== RESIDENT DISTRIBUTION BY BUILDING =====';
+SELECT b.BuildingName,
+       COUNT(DISTINCT a.ApartmentID) AS TotalApartments,
+       COUNT(DISTINCT CASE WHEN r.ResidentID IS NOT NULL THEN a.ApartmentID END) AS ApartmentsWithResidents,
+       COUNT(r.ResidentID) AS ActiveResidents
+FROM dbo.Buildings b
+INNER JOIN dbo.Blocks bl ON bl.BuildingID = b.BuildingID
+INNER JOIN dbo.Floors f ON f.BlockID = bl.BlockID
+INNER JOIN dbo.Apartments a ON a.FloorID = f.FloorID
+LEFT JOIN dbo.Residents r ON r.ApartmentID = a.ApartmentID AND r.Status = N'Active'
+GROUP BY b.BuildingName
+ORDER BY b.BuildingName;
+
+PRINT N'===== APARTMENT STATUS =====';
+SELECT Status, COUNT(*) AS Total
+FROM dbo.Apartments
+GROUP BY Status
+ORDER BY Status;
+
+PRINT N'===== INVOICE STATUS =====';
+SELECT PaymentStatus, COUNT(*) AS Total, SUM(TotalAmount) AS TotalAmount, SUM(RemainingAmount) AS RemainingAmount
+FROM dbo.Invoices
+GROUP BY PaymentStatus
+ORDER BY PaymentStatus;
+
+PRINT N'===== ASSET CONDITION =====';
+SELECT Condition, COUNT(*) AS Total
+FROM dbo.Assets
+GROUP BY Condition
+ORDER BY Condition;
+
+PRINT N'===== SAMPLE USERS =====';
 SELECT TOP 10 u.UserID, u.Username, u.FullName, u.Email, r.RoleName, u.Status, u.IsApproved
 FROM dbo.Users u
-INNER JOIN dbo.Roles r ON u.RoleID = r.RoleID
+INNER JOIN dbo.Roles r ON r.RoleID = u.RoleID
 ORDER BY u.UserID;
-GO
 
-PRINT N'===== ROLES & PERMISSIONS =====';
-SELECT r.RoleName, p.PermissionName
-FROM dbo.RolePermissions rp
-INNER JOIN dbo.Roles r ON rp.RoleID = r.RoleID
-INNER JOIN dbo.Permissions p ON rp.PermissionID = p.PermissionID
-ORDER BY r.RoleName, p.PermissionName;
-GO
-
-PRINT N'===== BUILDINGS =====';
-SELECT BuildingID, BuildingName, Address, CreatedAt, UpdatedAt
-FROM dbo.Buildings
-ORDER BY BuildingID;
-GO
-
-PRINT N'===== APARTMENTS =====';
-SELECT TOP 10 ApartmentID, ApartmentCode, FloorID, Area, ApartmentType, Status, MaxResidents
-FROM dbo.Apartments
-ORDER BY ApartmentCode;
-GO
-
-PRINT N'===== FEE TYPES =====';
-SELECT FeeTypeID, FeeTypeName, Description, UnitOfMeasurement, Status
-FROM dbo.FeeTypes
-ORDER BY FeeTypeID;
-GO
-
-PRINT N'===== INVOICES =====';
-SELECT TOP 10 InvoiceID, ApartmentID, [Month], [Year], DueDate, PaymentStatus, TotalAmount, PaidAmount
-FROM dbo.Invoices
-ORDER BY CreatedAt DESC;
-GO
-
-PRINT N'===== RESIDENTS =====';
-SELECT TOP 10 r.ResidentID, r.FullName, r.Phone, r.Email, r.CCCD, r.Status, a.ApartmentCode
-FROM dbo.Residents r
-LEFT JOIN dbo.Apartments a ON r.ApartmentID = a.ApartmentID
-ORDER BY r.ResidentID;
-GO
-
-PRINT N'===== COMPLAINTS =====';
-SELECT TOP 10 ComplaintID, ResidentID, ApartmentID, Category, Title, Priority, Status
-FROM dbo.Complaints
-ORDER BY CreatedAt DESC;
-GO
-
-PRINT N'===== NOTIFICATIONS =====';
-SELECT TOP 10 NotificationID, UserID, ResidentID, Title, NotificationType, Priority, Status, IsRead, SentDate
-FROM dbo.Notifications
-ORDER BY CreatedAt DESC;
-GO
-
-PRINT N'===== VISITORS =====';
-SELECT TOP 10 VisitorID, ResidentID, VisitorName, Purpose, ArrivalTime, DepartureTime, Status
-FROM dbo.Visitors
-ORDER BY CreatedAt DESC;
-GO
-
-PRINT N'===== VEHICLES =====';
-SELECT TOP 10 VehicleID, ResidentID, VehicleType, LicensePlate, Brand, Status
-FROM dbo.Vehicles
-ORDER BY CreatedAt DESC;
-GO
-
-PRINT N'===== SYSTEM CONFIG =====';
-SELECT ConfigKey, ConfigValue, Description
-FROM dbo.SystemConfig
-ORDER BY ConfigKey;
-GO
-
-PRINT N'===== DATABASE INITIALIZATION COMPLETE =====';
+PRINT N'===== DATABASE VERIFICATION PASSED =====';
 GO

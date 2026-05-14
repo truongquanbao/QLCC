@@ -72,9 +72,10 @@ namespace ApartmentManager.BLL
                     phone ?? "",
                     email ?? "",
                     "",
+                    visitorType,
                     purpose,
                     DateTime.Now,
-                    visitorType);
+                    "");
 
                 if (visitorID > 0)
                 {
@@ -165,6 +166,18 @@ namespace ApartmentManager.BLL
             string phone,
             string email,
             string visitorType)
+            => RegisterVisitor(residentID, visitorName, phone, email, "", visitorType, "Đăng ký khách ra vào", DateTime.Now, "");
+
+        public static (bool Success, string Message, int VisitorID) RegisterVisitor(
+            int residentID,
+            string visitorName,
+            string phone,
+            string email,
+            string idNumber,
+            string visitorType,
+            string purpose,
+            DateTime arrivalTime,
+            string note = "")
         {
             try
             {
@@ -193,16 +206,16 @@ namespace ApartmentManager.BLL
                 if (!validTypes.ToList().Contains(visitorType))
                     return (false, "Invalid visitor type.", 0);
 
-                // Register visitor
                 int visitorID = VisitorDAL.RegisterVisitor(
                     residentID,
                     visitorName,
                     phone ?? "",
                     email ?? "",
-                    "",
-                    "",
-                    DateTime.Now,
-                    visitorType);
+                    idNumber ?? "",
+                    visitorType,
+                    purpose ?? "",
+                    arrivalTime,
+                    note ?? "");
 
                 if (visitorID > 0)
                 {
@@ -243,6 +256,52 @@ namespace ApartmentManager.BLL
             catch (Exception ex)
             {
                 Log.Error(ex, "Error deleting visitor");
+                return (false, $"Error: {ex.Message}");
+            }
+        }
+
+        public static (bool Success, string Message) ApproveVisitor(int visitorID, int userID)
+        {
+            try
+            {
+                if (visitorID <= 0)
+                    return (false, "Invalid visitor ID.");
+
+                var visitor = VisitorDAL.GetVisitorByID(visitorID);
+                if (visitor == null)
+                    return (false, "Visitor not found.");
+
+                bool approved = VisitorDAL.ApproveVisitor(visitorID, userID);
+                return approved
+                    ? (true, "Visitor approved successfully.")
+                    : (false, "Failed to approve visitor.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error approving visitor");
+                return (false, $"Error: {ex.Message}");
+            }
+        }
+
+        public static (bool Success, string Message) RejectVisitor(int visitorID, int userID)
+        {
+            try
+            {
+                if (visitorID <= 0)
+                    return (false, "Invalid visitor ID.");
+
+                var visitor = VisitorDAL.GetVisitorByID(visitorID);
+                if (visitor == null)
+                    return (false, "Visitor not found.");
+
+                bool rejected = VisitorDAL.RejectVisitor(visitorID, userID);
+                return rejected
+                    ? (true, "Visitor rejected successfully.")
+                    : (false, "Failed to reject visitor.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error rejecting visitor");
                 return (false, $"Error: {ex.Message}");
             }
         }

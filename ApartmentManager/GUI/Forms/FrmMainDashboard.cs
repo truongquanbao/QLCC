@@ -70,6 +70,8 @@ public partial class FrmMainDashboard : Form
     private ContextMenuStrip? _quickActionMenu;
     private string? _quickActionMenuKey;
     private Control? _quickActionAnchor;
+    private string? _pendingQuickActionPage;
+    private string? _pendingQuickActionMode;
 
     private sealed class PaginationState
     {

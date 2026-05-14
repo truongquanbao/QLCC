@@ -17,7 +17,7 @@ namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmMainDashboard
 {
-    private void RenderVisitors()
+    private void RenderVisitorsLegacy()
     {
         var page = BeginPage("Quản lý khách ra vào", "Dashboard / Khách ra vào");
         int w = PageWorkWidth();
@@ -140,7 +140,7 @@ public partial class FrmMainDashboard
         page.Controls.Add(history);
     }
 
-    private void RenderAssets()
+    private void RenderAssetsLegacy()
     {
         var page = BeginPage("Quản lý tài sản chung & bảo trì", "Dashboard / Tài sản");
         int w = PageWorkWidth();

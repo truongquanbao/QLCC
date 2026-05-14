@@ -902,6 +902,23 @@ public partial class FrmMainDashboard
             }
         };
 
+        void ReloadInvoiceData(int? preferredInvoiceId = null)
+        {
+            invoices = InvoiceDAL.GetAllInvoices();
+            ApplyInvoiceFilters(preferredInvoiceId);
+
+            if (preferredInvoiceId.HasValue && displayInvoices.All(invoice => invoice.InvoiceID != preferredInvoiceId.Value))
+            {
+                monthCombo.SelectedItem = "Tất cả";
+                yearCombo.SelectedItem = "Tất cả";
+                apartmentCombo.SelectedItem = "Tất cả";
+                statusFilterCombo.SelectedItem = "Tất cả";
+                search.Text = "";
+                invoicePagination.MoveToFirstPage();
+                ApplyInvoiceFilters(preferredInvoiceId);
+            }
+        }
+
         y += 446;
 
         var stats = ModernUi.Section("Tình hình thanh toán", (int)(w * 0.50), 230);
@@ -931,7 +948,7 @@ public partial class FrmMainDashboard
 
         var actions = ModernUi.Section("Thao tác nhanh", w - stats.Width - gap, 230);
         actions.Location = new Point(stats.Right + gap, y);
-        AddInvoiceQuickActions(actions);
+        AddInvoiceQuickActions(actions, () => selectedInvoice, ReloadInvoiceData);
 
         page.Controls.Add(actions);
 

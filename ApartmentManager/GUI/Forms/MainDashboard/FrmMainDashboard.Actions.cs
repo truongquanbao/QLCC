@@ -22,6 +22,28 @@ public partial class FrmMainDashboard
         Navigate(_activePage);
     }
 
+    private void NavigateWithQuickAction(string page, string mode)
+    {
+        _pendingQuickActionPage = page;
+        _pendingQuickActionMode = mode;
+        Navigate(page);
+    }
+
+    private bool ConsumeQuickAction(string page, string mode)
+    {
+        bool matches =
+            string.Equals(_pendingQuickActionPage, page, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(_pendingQuickActionMode, mode, StringComparison.OrdinalIgnoreCase);
+
+        if (matches)
+        {
+            _pendingQuickActionPage = null;
+            _pendingQuickActionMode = null;
+        }
+
+        return matches;
+    }
+
     private bool TryToggleQuickMenu(Control anchor, string menuKey)
     {
         if (_quickActionMenu is { IsDisposed: false } &&

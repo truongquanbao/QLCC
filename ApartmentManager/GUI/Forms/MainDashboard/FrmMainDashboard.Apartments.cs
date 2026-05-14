@@ -1272,6 +1272,10 @@ public partial class FrmMainDashboard
         noteBox.TextChanged += (_, _) => noteCount.Text = $"{Math.Min(noteBox.TextLength, 255)}/255";
 
         ReloadApartmentData();
+        if (ConsumeQuickAction("apartments", "add"))
+        {
+            PrepareCreateMode();
+        }
     }
 
     private static ComboBox AddApartmentFilter(Control parent, string label, string selected, int x, int y, int width)

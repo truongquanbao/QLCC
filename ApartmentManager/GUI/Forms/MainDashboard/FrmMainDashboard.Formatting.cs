@@ -80,7 +80,7 @@ public partial class FrmMainDashboard
             "Approved" => "Đã duyệt",
             "Rejected" => "Từ chối",
             "Paid" => "Đã thanh toán",
-            "Partial" => "Thanh toán một phần",
+            "Partial" or "PartiallyPaid" => "Thanh toán một phần",
             "Unpaid" => "Chưa thanh toán",
             "Overdue" => "Quá hạn",
             "New" => "Mới",

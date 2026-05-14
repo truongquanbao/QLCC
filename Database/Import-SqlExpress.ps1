@@ -56,6 +56,7 @@ function Invoke-SqlFile {
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $createPath = Join-Path $scriptRoot "01_CreateTables.sql"
 $seedPath = Join-Path $scriptRoot "02_SeedData.sql"
+$financialPath = Join-Path $scriptRoot "06_AddFinancialCore.sql"
 $assetsPath = Join-Path $scriptRoot "04_AddAssetsMaintenance.sql"
 $demoSeedPath = Join-Path $scriptRoot "05_SeedDemoData.sql"
 $verifyPath = Join-Path $scriptRoot "03_VerifySetup.sql"
@@ -69,6 +70,7 @@ $connection.Open()
 try {
     Invoke-SqlFile -Connection $connection -Path $createPath
     Invoke-SqlFile -Connection $connection -Path $seedPath
+    Invoke-SqlFile -Connection $connection -Path $financialPath
     Invoke-SqlFile -Connection $connection -Path $assetsPath
     Invoke-SqlFile -Connection $connection -Path $demoSeedPath
     Invoke-SqlFile -Connection $connection -Path $verifyPath

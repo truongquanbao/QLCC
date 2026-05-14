@@ -299,29 +299,38 @@ public partial class FrmMainDashboard
         var addPos = TilePosition(0);
         var addTile = AddActionTile(actions, "➕", "Thêm mới", string.Empty, Color.FromArgb(34, 197, 94), addPos.X, addPos.Y, width: tileW, height: tileH);
         BindTileClick(addTile, (_, _) => ShowQuickActionMenu(addTile,
-            ("Thêm tài khoản", () => Navigate("accounts")),
-            ("Thêm cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
-            ("Thêm căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
-            ("Thêm hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
-            ("Thêm phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+            ("Thêm tài khoản", () => NavigateWithQuickAction("accounts", "add")),
+            ("Thêm căn hộ", () => NavigateWithQuickAction("apartments", "add")),
+            ("Thêm phương tiện", () => NavigateWithQuickAction("vehicles", "add")),
+            ("Đăng ký khách", () => NavigateWithQuickAction("visitors", "add")),
+            ("Thêm tài sản", () => NavigateWithQuickAction("assets", "add")),
+            ("Mở trang cư dân", () => Navigate("residents")),
+            ("Mở trang hóa đơn", () => Navigate("invoices")),
+            ("Mở trang phản ánh", () => Navigate("complaints"))));
 
         var editPos = TilePosition(1);
         var editTile = AddActionTile(actions, "✏", "Sửa dữ liệu", string.Empty, Color.FromArgb(249, 115, 22), editPos.X, editPos.Y, width: tileW, height: tileH);
         BindTileClick(editTile, (_, _) => ShowQuickActionMenu(editTile,
-            ("Sửa tài khoản", () => Navigate("accounts")),
-            ("Sửa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
-            ("Sửa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
-            ("Sửa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
-            ("Sửa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+            ("Tài khoản", () => Navigate("accounts")),
+            ("Cư dân", () => Navigate("residents")),
+            ("Căn hộ", () => Navigate("apartments")),
+            ("Hóa đơn", () => Navigate("invoices")),
+            ("Phản ánh", () => Navigate("complaints")),
+            ("Phương tiện", () => Navigate("vehicles")),
+            ("Khách ra vào", () => Navigate("visitors")),
+            ("Tài sản", () => Navigate("assets"))));
 
         var deletePos = TilePosition(2);
         var deleteTile = AddActionTile(actions, "🗑", "Xóa dữ liệu", string.Empty, Color.FromArgb(239, 68, 68), deletePos.X, deletePos.Y, width: tileW, height: tileH);
         BindTileClick(deleteTile, (_, _) => ShowQuickActionMenu(deleteTile,
-            ("Xóa tài khoản", () => Navigate("accounts")),
-            ("Xóa cư dân", () => OpenManagementDialog<FrmResidentManagement>()),
-            ("Xóa căn hộ", () => OpenManagementDialog<FrmApartmentManagement>()),
-            ("Xóa hóa đơn", () => OpenManagementDialog<FrmInvoiceManagement>()),
-            ("Xóa phản ánh", () => OpenManagementDialog<FrmComplaintManagement>())));
+            ("Tài khoản", () => Navigate("accounts")),
+            ("Cư dân", () => Navigate("residents")),
+            ("Căn hộ", () => Navigate("apartments")),
+            ("Hóa đơn", () => Navigate("invoices")),
+            ("Phản ánh", () => Navigate("complaints")),
+            ("Phương tiện", () => Navigate("vehicles")),
+            ("Khách ra vào", () => Navigate("visitors")),
+            ("Tài sản", () => Navigate("assets"))));
 
         var savePos = TilePosition(3);
         var saveTile = AddActionTile(actions, "💾", "Lưu dữ liệu", string.Empty, ModernUi.Blue, savePos.X, savePos.Y, width: tileW, height: tileH);
@@ -349,7 +358,10 @@ public partial class FrmMainDashboard
             ("Mở trang báo cáo", () => Navigate("reports"))));
     }
 
-    private void AddInvoiceQuickActions(Control actions)
+    private void AddInvoiceQuickActions(
+        Control actions,
+        Func<InvoiceDTO?>? selectedInvoiceProvider = null,
+        Action<int?>? reloadInvoices = null)
     {
         actions.Controls.Clear();
 
@@ -373,25 +385,25 @@ public partial class FrmMainDashboard
         var btnCreate = AddActionTile(actions, "+", "Tạo hóa đơn", "Theo tháng", ModernUi.Blue, x1, y1, width: tileW, height: tileH);
         BindTileClick(btnCreate, (_, _) =>
         {
-            OpenManagementDialog<FrmInvoiceManagement>();
+            CreateInvoiceQuickAction(reloadInvoices);
         });
 
         var btnCalculate = AddActionTile(actions, "=", "Tính phí", "Tự động", ModernUi.Green, x2, y1, width: tileW, height: tileH);
         BindTileClick(btnCalculate, (_, _) =>
         {
-            OpenManagementDialog<FrmInvoiceManagement>();
+            GenerateMonthlyInvoicesQuickAction(reloadInvoices);
         });
 
         var btnUpdate = AddActionTile(actions, "✓", "Cập nhật", "Thanh toán", ModernUi.Orange, x1, y2, width: tileW, height: tileH);
         BindTileClick(btnUpdate, (_, _) =>
         {
-            OpenManagementDialog<FrmInvoiceManagement>();
+            RecordInvoicePaymentQuickAction(selectedInvoiceProvider, reloadInvoices);
         });
 
         var btnPrint = AddActionTile(actions, "P", "In hóa đơn", "Bản in", ModernUi.Purple, x2, y2, width: tileW, height: tileH);
         BindTileClick(btnPrint, (_, _) =>
         {
-            OpenManagementDialog<FrmInvoiceManagement>();
+            PrintInvoiceQuickAction(selectedInvoiceProvider);
         });
 
         var btnExportExcel = AddActionTile(actions, "X", "Xuất Excel", "File Excel", ModernUi.Green, x1, y3, width: tileW, height: tileH);
@@ -411,6 +423,433 @@ public partial class FrmMainDashboard
                 "CSV (*.csv)|*.csv",
                 "InvoiceExportForPDF");
         });
+    }
+
+    private void CreateInvoiceQuickAction(Action<int?>? reloadInvoices)
+    {
+        var apartments = ApartmentDAL.GetAllApartments()
+            .Where(a => a.ApartmentID > 0)
+            .OrderBy(a => Display(a.ApartmentCode, ""))
+            .ToList();
+
+        if (apartments.Count == 0)
+        {
+            MessageBox.Show(this, "Chưa có căn hộ để tạo hóa đơn.", "Tạo hóa đơn", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var dialog = CreateAssetDialog("Tạo hóa đơn", 480, 350);
+        var title = ModernUi.Label("Tạo hóa đơn phí dịch vụ", 10f, FontStyle.Bold, ModernUi.Navy);
+        title.SetBounds(18, 16, dialog.ClientSize.Width - 36, 24);
+        dialog.Controls.Add(title);
+
+        var apartmentInput = AddAssetValueCombo(
+            dialog,
+            "Căn hộ",
+            apartments.Select(a => (
+                Text: $"{Display(a.ApartmentCode, $"Căn hộ {a.ApartmentID}")} - {Display(a.BuildingName, "Tòa nhà")}",
+                Value: a.ApartmentID.ToString(CultureInfo.InvariantCulture))),
+            apartments[0].ApartmentID.ToString(CultureInfo.InvariantCulture),
+            18,
+            54,
+            210);
+
+        var monthInput = AddAssetValueCombo(
+            dialog,
+            "Tháng",
+            Enumerable.Range(1, 12).Select(m => (Text: $"{m:00}", Value: m.ToString(CultureInfo.InvariantCulture))),
+            DateTime.Today.Month.ToString(CultureInfo.InvariantCulture),
+            246,
+            54,
+            82);
+
+        var yearInput = AddAssetInput(dialog, "Năm", DateTime.Today.Year.ToString(CultureInfo.InvariantCulture), 346, 54, 96);
+        var dueInput = AddAssetInput(dialog, "Hạn thanh toán", DateText(DateTime.Today.AddDays(14)), 18, 112, 210);
+        var amountInput = AddAssetInput(dialog, "Số tiền", BuildCalculatedInvoiceAmount(apartments[0]).ToString("N0", CultureInfo.InvariantCulture), 246, 112, 196);
+        var noteInput = AddAssetInput(dialog, "Ghi chú", $"Phí dịch vụ tháng {DateTime.Today.Month:00}/{DateTime.Today.Year}", 18, 170, 424);
+
+        apartmentInput.SelectedIndexChanged += (_, _) =>
+        {
+            int apartmentId = ComboBoxHelper.GetSelectedValueInt(apartmentInput);
+            var apartment = apartments.FirstOrDefault(a => a.ApartmentID == apartmentId);
+            if (apartment != null)
+            {
+                amountInput.Text = BuildCalculatedInvoiceAmount(apartment).ToString("N0", CultureInfo.InvariantCulture);
+            }
+        };
+
+        var cancel = ModernUi.OutlineButton("Hủy", 96, 34);
+        var save = ModernUi.Button("Tạo hóa đơn", ModernUi.Blue, 126, 34);
+        cancel.Location = new Point(dialog.ClientSize.Width - 244, 276);
+        save.Location = new Point(dialog.ClientSize.Width - 140, 276);
+        dialog.Controls.Add(cancel);
+        dialog.Controls.Add(save);
+
+        cancel.Click += (_, _) => dialog.DialogResult = DialogResult.Cancel;
+        save.Click += (_, _) =>
+        {
+            int apartmentId = ComboBoxHelper.GetSelectedValueInt(apartmentInput);
+            int month = ComboBoxHelper.GetSelectedValueInt(monthInput);
+            bool validYear = int.TryParse(yearInput.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int year);
+            DateTime? dueDate = ParseAssetDate(dueInput.Text);
+            bool validAmount = TryParseInvoiceMoney(amountInput.Text, out decimal amount);
+
+            if (apartmentId <= 0 || month is < 1 or > 12 || !validYear || !dueDate.HasValue || !validAmount || amount <= 0)
+            {
+                MessageBox.Show(dialog, "Vui lòng nhập đầy đủ căn hộ, kỳ hóa đơn, hạn thanh toán và số tiền hợp lệ.", "Tạo hóa đơn", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var result = InvoiceBLL.CreateInvoice(apartmentId, month, year, dueDate.Value.Date, amount, noteInput.Text.Trim());
+            if (!result.Success)
+            {
+                MessageBox.Show(dialog, result.Message, "Tạo hóa đơn", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            AuditLogDAL.LogAction(_session?.UserID, "Create_Invoice_Quick", "Invoice", result.InvoiceID, $"Tạo hóa đơn nhanh {month:00}/{year}");
+            dialog.Tag = result.InvoiceID;
+            dialog.DialogResult = DialogResult.OK;
+        };
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            int invoiceId = dialog.Tag is int id ? id : 0;
+            MessageBox.Show(this, "Đã tạo hóa đơn.", "Tạo hóa đơn", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            reloadInvoices?.Invoke(invoiceId > 0 ? invoiceId : null);
+        }
+    }
+
+    private void GenerateMonthlyInvoicesQuickAction(Action<int?>? reloadInvoices)
+    {
+        var allApartments = ApartmentDAL.GetAllApartments()
+            .Where(a => a.ApartmentID > 0)
+            .OrderBy(a => Display(a.ApartmentCode, ""))
+            .ToList();
+
+        if (allApartments.Count == 0)
+        {
+            MessageBox.Show(this, "Chưa có căn hộ để tính phí.", "Tính phí", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var dialog = CreateAssetDialog("Tính phí tự động", 450, 308);
+        var title = ModernUi.Label("Tạo hóa đơn phí dịch vụ theo tháng", 10f, FontStyle.Bold, ModernUi.Navy);
+        title.SetBounds(18, 16, dialog.ClientSize.Width - 36, 24);
+        dialog.Controls.Add(title);
+
+        var monthInput = AddAssetValueCombo(
+            dialog,
+            "Tháng",
+            Enumerable.Range(1, 12).Select(m => (Text: $"{m:00}", Value: m.ToString(CultureInfo.InvariantCulture))),
+            DateTime.Today.Month.ToString(CultureInfo.InvariantCulture),
+            18,
+            54,
+            110);
+        var yearInput = AddAssetInput(dialog, "Năm", DateTime.Today.Year.ToString(CultureInfo.InvariantCulture), 146, 54, 110);
+        var dueInput = AddAssetInput(dialog, "Hạn thanh toán", DateText(DateTime.Today.AddDays(14)), 274, 54, 140);
+        var noteInput = AddAssetInput(dialog, "Ghi chú", "Phí dịch vụ tự động", 18, 112, 396);
+
+        var help = ModernUi.Label("Áp dụng cho căn hộ đang sử dụng/đang thuê. Căn hộ đã có hóa đơn cùng kỳ sẽ được bỏ qua.", 8.8f, FontStyle.Regular, ModernUi.Muted);
+        help.SetBounds(18, 170, 396, 42);
+        dialog.Controls.Add(help);
+
+        var cancel = ModernUi.OutlineButton("Hủy", 96, 34);
+        var save = ModernUi.Button("Tạo hàng loạt", ModernUi.Green, 126, 34);
+        cancel.Location = new Point(dialog.ClientSize.Width - 244, 234);
+        save.Location = new Point(dialog.ClientSize.Width - 140, 234);
+        dialog.Controls.Add(cancel);
+        dialog.Controls.Add(save);
+
+        cancel.Click += (_, _) => dialog.DialogResult = DialogResult.Cancel;
+        save.Click += (_, _) =>
+        {
+            int month = ComboBoxHelper.GetSelectedValueInt(monthInput);
+            bool validYear = int.TryParse(yearInput.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int year);
+            DateTime? dueDate = ParseAssetDate(dueInput.Text);
+
+            if (month is < 1 or > 12 || !validYear || !dueDate.HasValue)
+            {
+                MessageBox.Show(dialog, "Vui lòng nhập tháng, năm và hạn thanh toán hợp lệ.", "Tính phí", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            dialog.Tag = (month, year, dueDate.Value.Date, noteInput.Text.Trim());
+            dialog.DialogResult = DialogResult.OK;
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK || dialog.Tag is not ValueTuple<int, int, DateTime, string> values)
+        {
+            return;
+        }
+
+        var billableApartments = allApartments.Where(IsInvoiceBillableApartment).ToList();
+        if (billableApartments.Count == 0)
+        {
+            billableApartments = allApartments;
+        }
+
+        int created = 0;
+        int skipped = 0;
+        int failed = 0;
+        int firstInvoiceId = 0;
+        string firstError = string.Empty;
+
+        foreach (var apartment in billableApartments)
+        {
+            decimal amount = BuildCalculatedInvoiceAmount(apartment);
+            string note = string.IsNullOrWhiteSpace(values.Item4)
+                ? $"Phí dịch vụ tháng {values.Item1:00}/{values.Item2}"
+                : values.Item4;
+            var result = InvoiceBLL.CreateInvoice(apartment.ApartmentID, values.Item1, values.Item2, values.Item3, amount, note);
+            if (result.Success)
+            {
+                created++;
+                if (firstInvoiceId <= 0)
+                {
+                    firstInvoiceId = result.InvoiceID;
+                }
+            }
+            else if (result.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                skipped++;
+            }
+            else
+            {
+                failed++;
+                if (string.IsNullOrWhiteSpace(firstError))
+                {
+                    firstError = result.Message;
+                }
+            }
+        }
+
+        AuditLogDAL.LogAction(_session?.UserID, "Generate_Invoices_Quick", "Invoice", description: $"Tạo {created} hóa đơn kỳ {values.Item1:00}/{values.Item2}");
+
+        string summary = $"Đã tạo {created:N0} hóa đơn kỳ {values.Item1:00}/{values.Item2}.\nBỏ qua {skipped:N0} hóa đơn đã tồn tại.";
+        if (failed > 0)
+        {
+            summary += $"\nLỗi {failed:N0} căn hộ" + (string.IsNullOrWhiteSpace(firstError) ? "." : $": {firstError}");
+        }
+
+        MessageBox.Show(this, summary, "Tính phí", MessageBoxButtons.OK, failed > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        reloadInvoices?.Invoke(firstInvoiceId > 0 ? firstInvoiceId : null);
+    }
+
+    private void RecordInvoicePaymentQuickAction(Func<InvoiceDTO?>? selectedInvoiceProvider, Action<int?>? reloadInvoices)
+    {
+        var selectedInvoice = selectedInvoiceProvider?.Invoke();
+        if (selectedInvoice == null)
+        {
+            MessageBox.Show(this, "Vui lòng chọn một hóa đơn trong danh sách trước khi cập nhật thanh toán.", "Cập nhật thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var invoice = InvoiceDAL.GetInvoiceByID(selectedInvoice.InvoiceID) ?? selectedInvoice;
+        decimal remaining = invoice.RemainingAmount > 0
+            ? invoice.RemainingAmount
+            : Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
+
+        if (remaining <= 0)
+        {
+            MessageBox.Show(this, "Hóa đơn này đã thanh toán đủ.", "Cập nhật thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = CreateAssetDialog("Cập nhật thanh toán", 450, 326);
+        var title = ModernUi.Label($"{InvoiceCode(invoice)} - Căn hộ {Display(invoice.ApartmentCode)}", 10f, FontStyle.Bold, ModernUi.Navy);
+        title.SetBounds(18, 16, dialog.ClientSize.Width - 36, 24);
+        dialog.Controls.Add(title);
+
+        var amountInput = AddAssetInput(dialog, "Số tiền thanh toán", remaining.ToString("N0", CultureInfo.InvariantCulture), 18, 58, 190);
+        var dateInput = AddAssetInput(dialog, "Ngày ghi nhận", DateText(DateTime.Today), 226, 58, 188);
+        var methodInput = AddAssetValueCombo(
+            dialog,
+            "Phương thức",
+            new[]
+            {
+                ("Tiền mặt", "Cash"),
+                ("Chuyển khoản", "Transfer"),
+                ("Quẹt thẻ", "Card")
+            },
+            "Cash",
+            18,
+            116,
+            190);
+        var note = ModernUi.Label($"Còn phải thu: {Money(remaining)} VNĐ", 9f, FontStyle.Bold, ModernUi.Red);
+        note.SetBounds(226, 132, 188, 28);
+        dialog.Controls.Add(note);
+
+        var cancel = ModernUi.OutlineButton("Hủy", 96, 34);
+        var save = ModernUi.Button("Ghi nhận", ModernUi.Orange, 112, 34);
+        cancel.Location = new Point(dialog.ClientSize.Width - 226, 252);
+        save.Location = new Point(dialog.ClientSize.Width - 122, 252);
+        dialog.Controls.Add(cancel);
+        dialog.Controls.Add(save);
+
+        cancel.Click += (_, _) => dialog.DialogResult = DialogResult.Cancel;
+        save.Click += (_, _) =>
+        {
+            DateTime? paymentDate = ParseAssetDate(dateInput.Text);
+            if (!paymentDate.HasValue || !TryParseInvoiceMoney(amountInput.Text, out decimal amount) || amount <= 0)
+            {
+                MessageBox.Show(dialog, "Vui lòng nhập ngày ghi nhận và số tiền hợp lệ.", "Cập nhật thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (amount > remaining)
+            {
+                MessageBox.Show(dialog, "Số tiền thanh toán không được vượt quá số còn phải thu.", "Cập nhật thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var result = InvoiceBLL.RecordPayment(invoice.InvoiceID, amount, paymentDate.Value, ComboBoxHelper.GetSelectedValueString(methodInput));
+            if (!result.Success)
+            {
+                MessageBox.Show(dialog, result.Message, "Cập nhật thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            AuditLogDAL.LogAction(_session?.UserID, "Record_Invoice_Payment_Quick", "Invoice", invoice.InvoiceID, $"Ghi nhận thanh toán {amount:N0}");
+            dialog.DialogResult = DialogResult.OK;
+        };
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            MessageBox.Show(this, "Đã cập nhật thanh toán.", "Cập nhật thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            reloadInvoices?.Invoke(invoice.InvoiceID);
+        }
+    }
+
+    private void PrintInvoiceQuickAction(Func<InvoiceDTO?>? selectedInvoiceProvider)
+    {
+        var selectedInvoice = selectedInvoiceProvider?.Invoke();
+        if (selectedInvoice == null)
+        {
+            MessageBox.Show(this, "Vui lòng chọn một hóa đơn trong danh sách trước khi in.", "In hóa đơn", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var invoice = InvoiceDAL.GetInvoiceByID(selectedInvoice.InvoiceID) ?? selectedInvoice;
+        var resident = FindInvoiceResident(invoice);
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Lưu bản in hóa đơn",
+            Filter = "Text file (*.txt)|*.txt",
+            FileName = $"hoa-don-{InvoiceCode(invoice)}.txt",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            RestoreDirectory = true
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        File.WriteAllText(dialog.FileName, BuildInvoicePrintContent(invoice, resident), new System.Text.UTF8Encoding(true));
+        AuditLogDAL.LogAction(_session?.UserID, "Print_Invoice_Quick", "Invoice", invoice.InvoiceID, $"Tạo bản in hóa đơn: {dialog.FileName}");
+        MessageBox.Show(this, "Đã tạo bản in hóa đơn.", "In hóa đơn", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private static bool IsInvoiceBillableApartment(ApartmentDTO apartment)
+    {
+        string status = ViStatus(apartment.Status);
+        return status is "Đang sử dụng" or "Đang thuê";
+    }
+
+    private static decimal BuildCalculatedInvoiceAmount(ApartmentDTO apartment)
+    {
+        decimal area = apartment.Area > 0 ? apartment.Area : 60m;
+        decimal managementFee = area * 12000m;
+        decimal serviceFee = 250000m;
+        decimal hygieneFee = 80000m;
+        decimal sharedUtilityFee = 120000m;
+        decimal total = managementFee + serviceFee + hygieneFee + sharedUtilityFee;
+        return Math.Ceiling(total / 1000m) * 1000m;
+    }
+
+    private static bool TryParseInvoiceMoney(string value, out decimal amount)
+    {
+        string text = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            amount = 0;
+            return false;
+        }
+
+        string normalized = text
+            .Replace(" ", "")
+            .Replace(".", "")
+            .Replace(",", "")
+            .Replace("VNĐ", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("VND", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("đ", "", StringComparison.OrdinalIgnoreCase);
+
+        if (normalized.All(char.IsDigit) &&
+            decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out amount))
+        {
+            return true;
+        }
+
+        return decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out amount) ||
+               decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out amount);
+    }
+
+    private static ResidentDTO? FindInvoiceResident(InvoiceDTO invoice)
+    {
+        try
+        {
+            if (invoice.ResidentID.HasValue && invoice.ResidentID.Value > 0)
+            {
+                var resident = ResidentDAL.GetResidentByID(invoice.ResidentID.Value);
+                if (resident != null)
+                {
+                    return resident;
+                }
+            }
+
+            return ResidentDAL.GetAllResidents()
+                .FirstOrDefault(r => r.ApartmentID == invoice.ApartmentID);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string BuildInvoicePrintContent(InvoiceDTO invoice, ResidentDTO? resident)
+    {
+        decimal remaining = invoice.RemainingAmount > 0
+            ? invoice.RemainingAmount
+            : Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
+
+        var lines = new List<string>
+        {
+            "PHIẾU THU / HÓA ĐƠN PHÍ CHUNG CƯ",
+            "----------------------------------",
+            $"Mã hóa đơn: {InvoiceCode(invoice)}",
+            $"Căn hộ: {Display(invoice.ApartmentCode)}",
+            $"Chủ hộ / cư dân: {Display(resident?.FullName)}",
+            $"Điện thoại: {Display(resident?.Phone)}",
+            $"Kỳ phí: {invoice.Month:00}/{invoice.Year}",
+            $"Hạn thanh toán: {DateText(invoice.DueDate)}",
+            "",
+            $"Tổng tiền: {Money(invoice.TotalAmount)} VNĐ",
+            $"Đã thanh toán: {Money(invoice.PaidAmount)} VNĐ",
+            $"Còn phải thu: {Money(remaining)} VNĐ",
+            $"Trạng thái: {ViStatus(invoice.PaymentStatus)}",
+            "",
+            $"Ghi chú: {Display(invoice.Note)}",
+            $"Ngày in: {DateTime.Now:dd/MM/yyyy HH:mm}",
+            "",
+            "Người lập phiếu                         Người nộp tiền",
+            "",
+            "",
+            "__________________                      __________________"
+        };
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private void RenderManagerDashboard()

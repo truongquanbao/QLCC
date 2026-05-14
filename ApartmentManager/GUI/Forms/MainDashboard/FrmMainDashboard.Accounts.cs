@@ -1098,6 +1098,10 @@ public partial class FrmMainDashboard
 
         RefreshUsersWithPaging();
         ReloadPermissionMatrix();
+        if (ConsumeQuickAction("accounts", "add"))
+        {
+            PopulateAccountForm(null, clearSelection: true);
+        }
         SetBottomTab(true);
 
         static Button AddToolbarButton(Control parent, string text, Color color, int x, int y, int width)

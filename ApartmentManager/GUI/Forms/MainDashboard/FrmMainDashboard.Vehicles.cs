@@ -606,6 +606,10 @@ public partial class FrmMainDashboard
         }
 
         ApplyFilters();
+        if (ConsumeQuickAction("vehicles", "add"))
+        {
+            AddVehicle();
+        }
         page.AutoScroll = true;
         page.AutoScrollMinSize = new Size(0, y + 250);
     }
