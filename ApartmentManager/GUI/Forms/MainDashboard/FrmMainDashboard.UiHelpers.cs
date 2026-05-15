@@ -546,7 +546,7 @@ public partial class FrmMainDashboard
         var avatar = new CircleLabel
         {
             Text = initials,
-            CircleColor = ModernUi.Blue,
+            CircleColor = ModernUi.Orange,
             ForeColor = Color.White,
             Font = ModernUi.Font(17f, FontStyle.Bold),
             Location = new Point(16, 12),
