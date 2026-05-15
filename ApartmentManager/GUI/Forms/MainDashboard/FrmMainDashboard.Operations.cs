@@ -68,7 +68,7 @@ public partial class FrmMainDashboard
         revenue.Location = new Point(18, y);
         var chart = new BarChartPanel
         {
-            BarColor = ModernUi.Blue,
+            BarColor = ModernUi.Orange,
             AxisMax = 1,
             SeriesLabel = "Doanh thu (VNĐ)",
             Location = new Point(12, 42),
@@ -114,7 +114,7 @@ public partial class FrmMainDashboard
         complaintChart.Location = new Point(18, y);
         var complaintBars = new BarChartPanel
         {
-            BarColor = ModernUi.Blue,
+            BarColor = ModernUi.Orange,
             AxisMax = 1,
             ShowValueLabels = true,
             SeriesLabel = "Số lượng phản ánh",

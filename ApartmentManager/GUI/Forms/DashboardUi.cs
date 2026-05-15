@@ -256,7 +256,7 @@ internal sealed class DashboardBarChartPanel : Control
     public List<(string Label, decimal Value)> Bars { get; } = new();
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public Color BarColor { get; set; } = ModernUi.Blue;
+    public Color BarColor { get; set; } = ModernUi.Orange;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public decimal AxisMax { get; set; }

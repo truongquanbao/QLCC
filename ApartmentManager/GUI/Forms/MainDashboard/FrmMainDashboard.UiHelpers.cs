@@ -536,6 +536,7 @@ public partial class FrmMainDashboard
             Display(resident.FullName, "Cư dân")
                 .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Take(2)
+                .Reverse()
                 .Select(part => char.ToUpperInvariant(part[0])));
         if (string.IsNullOrWhiteSpace(initials))
         {

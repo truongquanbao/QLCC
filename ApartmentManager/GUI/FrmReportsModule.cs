@@ -49,7 +49,7 @@ namespace ApartmentManager.GUI
             {
                 Text = "Reports & Export Manager",
                 Font = new Font("Arial", 16, FontStyle.Bold),
-                ForeColor = Color.DarkBlue,
+                ForeColor = Color.Yellow,
                 Location = new Point(20, 20),
                 AutoSize = true
             };

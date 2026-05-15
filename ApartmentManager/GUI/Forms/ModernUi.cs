@@ -402,7 +402,7 @@ internal sealed class BarChartPanel : Control
     public List<(string Label, int Value)> Bars { get; } = new();
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public Color BarColor { get; set; } = ModernUi.Blue;
+    public Color BarColor { get; set; } = ModernUi.Orange;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int AxisMax { get; set; }

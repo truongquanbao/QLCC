@@ -78,7 +78,7 @@ public partial class FrmMainDashboard
         {
             SeriesLabel = "Doanh thu (VNĐ)",
             EmptyMessage = "Chưa có dữ liệu doanh thu",
-            BarColor = ModernUi.Blue
+            BarColor = ModernUi.Orange
         };
         revenue.Controls.Add(revenueChart);
         page.Controls.Add(revenue);
@@ -900,7 +900,7 @@ public partial class FrmMainDashboard
         {
             Location = new Point(12, 52),
             Size = new Size(chartPanel.Width - 24, 194),
-            BarColor = ModernUi.Blue,
+            BarColor = ModernUi.Orange,
             AxisMax = 50,
             GridSteps = 5,
             ShowValueLabels = true,

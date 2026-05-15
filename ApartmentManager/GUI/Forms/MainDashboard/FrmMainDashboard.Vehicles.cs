@@ -516,7 +516,7 @@ public partial class FrmMainDashboard
             {
                 Location = new Point(12, 42),
                 Size = new Size(buildingChart.Width - 24, 160),
-                BarColor = ModernUi.Blue,
+                BarColor = ModernUi.Orange,
                 ShowValueLabels = true,
                 GridSteps = 4
             };
