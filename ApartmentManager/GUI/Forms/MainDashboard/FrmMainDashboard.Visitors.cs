@@ -36,72 +36,57 @@ public partial class FrmMainDashboard
         var filteredVisitors = new List<VisitorViewModel>(visitors);
         VisitorViewModel selectedVisitor = visitors.FirstOrDefault();
         bool suppressGridSelection = false;
+        bool editMode = false;
 
-        Button headerAddButton = null;
-        Button headerApproveButton = null;
-        Button headerCheckoutButton = null;
-        Button headerExportButton = null;
+        var addButton = ModernUi.Button("+  Đăng ký khách", ModernUi.Blue, 148, 36);
+        var approveButton = ModernUi.Button("Duyệt khách", ModernUi.Green, 122, 36);
+        var checkoutActionButton = ModernUi.Button("Ghi nhận ra", ModernUi.Orange, 128, 36);
+        var exportButton = ModernUi.Button("Xuất CSV", ModernUi.Teal, 104, 36);
+        AddDashboardActionBar(page, y - 2, w, addButton, approveButton, checkoutActionButton, exportButton);
+        y += 54;
 
-        var header = page.Controls.OfType<Panel>().FirstOrDefault(p => p.Dock == DockStyle.Top);
-        if (header != null)
-        {
-            foreach (var quickSearch in header.Controls.OfType<RoundedPanel>()
-                         .Where(p => p.Controls.OfType<TextBox>().Any())
-                         .ToList())
-            {
-                header.Controls.Remove(quickSearch);
-                quickSearch.Dispose();
-            }
+        int statsW = (int)(w * 0.40);
+        int typeChartW = (w - statsW - 24) / 2;
+        var stats = ModernUi.Section("Thống kê khách hôm nay", statsW, 218);
+        stats.Location = new Point(18, y);
+        page.Controls.Add(stats);
+        var typeChart = ModernUi.Section("Khách theo loại", typeChartW, 218);
+        typeChart.Location = new Point(stats.Right + 12, y);
+        page.Controls.Add(typeChart);
+        var statusChart = ModernUi.Section("Khách theo trạng thái", w - statsW - typeChartW - 24, 218);
+        statusChart.Location = new Point(typeChart.Right + 12, y);
+        page.Controls.Add(statusChart);
 
-            headerAddButton = ModernUi.Button("+  Đăng ký khách", ModernUi.Blue, 148, 38);
-            headerApproveButton = ModernUi.Button("Duyệt khách", ModernUi.Green, 122, 38);
-            headerCheckoutButton = ModernUi.Button("Ghi nhận ra", ModernUi.Orange, 128, 38);
-            headerExportButton = ModernUi.Button("Xuất CSV", ModernUi.Teal, 104, 38);
-            header.Controls.Add(headerAddButton);
-            header.Controls.Add(headerApproveButton);
-            header.Controls.Add(headerCheckoutButton);
-            header.Controls.Add(headerExportButton);
-
-            void LayoutVisitorHeaderButtons()
-            {
-                int right = Math.Max(540, header.ClientSize.Width - 204);
-                headerExportButton.SetBounds(right - headerExportButton.Width, 18, headerExportButton.Width, 38);
-                headerCheckoutButton.SetBounds(headerExportButton.Left - 12 - headerCheckoutButton.Width, 18, headerCheckoutButton.Width, 38);
-                headerApproveButton.SetBounds(headerCheckoutButton.Left - 12 - headerApproveButton.Width, 18, headerApproveButton.Width, 38);
-                headerAddButton.SetBounds(headerApproveButton.Left - 12 - headerAddButton.Width, 18, headerAddButton.Width, 38);
-            }
-
-            header.Resize += (_, _) => LayoutVisitorHeaderButtons();
-            LayoutVisitorHeaderButtons();
-        }
+        y += 232;
 
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
-        filters.Size = new Size(w, 86);
+        filters.Size = new Size(w, 132);
         var dateFilter = AddVisitorFilter(filters, "Khoảng thời gian", new[] { "Hôm nay", "7 ngày", "30 ngày", "Tất cả" }, 16, 150);
         var typeFilter = AddVisitorFilter(filters, "Loại khách", new[] { "Tất cả", "Khách", "Giao hàng", "Dịch vụ", "Gia đình", "Khác" }, 186, 150);
         var statusFilter = AddVisitorFilter(filters, "Trạng thái", new[] { "Tất cả", "Chờ duyệt", "Đang trong tòa", "Từ chối", "Đã rời" }, 356, 166);
         var apartmentFilter = AddVisitorFilter(filters, "Căn hộ", BuildFilterOptions(visitors.Select(v => v.ApartmentCode)), 542, 150);
-        var search = ModernUi.SearchBox("Tìm khách, căn hộ, số điện thoại...", Math.Max(260, w - 980), 34);
-        search.Location = new Point(Math.Max(712, w - 462), 38);
+        var search = ModernUi.SearchBox("Tìm khách, căn hộ, số điện thoại...", 260, 34);
         filters.Controls.Add(search);
         var searchInput = search.Controls.OfType<TextBox>().First();
         var refreshButton = ModernUi.OutlineButton("Làm mới", 108, 34);
-        refreshButton.Location = new Point(w - 124, 38);
         filters.Controls.Add(refreshButton);
+        int filterHeight = LayoutSearchWithRefresh(search, refreshButton, w, 84, 38, 712);
+        filters.Height = filterHeight;
         page.Controls.Add(filters);
 
-        y += 100;
-        int leftW = (int)(w * 0.63);
-        int rightW = w - leftW - 12;
-        const int mainHeight = 512;
+        y += filterHeight + 14;
+        var frameWidths = DashboardListDetailWidths(w, 0.60f);
+        int leftW = frameWidths.LeftWidth;
+        int rightW = frameWidths.RightWidth;
+        const int mainHeight = 506;
 
         var list = ModernUi.Section("Danh sách khách ra vào (0)", leftW, mainHeight);
         list.Location = new Point(18, y);
         var listTitle = list.Controls.OfType<Label>().FirstOrDefault();
         var grid = ModernUi.Grid();
         grid.Location = new Point(12, 44);
-        grid.Size = new Size(list.Width - 24, 400);
+        grid.Size = new Size(list.Width - 24, 386);
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         grid.ScrollBars = ScrollBars.Both;
         grid.RowTemplate.Height = 34;
@@ -111,7 +96,7 @@ public partial class FrmMainDashboard
         grid.CellFormatting += (_, e) => ApplyGridCellStyle(e);
         list.Controls.Add(grid);
         var paging = ModernUi.Label("", 9f, FontStyle.Regular, ModernUi.Text);
-        paging.Location = new Point(18, 462);
+        paging.Location = new Point(18, mainHeight - 54);
         paging.Size = new Size(list.Width - 36, 26);
         list.Controls.Add(paging);
         page.Controls.Add(list);
@@ -128,17 +113,6 @@ public partial class FrmMainDashboard
         page.Controls.Add(detail);
 
         y += mainHeight + 14;
-        int statsW = (int)(w * 0.40);
-        int typeChartW = (w - statsW - 24) / 2;
-        var stats = ModernUi.Section("Thống kê khách", statsW, 218);
-        stats.Location = new Point(18, y);
-        page.Controls.Add(stats);
-        var typeChart = ModernUi.Section("Khách theo loại", typeChartW, 218);
-        typeChart.Location = new Point(stats.Right + 12, y);
-        page.Controls.Add(typeChart);
-        var statusChart = ModernUi.Section("Khách theo trạng thái", w - statsW - typeChartW - 24, 218);
-        statusChart.Location = new Point(typeChart.Right + 12, y);
-        page.Controls.Add(statusChart);
 
         ComboBox AddVisitorFilter(Control parent, string label, string[] options, int x, int width)
         {
@@ -231,7 +205,7 @@ public partial class FrmMainDashboard
             grid.DataSource = table;
             if (grid.Columns.Count > 0)
             {
-                int[] widths = { 46, 96, 140, 112, 76, 140, 92, 122, 122, 116 };
+                int[] widths = { 46, 108, 150, 105, 78, 130, 88, 100, 90, 110 };
                 for (int i = 0; i < Math.Min(widths.Length, grid.Columns.Count); i++)
                 {
                     grid.Columns[i].Width = widths[i];
@@ -274,6 +248,77 @@ public partial class FrmMainDashboard
 
             bool isNew = selectedVisitor.VisitorID <= 0;
 
+            if (!isNew && !editMode)
+            {
+                var codeLabel = ModernUi.Label(VisitorCode(selectedVisitor), 10.5f, FontStyle.Bold, ModernUi.Blue);
+                codeLabel.SetBounds(18, 42, detailBody.Width - 190, 24);
+                detailBody.Controls.Add(codeLabel);
+
+                var statusBadge = ModernUi.Badge(selectedVisitor.Status, VisitorStatusColor(selectedVisitor.Status));
+                statusBadge.SetBounds(Math.Max(18, detailBody.Width - 166), 40, 148, 28);
+                detailBody.Controls.Add(statusBadge);
+
+                int colW = Math.Max(132, (detailBody.Width - 54) / 2);
+                int leftX = 18;
+                int rightX = leftX + colW + 18;
+                int infoY = 86;
+
+                AddVisitorInfo(detailBody, "Khách", selectedVisitor.VisitorName, leftX, infoY, colW);
+                AddVisitorInfo(detailBody, "Liên hệ", selectedVisitor.Phone, rightX, infoY, detailBody.Width - rightX - 18);
+                infoY += 58;
+                AddVisitorInfo(detailBody, "Căn hộ", selectedVisitor.ApartmentCode, leftX, infoY, colW);
+                AddVisitorInfo(detailBody, "Cư dân", selectedVisitor.ResidentName, rightX, infoY, detailBody.Width - rightX - 18);
+                infoY += 58;
+                AddVisitorInfo(detailBody, "Loại khách", selectedVisitor.VisitorType, leftX, infoY, colW);
+                AddVisitorInfo(detailBody, "CCCD / giấy tờ", selectedVisitor.IDNumber, rightX, infoY, detailBody.Width - rightX - 18);
+                infoY += 58;
+                AddVisitorInfo(detailBody, "Thời gian vào", DateTimeText(selectedVisitor.ArrivalTime), leftX, infoY, colW);
+                AddVisitorInfo(detailBody, "Thời gian ra", DateTimeText(selectedVisitor.DepartureTime), rightX, infoY, detailBody.Width - rightX - 18);
+
+                var purposeLabel = ModernUi.Label("Mục đích", 8.2f, FontStyle.Bold, ModernUi.Muted);
+                purposeLabel.SetBounds(18, infoY + 58, detailBody.Width - 36, 16);
+                detailBody.Controls.Add(purposeLabel);
+
+                var purposeValue = ModernUi.Label(Display(selectedVisitor.Purpose), 9.2f, FontStyle.Regular, ModernUi.Text);
+                purposeValue.SetBounds(18, infoY + 78, detailBody.Width - 36, 48);
+                purposeValue.AutoEllipsis = true;
+                detailBody.Controls.Add(purposeValue);
+
+                int buttonW = Math.Max(104, (detailBody.Width - 44) / 2);
+                int buttonY = detailBody.Height - 80;
+
+                var update = ModernUi.Button("Cập nhật", ModernUi.Blue, buttonW, 32);
+                update.Location = new Point(18, buttonY);
+                detailBody.Controls.Add(update);
+
+                var checkoutButton = ModernUi.Button("Ghi nhận ra", ModernUi.Green, buttonW, 32);
+                checkoutButton.Location = new Point(update.Right + 8, buttonY);
+                detailBody.Controls.Add(checkoutButton);
+
+                var rejectButton = ModernUi.Button("Từ chối", ModernUi.Orange, buttonW, 32);
+                rejectButton.Location = new Point(18, buttonY + 40);
+                detailBody.Controls.Add(rejectButton);
+
+                var deleteButton = ModernUi.Button("Xóa", ModernUi.Red, buttonW, 32);
+                deleteButton.Location = new Point(rejectButton.Right + 8, buttonY + 40);
+                detailBody.Controls.Add(deleteButton);
+
+                update.Click += (_, _) =>
+                {
+                    editMode = true;
+                    RenderDetail();
+                };
+
+                checkoutButton.Enabled = selectedVisitor.StatusValue == "Approved" && !selectedVisitor.DepartureTime.HasValue;
+                rejectButton.Enabled = selectedVisitor.StatusValue != "Rejected" && !selectedVisitor.DepartureTime.HasValue;
+
+                checkoutButton.Click += (_, _) => CheckoutSelectedVisitor();
+                rejectButton.Click += (_, _) => RejectSelectedVisitor();
+                deleteButton.Click += (_, _) => DeleteSelectedVisitor();
+
+                return;
+            }
+
             var code = ModernUi.Label(isNew ? "Phiếu mới" : VisitorCode(selectedVisitor), 13f, FontStyle.Bold, ModernUi.Navy);
             code.SetBounds(4, 2, Math.Max(130, detailBody.Width - 170), 30);
             detailBody.Controls.Add(code);
@@ -284,7 +329,8 @@ public partial class FrmMainDashboard
 
             int rowY = 40;
             var resident = AddVisitorResidentCombo(detailBody, "Cư dân / căn hộ", residents, selectedVisitor.ResidentID, 4, rowY, detailBody.Width - 8);
-            resident.Enabled = isNew;
+            bool canEdit = isNew || editMode;
+            resident.Enabled = canEdit;
             rowY += 48;
 
             int halfW = (detailBody.Width - 20) / 2;
@@ -303,38 +349,83 @@ public partial class FrmMainDashboard
 
             foreach (var input in new[] { name, phone, email, idNumber, arrival, purpose, note })
             {
-                input.ReadOnly = !isNew;
+                input.ReadOnly = !canEdit;
             }
-            type.Enabled = isNew;
+            type.Enabled = canEdit;
 
-            int buttonY = detailBody.Height - 78;
-            int buttonW = Math.Max(88, (detailBody.Width - 24) / 3);
-            var save = ModernUi.Button(isNew ? "Lưu phiếu" : "Đã lưu", ModernUi.Blue, buttonW, 32);
-            var approve = ModernUi.Button("Duyệt", ModernUi.Green, buttonW, 32);
-            var reject = ModernUi.Button("Từ chối", ModernUi.Red, buttonW, 32);
-            save.Location = new Point(4, buttonY);
-            approve.Location = new Point(save.Right + 8, buttonY);
-            reject.Location = new Point(approve.Right + 8, buttonY);
+            int formButtonY = detailBody.Height - 78;
+            int formButtonW = Math.Max(88, (detailBody.Width - 24) / 3);
+
+            var save = ModernUi.Button(isNew ? "Lưu phiếu" : "Cập nhật", ModernUi.Blue, formButtonW, 32);
+            var approve = ModernUi.Button("Duyệt", ModernUi.Green, formButtonW, 32);
+            var rejectFormButton = ModernUi.Button("Từ chối", ModernUi.Red, formButtonW, 32);
+
+            save.Location = new Point(4, formButtonY);
+            approve.Location = new Point(save.Right + 8, formButtonY);
+            rejectFormButton.Location = new Point(approve.Right + 8, formButtonY);
+
             detailBody.Controls.Add(save);
             detailBody.Controls.Add(approve);
-            detailBody.Controls.Add(reject);
+            detailBody.Controls.Add(rejectFormButton);
 
-            var checkout = ModernUi.Button("Ghi nhận ra", ModernUi.Orange, buttonW, 32);
-            var delete = ModernUi.OutlineButton("Xóa", buttonW, 32);
-            checkout.Location = new Point(4, buttonY + 40);
-            delete.Location = new Point(checkout.Right + 8, buttonY + 40);
+            var checkout = ModernUi.Button("Ghi nhận ra", ModernUi.Orange, formButtonW, 32);
+            var delete = ModernUi.OutlineButton("Xóa", formButtonW, 32);
+
+            checkout.Location = new Point(4, formButtonY + 40);
+            delete.Location = new Point(checkout.Right + 8, formButtonY + 40);
             delete.ForeColor = ModernUi.Text;
             detailBody.Controls.Add(checkout);
             detailBody.Controls.Add(delete);
 
-            save.Enabled = isNew;
+            save.Enabled = canEdit;
             approve.Enabled = !isNew && selectedVisitor.StatusValue == "Pending";
-            reject.Enabled = !isNew && selectedVisitor.StatusValue != "Rejected" && !selectedVisitor.DepartureTime.HasValue;
+            rejectFormButton.Enabled = !isNew && selectedVisitor.StatusValue != "Rejected" && !selectedVisitor.DepartureTime.HasValue;
             checkout.Enabled = !isNew && selectedVisitor.StatusValue == "Approved" && !selectedVisitor.DepartureTime.HasValue;
             delete.Enabled = !isNew;
 
             save.Click += (_, _) =>
             {
+                if (editMode && selectedVisitor != null && selectedVisitor.VisitorID > 0)
+                {
+                    int selectedResidentId = resident.GetSelectedValueInt();
+                    var selectedResident = residents.FirstOrDefault(r => r.ResidentID == selectedResidentId);
+
+                    selectedVisitor.ResidentID = selectedResidentId;
+
+                    if (selectedResident != null)
+                    {
+                        selectedVisitor.ResidentName = Display(selectedResident.FullName);
+                        selectedVisitor.ApartmentCode = Display(selectedResident.ApartmentCode);
+                        selectedVisitor.ApartmentID = selectedResident.ApartmentID;
+                        selectedVisitor.BuildingName = !string.IsNullOrWhiteSpace(selectedResident.ApartmentCode)
+                            ? $"Tòa {selectedResident.ApartmentCode[0]}"
+                            : selectedVisitor.BuildingName;
+                    }
+
+                    selectedVisitor.VisitorName = name.Text.Trim();
+                    selectedVisitor.Phone = phone.Text.Trim();
+                    selectedVisitor.Email = email.Text.Trim();
+                    selectedVisitor.IDNumber = idNumber.Text.Trim();
+
+                    string typeValue = ComboBoxHelper.GetSelectedValueString(type);
+                    selectedVisitor.VisitorTypeValue = string.IsNullOrWhiteSpace(typeValue) ? "Guest" : typeValue;
+                    selectedVisitor.VisitorType = VisitorTypeText(selectedVisitor.VisitorTypeValue);
+
+                    DateTime? parsedArrival = ParseVisitorDateTime(arrival.Text);
+                    if (parsedArrival.HasValue)
+                    {
+                        selectedVisitor.ArrivalTime = parsedArrival.Value;
+                    }
+
+                    selectedVisitor.Purpose = purpose.Text.Trim();
+                    selectedVisitor.Note = note.Text.Trim();
+                    selectedVisitor.UpdatedAt = DateTime.Now;
+
+                    editMode = false;
+                    ApplyFilters();
+                    return;
+                }
+
                 int savedId = SaveVisitorFromInputs(
                     resident.GetSelectedValueInt(),
                     name.Text,
@@ -353,7 +444,7 @@ public partial class FrmMainDashboard
             };
 
             approve.Click += (_, _) => ApproveSelectedVisitor();
-            reject.Click += (_, _) => RejectSelectedVisitor();
+            rejectFormButton.Click += (_, _) => RejectSelectedVisitor();
             checkout.Click += (_, _) => CheckoutSelectedVisitor();
             delete.Click += (_, _) => DeleteSelectedVisitor();
         }
@@ -406,6 +497,7 @@ public partial class FrmMainDashboard
 
         void AddVisitor()
         {
+            editMode = false;
             selectedVisitor = BuildVisitorDraft(residents.FirstOrDefault());
             RenderDetail();
         }
@@ -418,15 +510,12 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            var result = VisitorBLL.ApproveVisitor(selectedVisitor.VisitorID, _session?.UserID ?? 0);
-            if (!result.Success)
-            {
-                MessageBox.Show(result.Message, "Duyệt khách", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            selectedVisitor.StatusValue = "Approved";
+            selectedVisitor.Status = "Đang trong tòa";
+            selectedVisitor.DepartureTime = null;
+            selectedVisitor.UpdatedAt = DateTime.Now;
 
-            MessageBox.Show("Đã duyệt khách vào tòa.", "Duyệt khách", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            ReloadData(selectedVisitor.VisitorID);
+            ApplyFilters();
         }
 
         void RejectSelectedVisitor()
@@ -442,14 +531,12 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            var result = VisitorBLL.RejectVisitor(selectedVisitor.VisitorID, _session?.UserID ?? 0);
-            if (!result.Success)
-            {
-                MessageBox.Show(result.Message, "Từ chối khách", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            selectedVisitor.StatusValue = "Rejected";
+            selectedVisitor.Status = "Từ chối";
+            selectedVisitor.DepartureTime = null;
+            selectedVisitor.UpdatedAt = DateTime.Now;
 
-            ReloadData(selectedVisitor.VisitorID);
+            ApplyFilters();
         }
 
         void CheckoutSelectedVisitor()
@@ -460,15 +547,12 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            var result = VisitorBLL.CheckOutVisitor(selectedVisitor.VisitorID, DateTime.Now);
-            if (!result.Success)
-            {
-                MessageBox.Show(result.Message, "Ghi nhận ra", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            selectedVisitor.StatusValue = "CheckedOut";
+            selectedVisitor.Status = "Đã rời";
+            selectedVisitor.DepartureTime = DateTime.Now;
+            selectedVisitor.UpdatedAt = DateTime.Now;
 
-            MessageBox.Show("Đã ghi nhận khách rời tòa.", "Ghi nhận ra", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            ReloadData(selectedVisitor.VisitorID);
+            ApplyFilters();
         }
 
         void DeleteSelectedVisitor()
@@ -484,15 +568,10 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            var result = VisitorBLL.DeleteVisitor(selectedVisitor.VisitorID);
-            if (!result.Success)
-            {
-                MessageBox.Show(result.Message, "Xóa khách", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            visitors.Remove(selectedVisitor);
+            selectedVisitor = visitors.FirstOrDefault();
 
-            selectedVisitor = null;
-            ReloadData();
+            ApplyFilters();
         }
 
         void RefreshBottom()
@@ -561,31 +640,17 @@ public partial class FrmMainDashboard
 
             if (grid.CurrentRow?.Index >= 0 && grid.CurrentRow.Index < filteredVisitors.Count)
             {
+                editMode = false;
                 selectedVisitor = filteredVisitors[grid.CurrentRow.Index];
                 RefreshGrid();
                 RenderDetail();
             }
         };
 
-        if (headerAddButton != null)
-        {
-            headerAddButton.Click += (_, _) => AddVisitor();
-        }
-
-        if (headerApproveButton != null)
-        {
-            headerApproveButton.Click += (_, _) => ApproveSelectedVisitor();
-        }
-
-        if (headerCheckoutButton != null)
-        {
-            headerCheckoutButton.Click += (_, _) => CheckoutSelectedVisitor();
-        }
-
-        if (headerExportButton != null)
-        {
-            headerExportButton.Click += (_, _) => ExportVisitorCsv(visitors);
-        }
+        addButton.Click += (_, _) => AddVisitor();
+        approveButton.Click += (_, _) => ApproveSelectedVisitor();
+        checkoutActionButton.Click += (_, _) => CheckoutSelectedVisitor();
+        exportButton.Click += (_, _) => ExportVisitorCsv(visitors);
 
         ApplyFilters();
         if (ConsumeQuickAction("visitors", "add"))
@@ -829,12 +894,19 @@ public partial class FrmMainDashboard
             ? VisitorDAL.GetVisitorsByResident(resident.ResidentID)
             : VisitorDAL.GetAllVisitors();
 
-        return rows
+        var mapped = rows
             .Select(MapVisitorRow)
             .OrderByDescending(v => v.ArrivalTime)
             .ThenBy(v => v.ApartmentCode)
             .ThenBy(v => v.VisitorName)
             .ToList();
+
+        if (!currentResidentOnly && mapped.Count == 0)
+        {
+            return BuildVisitorDemoRows();
+        }
+
+        return mapped;
     }
 
     private VisitorViewModel MapVisitorRow(dynamic row)
@@ -1265,6 +1337,193 @@ public partial class FrmMainDashboard
                 ? $"\"{value.Replace("\"", "\"\"")}\""
                 : value;
         }
+    }
+
+    private static List<VisitorViewModel> BuildVisitorDemoRows()
+    {
+        DateTime today = DateTime.Today;
+
+        return new List<VisitorViewModel>
+    {
+        new VisitorViewModel
+        {
+            VisitorID = 1,
+            ResidentID = 1,
+            ResidentName = "Nguyễn Văn An",
+            ApartmentCode = "A-1205",
+            BuildingName = "Tòa A",
+            VisitorName = "Nguyễn Minh Hà",
+            Phone = "0901 234 567",
+            Email = "minhha@example.com",
+            IDNumber = "079199012345",
+            VisitorTypeValue = "Family",
+            VisitorType = "Gia đình",
+            Purpose = "Thăm thân",
+            ArrivalTime = today.AddHours(8).AddMinutes(15),
+            DepartureTime = today.AddHours(9).AddMinutes(45),
+            StatusValue = "CheckedOut",
+            Status = "Đã rời",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 2,
+            ResidentID = 2,
+            ResidentName = "Trần Thị Bình",
+            ApartmentCode = "B-0803",
+            BuildingName = "Tòa B",
+            VisitorName = "Trần Quốc Bảo",
+            Phone = "0932 111 222",
+            Email = "bao@example.com",
+            IDNumber = "079199012345",
+            VisitorTypeValue = "Delivery",
+            VisitorType = "Giao hàng",
+            Purpose = "Giao hàng Shopee",
+            ArrivalTime = today.AddHours(9).AddMinutes(5),
+            DepartureTime = null,
+            StatusValue = "Approved",
+            Status = "Đang trong tòa",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 3,
+            ResidentID = 3,
+            ResidentName = "Lê Hoàng Nam",
+            ApartmentCode = "C-0510",
+            BuildingName = "Tòa C",
+            VisitorName = "Lê Hồng Phúc",
+            Phone = "0987 654 321",
+            VisitorTypeValue = "Service",
+            VisitorType = "Dịch vụ",
+            Purpose = "Bảo trì điều hòa",
+            ArrivalTime = today.AddHours(9).AddMinutes(20),
+            DepartureTime = null,
+            StatusValue = "Approved",
+            Status = "Đang trong tòa",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 4,
+            ResidentID = 1,
+            ResidentName = "Nguyễn Văn An",
+            ApartmentCode = "A-1205",
+            BuildingName = "Tòa A",
+            VisitorName = "Phạm Thu Trang",
+            Phone = "0912 333 444",
+            VisitorTypeValue = "Family",
+            VisitorType = "Gia đình",
+            Purpose = "Thăm thân",
+            ArrivalTime = today.AddHours(10),
+            DepartureTime = today.AddHours(11).AddMinutes(30),
+            StatusValue = "CheckedOut",
+            Status = "Đã rời",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 5,
+            ResidentName = "Đỗ Mạnh Hùng",
+            ApartmentCode = "B-1604",
+            BuildingName = "Tòa B",
+            VisitorName = "Đỗ Văn Hùng",
+            Phone = "0909 888 777",
+            VisitorTypeValue = "Service",
+            VisitorType = "Dịch vụ",
+            Purpose = "Sửa điện",
+            ArrivalTime = today.AddHours(10).AddMinutes(15),
+            DepartureTime = null,
+            StatusValue = "Pending",
+            Status = "Chờ duyệt",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 6,
+            ResidentName = "Vũ Thị Mai",
+            ApartmentCode = "A-0908",
+            BuildingName = "Tòa A",
+            VisitorName = "Nguyễn Thị Mai",
+            Phone = "0983 222 111",
+            VisitorTypeValue = "Delivery",
+            VisitorType = "Giao hàng",
+            Purpose = "Giao hàng",
+            ArrivalTime = today.AddHours(10).AddMinutes(30),
+            DepartureTime = today.AddHours(10).AddMinutes(50),
+            StatusValue = "CheckedOut",
+            Status = "Đã rời",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 7,
+            ResidentName = "Trần Thị Bình",
+            ApartmentCode = "B-0803",
+            BuildingName = "Tòa B",
+            VisitorName = "Lê Minh Quân",
+            Phone = "0944 555 666",
+            VisitorTypeValue = "Family",
+            VisitorType = "Gia đình",
+            Purpose = "Thăm thân",
+            ArrivalTime = today.AddHours(11),
+            DepartureTime = null,
+            StatusValue = "Approved",
+            Status = "Đang trong tòa",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 8,
+            ResidentName = "Phạm Thu Hà",
+            ApartmentCode = "C-1210",
+            BuildingName = "Tòa C",
+            VisitorName = "Công ty An Phú",
+            Phone = "028 1234 5678",
+            VisitorTypeValue = "Service",
+            VisitorType = "Dịch vụ",
+            Purpose = "Bảo trì thiết bị",
+            ArrivalTime = today.AddHours(11).AddMinutes(30),
+            DepartureTime = null,
+            StatusValue = "Approved",
+            Status = "Đang trong tòa",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 9,
+            ResidentName = "Nguyễn Văn An",
+            ApartmentCode = "A-1205",
+            BuildingName = "Tòa A",
+            VisitorName = "Ship nhanh 24h",
+            Phone = "1900 8888",
+            VisitorTypeValue = "Delivery",
+            VisitorType = "Giao hàng",
+            Purpose = "Giao hàng",
+            ArrivalTime = today.AddHours(12),
+            DepartureTime = today.AddHours(12).AddMinutes(10),
+            StatusValue = "CheckedOut",
+            Status = "Đã rời",
+            CreatedAt = today
+        },
+        new VisitorViewModel
+        {
+            VisitorID = 10,
+            ResidentName = "Hoàng Văn Dũng",
+            ApartmentCode = "B-1510",
+            BuildingName = "Tòa B",
+            VisitorName = "Hoàng Văn Tùng",
+            Phone = "0977 666 333",
+            VisitorTypeValue = "Service",
+            VisitorType = "Dịch vụ",
+            Purpose = "Kiểm tra nước",
+            ArrivalTime = today.AddHours(13).AddMinutes(15),
+            DepartureTime = null,
+            StatusValue = "Approved",
+            Status = "Đang trong tòa",
+            CreatedAt = today
+        }
+    };
     }
 
     private sealed class VisitorViewModel

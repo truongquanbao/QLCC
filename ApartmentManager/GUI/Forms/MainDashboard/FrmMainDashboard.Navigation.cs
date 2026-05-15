@@ -188,19 +188,7 @@ public partial class FrmMainDashboard
 
         if (!IsResident)
         {
-            bool hideTopSearch =
-                 title.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 title.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 title.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 title.IndexOf("phản ánh", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 title.IndexOf("thông báo", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 title.IndexOf("hợp đồng", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 breadcrumb.IndexOf("hóa đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 breadcrumb.IndexOf("hoá đơn", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 breadcrumb.IndexOf("phí dịch vụ", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 breadcrumb.IndexOf("phản ánh", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 breadcrumb.IndexOf("thông báo", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                 breadcrumb.IndexOf("hợp đồng", StringComparison.CurrentCultureIgnoreCase) >= 0;
+            bool hideTopSearch = true;
 
             Panel search = null;
 

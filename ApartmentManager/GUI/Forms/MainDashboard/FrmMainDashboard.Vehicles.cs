@@ -39,67 +39,54 @@ public partial class FrmMainDashboard
         VehicleViewModel selectedVehicle = vehicles.FirstOrDefault();
         bool suppressGridSelection = false;
 
-        Button headerAddButton = null;
-        Button headerCardButton = null;
-        Button headerExportButton = null;
+        var addButton = ModernUi.Button("+  Thêm phương tiện", ModernUi.Blue, 170, 36);
+        var cardButton = ModernUi.Button("Cấp thẻ xe", ModernUi.Orange, 140, 36);
+        var exportButton = ModernUi.Button("Xuất báo cáo", ModernUi.Green, 140, 36);
+        AddDashboardActionBar(page, y - 2, w, addButton, cardButton, exportButton);
+        y += 54;
 
-        var header = page.Controls.OfType<Panel>().FirstOrDefault(p => p.Dock == DockStyle.Top);
-        if (header != null)
-        {
-            foreach (var quickSearch in header.Controls.OfType<RoundedPanel>()
-                         .Where(p => p.Controls.OfType<TextBox>().Any(t => t.PlaceholderText == "Tìm kiếm nhanh..."))
-                         .ToList())
-            {
-                header.Controls.Remove(quickSearch);
-                quickSearch.Dispose();
-            }
+        int statsW = (int)(w * 0.40);
+        int chartW = (w - statsW - 24) / 2;
+        var stats = ModernUi.Section("Thống kê phương tiện", statsW, 218);
+        stats.Location = new Point(18, y);
+        page.Controls.Add(stats);
+        var buildingChart = ModernUi.Section("Phương tiện theo tòa nhà", chartW, 218);
+        buildingChart.Location = new Point(stats.Right + 12, y);
+        page.Controls.Add(buildingChart);
+        var areaChart = ModernUi.Section("Phương tiện theo khu vực", w - statsW - chartW - 24, 218);
+        areaChart.Location = new Point(buildingChart.Right + 12, y);
+        page.Controls.Add(areaChart);
 
-            headerAddButton = ModernUi.Button("+  Thêm phương tiện", ModernUi.Blue, 170, 38);
-            headerCardButton = ModernUi.Button("Cấp thẻ xe", ModernUi.Orange, 140, 38);
-            headerExportButton = ModernUi.Button("Xuất báo cáo", ModernUi.Green, 140, 38);
-            header.Controls.Add(headerAddButton);
-            header.Controls.Add(headerCardButton);
-            header.Controls.Add(headerExportButton);
-
-            void LayoutVehicleHeaderButtons()
-            {
-                int right = Math.Max(480, header.ClientSize.Width - 204);
-                headerExportButton.SetBounds(right - headerExportButton.Width, 18, headerExportButton.Width, 38);
-                headerCardButton.SetBounds(headerExportButton.Left - 12 - headerCardButton.Width, 18, headerCardButton.Width, 38);
-                headerAddButton.SetBounds(headerCardButton.Left - 12 - headerAddButton.Width, 18, headerAddButton.Width, 38);
-            }
-
-            header.Resize += (_, _) => LayoutVehicleHeaderButtons();
-            LayoutVehicleHeaderButtons();
-        }
+        y += 232;
 
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
-        filters.Size = new Size(w, 86);
+        filters.Size = new Size(w, 132);
         var typeFilter = AddVehicleFilter(filters, "Loại phương tiện", new[] { "Tất cả", "Ô tô", "Xe máy", "Xe đạp", "Khác" }, 16, 168);
         var buildingFilter = AddVehicleFilter(filters, "Tòa nhà", BuildFilterOptions(vehicles.Select(v => v.Building)), 204, 168);
         var areaFilter = AddVehicleFilter(filters, "Khu vực", BuildFilterOptions(vehicles.Select(v => v.Area)), 392, 178);
         var statusFilter = AddVehicleFilter(filters, "Trạng thái", new[] { "Tất cả", "Đang hoạt động", "Chờ duyệt", "Tạm khóa", "Hết hạn", "Đã hủy" }, 590, 178);
-        var search = ModernUi.SearchBox("Tìm kiếm biển số, chủ xe, số thẻ...", Math.Max(260, w - 980), 34);
-        search.Location = new Point(Math.Max(786, w - 462), 38);
+        var search = ModernUi.SearchBox("Tìm kiếm biển số, chủ xe, số thẻ...", 260, 34);
         filters.Controls.Add(search);
         var searchInput = search.Controls.OfType<TextBox>().First();
         var refreshButton = ModernUi.OutlineButton("Làm mới", 108, 34);
-        refreshButton.Location = new Point(w - 124, 38);
         filters.Controls.Add(refreshButton);
+        int filterHeight = LayoutSearchWithRefresh(search, refreshButton, w, 84, 38, 786);
+        filters.Height = filterHeight;
         page.Controls.Add(filters);
 
-        y += 100;
-        int leftW = (int)(w * 0.62);
-        int rightW = w - leftW - 12;
-        const int mainHeight = 486;
+        y += filterHeight + 14;
+        var frameWidths = DashboardListDetailWidths(w);
+        int leftW = frameWidths.LeftWidth;
+        int rightW = frameWidths.RightWidth;
+        const int mainHeight = 506;
 
         var list = ModernUi.Section("Danh sách phương tiện (0)", leftW, mainHeight);
         list.Location = new Point(18, y);
         var listTitle = list.Controls.OfType<Label>().FirstOrDefault();
         var grid = ModernUi.Grid();
         grid.Location = new Point(12, 44);
-        grid.Size = new Size(list.Width - 24, 378);
+        grid.Size = new Size(list.Width - 24, 386);
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         grid.ScrollBars = ScrollBars.Both;
         grid.RowTemplate.Height = 34;
@@ -109,7 +96,7 @@ public partial class FrmMainDashboard
         grid.CellFormatting += (_, e) => ApplyGridCellStyle(e);
         list.Controls.Add(grid);
         var paging = ModernUi.Label("", 9f, FontStyle.Regular, ModernUi.Text);
-        paging.Location = new Point(18, 438);
+        paging.Location = new Point(18, mainHeight - 54);
         paging.Size = new Size(list.Width - 36, 26);
         list.Controls.Add(paging);
         page.Controls.Add(list);
@@ -126,17 +113,6 @@ public partial class FrmMainDashboard
         page.Controls.Add(detail);
 
         y += mainHeight + 14;
-        int statsW = (int)(w * 0.40);
-        int chartW = (w - statsW - 24) / 2;
-        var stats = ModernUi.Section("Thống kê phương tiện", statsW, 218);
-        stats.Location = new Point(18, y);
-        page.Controls.Add(stats);
-        var buildingChart = ModernUi.Section("Phương tiện theo tòa nhà", chartW, 218);
-        buildingChart.Location = new Point(stats.Right + 12, y);
-        page.Controls.Add(buildingChart);
-        var areaChart = ModernUi.Section("Phương tiện theo khu vực", w - statsW - chartW - 24, 218);
-        areaChart.Location = new Point(buildingChart.Right + 12, y);
-        page.Controls.Add(areaChart);
 
         ComboBox AddVehicleFilter(Control parent, string label, string[] options, int x, int width)
         {
@@ -590,20 +566,9 @@ public partial class FrmMainDashboard
             }
         };
 
-        if (headerAddButton != null)
-        {
-            headerAddButton.Click += (_, _) => AddVehicle();
-        }
-
-        if (headerCardButton != null)
-        {
-            headerCardButton.Click += (_, _) => IssueCard();
-        }
-
-        if (headerExportButton != null)
-        {
-            headerExportButton.Click += (_, _) => ExportVehicleCsv(vehicles);
-        }
+        addButton.Click += (_, _) => AddVehicle();
+        cardButton.Click += (_, _) => IssueCard();
+        exportButton.Click += (_, _) => ExportVehicleCsv(vehicles);
 
         ApplyFilters();
         if (ConsumeQuickAction("vehicles", "add"))

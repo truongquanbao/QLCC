@@ -33,7 +33,7 @@ public class FrmApartmentManagement : Form
     private readonly Label lblApartmentCode = new Label();
     private readonly Label lblArea = new Label();
     private readonly Label lblApartmentType = new Label();
-    private readonly Label lblStatus = new Label();
+    private readonly Label lblStatus = new Label(); 
     private readonly Label lblMaxResidents = new Label();
     private readonly Label lblNote = new Label();
 

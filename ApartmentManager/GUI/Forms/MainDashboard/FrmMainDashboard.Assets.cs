@@ -24,71 +24,55 @@ public partial class FrmMainDashboard
         AssetViewModel selectedAsset = assets.FirstOrDefault();
         bool suppressGridSelection = false;
 
-        Button headerAddButton = null;
-        Button headerScheduleButton = null;
-        Button headerRepairButton = null;
-        Button headerExportButton = null;
+        var addButton = ModernUi.Button("+  Thêm tài sản", ModernUi.Blue, 138, 36);
+        var scheduleButton = ModernUi.Button("Lập lịch", ModernUi.Orange, 112, 36);
+        var repairButton = ModernUi.Button("Ghi sửa chữa", ModernUi.Green, 132, 36);
+        var exportButton = ModernUi.Button("Xuất CSV", ModernUi.Teal, 104, 36);
+        AddDashboardActionBar(page, y - 2, w, addButton, scheduleButton, repairButton, exportButton);
+        y += 54;
 
-        var header = page.Controls.OfType<Panel>().FirstOrDefault(p => p.Dock == DockStyle.Top);
-        if (header != null)
-        {
-            foreach (var quickSearch in header.Controls.OfType<RoundedPanel>()
-                         .Where(p => p.Controls.OfType<TextBox>().Any())
-                         .ToList())
-            {
-                header.Controls.Remove(quickSearch);
-                quickSearch.Dispose();
-            }
+        int statsW = (int)(w * 0.32);
+        int dueW = (int)(w * 0.34);
+        var stats = ModernUi.Section("Tổng quan tài sản", statsW, 236);
+        stats.Location = new Point(18, y);
+        page.Controls.Add(stats);
+        var due = ModernUi.Section("Cảnh báo bảo trì", dueW, 236);
+        due.Location = new Point(stats.Right + 12, y);
+        page.Controls.Add(due);
+        var plan = ModernUi.Section("Lịch bảo trì", w - statsW - dueW - 24, 236);
+        plan.Location = new Point(due.Right + 12, y);
+        page.Controls.Add(plan);
 
-            headerAddButton = ModernUi.Button("+  Thêm tài sản", ModernUi.Blue, 138, 38);
-            headerScheduleButton = ModernUi.Button("Lập lịch", ModernUi.Orange, 112, 38);
-            headerRepairButton = ModernUi.Button("Ghi sửa chữa", ModernUi.Green, 132, 38);
-            headerExportButton = ModernUi.Button("Xuất CSV", ModernUi.Teal, 104, 38);
-            header.Controls.Add(headerAddButton);
-            header.Controls.Add(headerScheduleButton);
-            header.Controls.Add(headerRepairButton);
-            header.Controls.Add(headerExportButton);
-
-            void LayoutAssetHeaderButtons()
-            {
-                int right = Math.Max(520, header.ClientSize.Width - 204);
-                headerExportButton.SetBounds(right - headerExportButton.Width, 18, headerExportButton.Width, 38);
-                headerRepairButton.SetBounds(headerExportButton.Left - 12 - headerRepairButton.Width, 18, headerRepairButton.Width, 38);
-                headerScheduleButton.SetBounds(headerRepairButton.Left - 12 - headerScheduleButton.Width, 18, headerScheduleButton.Width, 38);
-                headerAddButton.SetBounds(headerScheduleButton.Left - 12 - headerAddButton.Width, 18, headerAddButton.Width, 38);
-            }
-
-            header.Resize += (_, _) => LayoutAssetHeaderButtons();
-            LayoutAssetHeaderButtons();
-        }
+        y += 250;
 
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
-        filters.Size = new Size(w, 86);
+        filters.Size = new Size(w, 132);
         var typeFilter = AddAssetFilter(filters, "Loại tài sản", BuildFilterOptions(assets.Select(a => a.AssetType)), 16, 160);
         var locationFilter = AddAssetFilter(filters, "Khu vực", BuildFilterOptions(assets.Select(a => a.Location)), 196, 160);
         var conditionFilter = AddAssetFilter(filters, "Tình trạng", new[] { "Tất cả", "Tốt", "Cần bảo trì", "Bảo trì", "Hỏng", "Thanh lý" }, 376, 160);
         var dueFilter = AddAssetFilter(filters, "Hạn bảo trì", new[] { "Tất cả", "Quá hạn", "7 ngày", "30 ngày", "Chưa có lịch" }, 556, 150);
-        var search = ModernUi.SearchBox("Tìm mã, tên tài sản, vị trí...", Math.Max(260, w - 990), 34);
-        search.Location = new Point(Math.Max(724, w - 462), 38);
+        var search = ModernUi.SearchBox("Tìm mã, tên tài sản, vị trí...", 260, 34);
         filters.Controls.Add(search);
         var searchInput = search.Controls.OfType<TextBox>().First();
         var refreshButton = ModernUi.OutlineButton("Làm mới", 108, 34);
-        refreshButton.Location = new Point(w - 124, 38);
         filters.Controls.Add(refreshButton);
+        int filterHeight = LayoutSearchWithRefresh(search, refreshButton, w, 84, 38, 724);
+        filters.Height = filterHeight;
         page.Controls.Add(filters);
 
-        y += 100;
-        int leftW = (int)(w * 0.64);
-        int rightW = w - leftW - 12;
-        const int mainHeight = 520;
+        y += filterHeight + 14;
+        var frameWidths = DashboardListDetailWidths(w);
+        int leftW = frameWidths.LeftWidth;
+        int rightW = frameWidths.RightWidth;
+        const int mainHeight = 506;
 
         var list = ModernUi.Section("Danh mục tài sản (0)", leftW, mainHeight);
         list.Location = new Point(18, y);
         var listTitle = list.Controls.OfType<Label>().FirstOrDefault();
         var grid = ModernUi.Grid();
         grid.Location = new Point(12, 44);
-        grid.Size = new Size(list.Width - 24, 400);
+        grid.Size = new Size(list.Width - 24, 386);
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         grid.ScrollBars = ScrollBars.Both;
         grid.RowTemplate.Height = 34;
@@ -98,7 +82,7 @@ public partial class FrmMainDashboard
         grid.CellFormatting += (_, e) => ApplyGridCellStyle(e);
         list.Controls.Add(grid);
         var paging = ModernUi.Label("", 9f, FontStyle.Regular, ModernUi.Text);
-        paging.Location = new Point(18, 462);
+        paging.Location = new Point(18, mainHeight - 54);
         paging.Size = new Size(list.Width - 36, 26);
         list.Controls.Add(paging);
         page.Controls.Add(list);
@@ -115,17 +99,6 @@ public partial class FrmMainDashboard
         page.Controls.Add(detail);
 
         y += mainHeight + 14;
-        int statsW = (int)(w * 0.32);
-        int dueW = (int)(w * 0.34);
-        var stats = ModernUi.Section("Tổng quan tài sản", statsW, 236);
-        stats.Location = new Point(18, y);
-        page.Controls.Add(stats);
-        var due = ModernUi.Section("Cảnh báo bảo trì", dueW, 236);
-        due.Location = new Point(stats.Right + 12, y);
-        page.Controls.Add(due);
-        var plan = ModernUi.Section("Lịch bảo trì", w - statsW - dueW - 24, 236);
-        plan.Location = new Point(due.Right + 12, y);
-        page.Controls.Add(plan);
 
         ComboBox AddAssetFilter(Control parent, string label, string[] options, int x, int width)
         {
@@ -655,25 +628,10 @@ public partial class FrmMainDashboard
             }
         };
 
-        if (headerAddButton != null)
-        {
-            headerAddButton.Click += (_, _) => AddAsset();
-        }
-
-        if (headerScheduleButton != null)
-        {
-            headerScheduleButton.Click += (_, _) => ScheduleSelectedAsset();
-        }
-
-        if (headerRepairButton != null)
-        {
-            headerRepairButton.Click += (_, _) => RecordSelectedAssetRepair();
-        }
-
-        if (headerExportButton != null)
-        {
-            headerExportButton.Click += (_, _) => ExportAssetCsv(assets);
-        }
+        addButton.Click += (_, _) => AddAsset();
+        scheduleButton.Click += (_, _) => ScheduleSelectedAsset();
+        repairButton.Click += (_, _) => RecordSelectedAssetRepair();
+        exportButton.Click += (_, _) => ExportAssetCsv(assets);
 
         ApplyFilters();
         if (ConsumeQuickAction("assets", "add"))

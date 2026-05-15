@@ -57,6 +57,63 @@ public partial class FrmMainDashboard
         return y + rowHeight;
     }
 
+    private static Panel AddDashboardActionBar(Control page, int y, int width, params Button[] buttons)
+    {
+        var actionBar = new Panel
+        {
+            Location = new Point(18, y),
+            Size = new Size(width, 44),
+            BackColor = ModernUi.Surface,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+
+        foreach (var button in buttons)
+        {
+            button.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            actionBar.Controls.Add(button);
+        }
+
+        void LayoutActions()
+        {
+            int right = actionBar.ClientSize.Width;
+            for (int i = buttons.Length - 1; i >= 0; i--)
+            {
+                var button = buttons[i];
+                button.SetBounds(Math.Max(0, right - button.Width), 4, button.Width, 36);
+                right = button.Left - 12;
+            }
+        }
+
+        actionBar.Resize += (_, _) => LayoutActions();
+        LayoutActions();
+        page.Controls.Add(actionBar);
+        return actionBar;
+    }
+
+    private static (int LeftWidth, int RightWidth) DashboardListDetailWidths(int width, float leftRatio = 0.62f, int gap = 12, int minLeft = 620, int minRight = 340)
+    {
+        int maxLeft = Math.Max(minLeft, width - gap - minRight);
+        int left = Math.Max(minLeft, (int)(width * leftRatio));
+        left = Math.Min(left, maxLeft);
+        return (left, width - left - gap);
+    }
+
+    private static int LayoutSearchWithRefresh(Control search, Control refreshButton, int pageWidth, int compactTop, int normalTop, int preferredLeft)
+    {
+        if (pageWidth < 1220)
+        {
+            refreshButton.Location = new Point(pageWidth - 124, compactTop);
+            search.SetBounds(16, compactTop, Math.Max(260, refreshButton.Left - 28), search.Height);
+            return 132;
+        }
+
+        refreshButton.Location = new Point(pageWidth - 124, normalTop);
+        int searchLeft = Math.Max(preferredLeft, refreshButton.Left - 12 - Math.Max(260, pageWidth - 980));
+        search.SetBounds(searchLeft, normalTop, Math.Max(260, refreshButton.Left - 12 - searchLeft), search.Height);
+        return 86;
+    }
+
     private static RoundedPanel ResidentCard(string title, string value, string detail, Color accent, string icon, string action, int width)
     {
         var card = ModernUi.CardPanel();
