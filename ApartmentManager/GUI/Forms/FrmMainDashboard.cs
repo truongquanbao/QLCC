@@ -55,9 +55,6 @@ public partial class FrmMainDashboard : Form
     private const int FooterHeight = 64;
     private static readonly Font GridBadgeFont = ModernUi.Font(8.4f, FontStyle.Bold);
 
-    private readonly List<CanHo> _apartments = new();
-    private readonly List<CuDan> _residents = new();
-    private readonly List<PhiDichVu> _fees = new();
     private readonly Dictionary<string, Button> _navButtons = new();
     private UserSession? _session;
 
@@ -136,7 +133,6 @@ public partial class FrmMainDashboard : Form
     public FrmMainDashboard()
     {
         _session = SessionManager.GetSession();
-        InitSampleData();
         InitializeComponent();
         BuildShell();
         Shown += (_, _) =>

@@ -25,11 +25,27 @@ public class PaymentBLL
             if (resident == null)
                 return new List<PaymentDTO>();
 
-            return PaymentDAL.GetPaymentsByResident(resident.ResidentID);
+            return GetPaymentHistoryForResident(resident.ResidentID);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "BLL Error getting payment history for resident user: {ResidentUserID}", residentUserID);
+            return new List<PaymentDTO>();
+        }
+    }
+
+    public static List<PaymentDTO> GetPaymentHistoryForResident(int residentID)
+    {
+        if (residentID <= 0)
+            return new List<PaymentDTO>();
+
+        try
+        {
+            return PaymentDAL.GetPaymentsByResident(residentID);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error getting payment history for resident: {ResidentID}", residentID);
             return new List<PaymentDTO>();
         }
     }
@@ -59,85 +75,150 @@ public class PaymentBLL
     {
         try
         {
-            if (invoiceID <= 0)
-                return (false, "Invalid invoice ID.", 0);
-
-            if (amount <= 0)
-                return (false, "Payment amount must be greater than 0.", 0);
-
-            if (string.IsNullOrWhiteSpace(paymentMethod))
-                return (false, "Payment method is required.", 0);
-
             var resident = ResidentDAL.GetResidentByUserID(residentUserID);
-            if (resident == null)
-                return (false, "Resident profile was not found.", 0);
-
-            var invoice = InvoiceDAL.GetInvoiceByID(invoiceID);
-            if (invoice == null)
-                return (false, "Invoice was not found.", 0);
-
-            if (resident.ApartmentID != invoice.ApartmentID)
-                return (false, "Residents can only pay invoices belonging to their own apartment.", 0);
-
-            if (string.Equals(invoice.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(invoice.PaymentStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
-            {
-                return (false, "This invoice is no longer available for payment.", 0);
-            }
-
-            var remainingAmount = invoice.RemainingAmount > 0
-                ? invoice.RemainingAmount
-                : Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
-
-            if (remainingAmount <= 0)
-                return (false, "This invoice has no remaining balance.", 0);
-
-            if (amount > remainingAmount)
-                return (false, $"Payment amount exceeds remaining balance: {remainingAmount:N0} VND.", 0);
-
-            if (RequiresTransferEvidence(paymentMethod) &&
-                string.IsNullOrWhiteSpace(transactionCode) &&
-                string.IsNullOrWhiteSpace(proofImagePath))
-            {
-                return (false, "Bank transfer, QR, and e-wallet payments require a transaction code or proof image.", 0);
-            }
-
-            var payment = new PaymentDTO
-            {
-                InvoiceID = invoice.InvoiceID,
-                ApartmentID = invoice.ApartmentID,
-                ResidentID = resident.ResidentID,
-                PaymentAccountID = paymentAccountID,
-                Amount = amount,
-                PaymentMethod = paymentMethod,
-                PaymentDate = DateTime.Now,
-                TransactionCode = transactionCode,
-                ProofImagePath = proofImagePath,
-                Note = note,
-                CreatedBy = residentUserID
-            };
-
-            int paymentID = PaymentDAL.CreatePendingPayment(payment);
-
-            NotifyFinanceUsers(
-                "Có thanh toán mới chờ xác nhận",
-                $"Thanh toán mới cho hóa đơn {invoice.InvoiceID} từ căn hộ {invoice.ApartmentCode}, số tiền {amount:N0} VND đang chờ xác nhận.",
-                "Payment");
-
-            AuditLogDAL.LogAction(
+            return SubmitPaymentForResolvedResident(
                 residentUserID,
-                "Payment_Submit",
-                "Payment",
-                paymentID,
-                $"Resident submitted payment for invoice {invoice.InvoiceID}.");
-
-            return (true, "Payment submitted successfully and is pending confirmation.", paymentID);
+                resident,
+                invoiceID,
+                amount,
+                paymentMethod,
+                paymentAccountID,
+                transactionCode,
+                proofImagePath,
+                note);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "BLL Error submitting payment for invoice: {InvoiceID}", invoiceID);
             return (false, $"Error submitting payment: {ex.Message}", 0);
         }
+    }
+
+    public static (bool Success, string Message, int PaymentID) SubmitPaymentForResident(
+        int residentUserID,
+        int residentID,
+        int invoiceID,
+        decimal amount,
+        string paymentMethod,
+        int? paymentAccountID,
+        string? transactionCode,
+        string? proofImagePath,
+        string? note = null)
+    {
+        try
+        {
+            var resident = ResidentDAL.GetResidentByUserID(residentUserID);
+            if (resident == null && residentID > 0)
+            {
+                resident = ResidentDAL.GetResidentByID(residentID);
+            }
+
+            if (resident != null && resident.UserID > 0 && resident.UserID != residentUserID)
+            {
+                return (false, "Resident profile does not belong to the current user.", 0);
+            }
+
+            return SubmitPaymentForResolvedResident(
+                residentUserID,
+                resident,
+                invoiceID,
+                amount,
+                paymentMethod,
+                paymentAccountID,
+                transactionCode,
+                proofImagePath,
+                note);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "BLL Error submitting payment for resident: {ResidentID}, invoice: {InvoiceID}", residentID, invoiceID);
+            return (false, $"Error submitting payment: {ex.Message}", 0);
+        }
+    }
+
+    private static (bool Success, string Message, int PaymentID) SubmitPaymentForResolvedResident(
+        int residentUserID,
+        ResidentDTO? resident,
+        int invoiceID,
+        decimal amount,
+        string paymentMethod,
+        int? paymentAccountID,
+        string? transactionCode,
+        string? proofImagePath,
+        string? note)
+    {
+        if (invoiceID <= 0)
+            return (false, "Invalid invoice ID.", 0);
+
+        if (amount <= 0)
+            return (false, "Payment amount must be greater than 0.", 0);
+
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+            return (false, "Payment method is required.", 0);
+
+        if (resident == null)
+            return (false, "Resident profile was not found.", 0);
+
+        var invoice = InvoiceDAL.GetInvoiceByID(invoiceID);
+        if (invoice == null)
+            return (false, "Invoice was not found.", 0);
+
+        if (resident.ApartmentID != invoice.ApartmentID)
+            return (false, "Residents can only pay invoices belonging to their own apartment.", 0);
+
+        if (string.Equals(invoice.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(invoice.PaymentStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "This invoice is no longer available for payment.", 0);
+        }
+
+        var remainingAmount = invoice.RemainingAmount > 0
+            ? invoice.RemainingAmount
+            : Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
+
+        if (remainingAmount <= 0)
+            return (false, "This invoice has no remaining balance.", 0);
+
+        if (amount > remainingAmount)
+            return (false, $"Payment amount exceeds remaining balance: {remainingAmount:N0} VND.", 0);
+
+        if (RequiresTransferEvidence(paymentMethod) &&
+            string.IsNullOrWhiteSpace(transactionCode) &&
+            string.IsNullOrWhiteSpace(proofImagePath))
+        {
+            return (false, "Bank transfer, QR, and e-wallet payments require a transaction code or proof image.", 0);
+        }
+
+        var payment = new PaymentDTO
+        {
+            InvoiceID = invoice.InvoiceID,
+            ApartmentID = invoice.ApartmentID,
+            ResidentID = resident.ResidentID,
+            PaymentAccountID = paymentAccountID,
+            Amount = amount,
+            PaymentMethod = paymentMethod,
+            PaymentDate = DateTime.Now,
+            TransactionCode = transactionCode,
+            ProofImagePath = proofImagePath,
+            Note = note,
+            CreatedBy = residentUserID
+        };
+
+        int paymentID = PaymentDAL.CreatePendingPayment(payment);
+
+        NotifyFinanceUsers(
+            "Có thanh toán mới chờ xác nhận",
+            $"Thanh toán mới cho hóa đơn {invoice.InvoiceID} từ căn hộ {invoice.ApartmentCode}, số tiền {amount:N0} VND đang chờ xác nhận.",
+            "Payment");
+
+        AuditLogDAL.LogAction(
+            residentUserID,
+            "Payment_Submit",
+            "Payment",
+            paymentID,
+            $"Resident submitted payment for invoice {invoice.InvoiceID}.");
+
+        return (true, "Payment submitted successfully and is pending confirmation.", paymentID);
     }
 
     public static (bool Success, string Message) ConfirmPayment(int paymentID, int confirmedByUserID, string? note = null)

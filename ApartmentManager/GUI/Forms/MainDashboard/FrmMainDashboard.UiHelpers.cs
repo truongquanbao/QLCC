@@ -17,19 +17,6 @@ namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmMainDashboard
 {
-    private void RenderPlaceholder(string pageKey)
-    {
-        string title = MenuItemsForRole().FirstOrDefault(m => m.Key == pageKey).Text ?? "Chức năng";
-        var page = BeginPage(title, "Màn hình đang dùng giao diện shell mới");
-        var card = ModernUi.Section(title, Math.Max(700, _content.ClientSize.Width - 80), 240);
-        card.Location = new Point(18, 88);
-        var text = ModernUi.Label("Khu vực này đã được đặt trong khung giao diện mới. Bạn có thể tiếp tục yêu cầu chi tiết để dựng form nghiệp vụ theo cùng hệ thiết kế.", 11f, FontStyle.Regular, ModernUi.Text);
-        text.Location = new Point(24, 60);
-        text.Size = new Size(card.Width - 48, 70);
-        card.Controls.Add(text);
-        page.Controls.Add(card);
-    }
-
     private static int AddRow(Control parent, int y, int gap, params Control[] controls)
     {
         return LayoutWrappedControls(parent, 18, y, gap, 12, true, controls);

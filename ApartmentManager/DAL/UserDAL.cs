@@ -350,6 +350,101 @@ public class UserDAL
     }
 
     /// <summary>
+    /// Reject a pending user account and clear approval metadata.
+    /// </summary>
+    public static bool RejectUser(int userID)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Users
+                SET Status = N'Rejected',
+                    IsApproved = 0,
+                    ApprovedAt = NULL,
+                    ApprovedBy = NULL,
+                    LockedUntil = NULL,
+                    UpdatedAt = GETDATE()
+                WHERE UserID = @UserID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                connection.Open();
+                return command.ExecuteNonQuery() > 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error rejecting user: {UserID}", userID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Lock a user account until the specified date.
+    /// </summary>
+    public static bool LockUser(int userID, DateTime lockedUntil)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Users
+                SET Status = N'Inactive',
+                    LockedUntil = @LockedUntil,
+                    UpdatedAt = GETDATE()
+                WHERE UserID = @UserID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                command.Parameters.AddWithValue("@LockedUntil", lockedUntil);
+                connection.Open();
+                return command.ExecuteNonQuery() > 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error locking user: {UserID}", userID);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Unlock a user account and restore the requested status.
+    /// </summary>
+    public static bool UnlockUser(int userID, string restoredStatus)
+    {
+        try
+        {
+            const string query = @"
+                UPDATE Users
+                SET Status = @Status,
+                    LockedUntil = NULL,
+                    UpdatedAt = GETDATE()
+                WHERE UserID = @UserID
+            ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                command.Parameters.AddWithValue("@Status", restoredStatus);
+                connection.Open();
+                return command.ExecuteNonQuery() > 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error unlocking user: {UserID}", userID);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Delete user
     /// </summary>
     public static bool DeleteUser(int userID)

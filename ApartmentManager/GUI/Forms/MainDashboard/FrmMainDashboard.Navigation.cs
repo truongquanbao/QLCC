@@ -59,7 +59,14 @@ public partial class FrmMainDashboard
             case "invoices":
             case "my-invoices":
             case "payment":
-                RenderInvoices();
+                if (IsResident)
+                {
+                    RenderResidentInvoices(page == "payment");
+                }
+                else
+                {
+                    RenderInvoices();
+                }
                 break;
             case "complaints":
             case "send-complaint":
@@ -94,7 +101,7 @@ public partial class FrmMainDashboard
                 RenderSystemSettings();
                 break;
             default:
-                RenderPlaceholder(page);
+                Navigate("dashboard");
                 break;
         }
     }
@@ -124,27 +131,20 @@ public partial class FrmMainDashboard
         };
         page.Controls.Add(header);
 
-        bool isResidentsPage = title.IndexOf("cư dân", StringComparison.CurrentCultureIgnoreCase) >= 0;
+        bool isResidentsPage =
+            title.IndexOf("cư dân", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+            title.IndexOf("resident", StringComparison.CurrentCultureIgnoreCase) >= 0;
 
         var headerIcon = new CircleLabel
         {
-            Text = "◉",
+            Text = isResidentsPage ? "●" : "◉",
             CircleColor = ModernUi.Blue,
             ForeColor = Color.White,
-            Font = ModernUi.Font(12f, FontStyle.Bold),
-            Location = new Point(22, 17),
-            Size = new Size(28, 28)
+            Font = ModernUi.Font(isResidentsPage ? 12f : 11f, FontStyle.Bold),
+            Location = new Point(22, 19),
+            Size = new Size(36, 36),
+            TextAlign = ContentAlignment.MiddleCenter
         };
-        headerIcon.Text = isResidentsPage ? "👥" : "●";
-        headerIcon.Font = isResidentsPage
-            ? new Font("Segoe UI Emoji", 11.5f, FontStyle.Regular)
-            : ModernUi.Font(11f, FontStyle.Bold);
-        headerIcon.Size = new Size(36, 36);
-        isResidentsPage =
-            title.IndexOf("cư dân", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-            title.IndexOf("resident", StringComparison.CurrentCultureIgnoreCase) >= 0;
-        headerIcon.Text = isResidentsPage ? "●" : "◉";
-        headerIcon.Font = ModernUi.Font(isResidentsPage ? 12f : 11f, FontStyle.Bold);
         header.Controls.Add(headerIcon);
 
         var label = ModernUi.Label(title, 15f, FontStyle.Bold, ModernUi.Navy);
@@ -242,7 +242,7 @@ public partial class FrmMainDashboard
 
             var avatar = new CircleLabel
             {
-                Text = "SA",
+                Text = GetUserInitials(),
                 CircleColor = Color.FromArgb(226, 236, 248),
                 ForeColor = ModernUi.Navy,
                 Font = ModernUi.Font(9f, FontStyle.Bold),

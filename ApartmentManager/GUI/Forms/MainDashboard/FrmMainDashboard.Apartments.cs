@@ -983,7 +983,7 @@ public partial class FrmMainDashboard
             IReadOnlyList<ApartmentDTO> pageApartments = Paginate(displayApartments, apartmentPagination);
             PopulateApartmentGrid(pageApartments);
             PopulateApartmentTree(displayApartments);
-            UpdatePaginationControls(apartmentPagination, apartmentPager, "cÄƒn há»™");
+            UpdatePaginationControls(apartmentPagination, apartmentPager, "căn hộ");
 
             if (keepCreateMode)
             {

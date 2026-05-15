@@ -71,14 +71,6 @@ public partial class FrmMainDashboard
             ("Cài đặt", OpenAccountSettings),
             ("Đăng xuất", PerformLogout),
             ("Thoát chương trình", ConfirmExitApplication));
-        return;
-
-        ShowQuickActionMenu(anchor, "account",
-            ("Thông tin tài khoản / Hồ sơ cá nhân", () => Navigate("profile")),
-            ("Đổi mật khẩu", () => ShowChangePasswordDialog()),
-            ("Cài đặt", OpenAccountSettings),
-            ("Đăng xuất", PerformLogout),
-            ("Thoát chương trình", ConfirmExitApplication));
     }
 
     private void ShowNotificationMenu(Control anchor)
@@ -784,26 +776,4 @@ END";
         return CreateSampleNotifications().Count;
     }
 
-    private void InitSampleData()
-    {
-        _apartments.AddRange(new[]
-        {
-            new CanHo { MaCanHo = "A-1205", Tang = "12", LoaiCanHo = "2 PN - 2 WC", DienTich = 68.5, TrangThai = "Đang sử dụng", MaCuDan = "CD0001" },
-            new CanHo { MaCanHo = "A-1206", Tang = "12", LoaiCanHo = "1 PN - 1 WC", DienTich = 54.2, TrangThai = "Đang sử dụng", MaCuDan = "CD0002" },
-            new CanHo { MaCanHo = "A-1207", Tang = "12", LoaiCanHo = "3 PN - 2 WC", DienTich = 76.3, TrangThai = "Đang trống", MaCuDan = "" },
-            new CanHo { MaCanHo = "A-1208", Tang = "12", LoaiCanHo = "3 PN - 2 WC", DienTich = 89.1, TrangThai = "Đang sử dụng", MaCuDan = "CD0003" }
-        });
-
-        _residents.AddRange(new[]
-        {
-            new CuDan { MaCuDan = "CD0001", HoTen = "Nguyễn Văn An", CCCD = "001098012345", SoDienThoai = "0901234567", MaCanHo = "A-1205", NgayVao = new DateTime(2024, 3, 12) },
-            new CuDan { MaCuDan = "CD0002", HoTen = "Trần Thị Bình", CCCD = "001198023456", SoDienThoai = "0912345678", MaCanHo = "A-1205", NgayVao = new DateTime(2024, 3, 12) }
-        });
-
-        _fees.AddRange(new[]
-        {
-            new PhiDichVu { MaPhieu = "HD2405-00128", MaCanHo = "A-1205", Thang = 5, Nam = 2024, PhiQuanLy = 864600, PhiDienNuoc = 795000, PhiGuiXe = 120000, TrangThai = "Đã thanh toán" },
-            new PhiDichVu { MaPhieu = "HD2405-00127", MaCanHo = "B-0803", Thang = 5, Nam = 2024, PhiQuanLy = 780000, PhiDienNuoc = 80000, PhiGuiXe = 120000, TrangThai = "Đã thanh toán" }
-        });
-    }
 }

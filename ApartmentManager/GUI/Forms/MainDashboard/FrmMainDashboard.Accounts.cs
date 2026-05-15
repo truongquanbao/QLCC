@@ -19,134 +19,15 @@ public partial class FrmMainDashboard
 {
     private void RenderAccounts()
     {
-        _content.Controls.Clear();
-
-        var page = new Panel
-        {
-            Dock = DockStyle.Fill,
-            AutoScroll = true,
-            BackColor = ModernUi.Surface
-        };
-        _content.Controls.Add(page);
+        var page = BeginPage("Quản lý tài khoản & phân quyền", "Hệ thống / Tài khoản & phân quyền");
 
         int margin = 18;
         int contentWidth = _content.ClientSize.Width > 0 ? _content.ClientSize.Width : _content.Width;
         int w = Math.Max(980, contentWidth - margin * 2 - SystemInformation.VerticalScrollBarWidth);
 
-        var title = ModernUi.Label("QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN", 14f, FontStyle.Bold, ModernUi.Navy);
-        title.Location = new Point(margin + 8, 14);
-        title.Size = new Size(520, 36);
-        page.Controls.Add(title);
-
-        var headerBell = ModernUi.Label("♧", 17f, FontStyle.Regular, ModernUi.Navy);
-        headerBell.Location = new Point(w - 188, 12);
-        headerBell.Size = new Size(32, 32);
-        headerBell.TextAlign = ContentAlignment.MiddleCenter;
-        page.Controls.Add(headerBell);
-        var headerBadge = new CircleLabel
-        {
-            Text = "0",
-            CircleColor = ModernUi.Red,
-            ForeColor = Color.White,
-            Font = ModernUi.Font(7.5f, FontStyle.Bold),
-            Size = new Size(16, 16),
-            Location = new Point(w - 166, 8)
-        };
-        page.Controls.Add(headerBadge);
-        var headerUser = ModernUi.Label($"●  {CurrentUsername()} ▾", 9.5f, FontStyle.Bold, ModernUi.Navy);
-        headerUser.Location = new Point(w - 132, 14);
-        headerUser.Size = new Size(136, 30);
-        page.Controls.Add(headerUser);
-
-        // Đồng bộ header của module tài khoản/phân quyền với Dashboard chính.
-        title.Text = "QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN";
-        headerBell.Visible = false;
-        headerBadge.Visible = false;
-        headerUser.Visible = false;
-        title.Text = "Quản lý tài khoản & phân quyền";
-        title.Font = ModernUi.Font(20f, FontStyle.Bold);
-        title.Size = new Size(460, 34);
-
-        var subtitle = ModernUi.Label("Quản lý người dùng, vai trò và phân quyền hệ thống", 9.6f, FontStyle.Regular, ModernUi.Muted);
-        subtitle.Location = new Point(margin + 8, 48);
-        subtitle.Size = new Size(460, 22);
-        page.Controls.Add(subtitle);
-
-        var syncedHeaderBell = ModernUi.IconButton("🔔", 36);
-        syncedHeaderBell.Location = new Point(w - 188, 10);
-        syncedHeaderBell.Cursor = Cursors.Hand;
-        page.Controls.Add(syncedHeaderBell);
-
-        var syncedHeaderBadge = new CircleLabel
-        {
-            Text = NotificationCount().ToString(CultureInfo.InvariantCulture),
-            CircleColor = ModernUi.Red,
-            ForeColor = Color.White,
-            Font = ModernUi.Font(7.5f, FontStyle.Bold),
-            Size = new Size(16, 16),
-            Location = new Point(w - 166, 8)
-        };
-        syncedHeaderBadge.Cursor = Cursors.Hand;
-        page.Controls.Add(syncedHeaderBadge);
-
-        var syncedHeaderAvatar = new CircleLabel
-        {
-            Text = "●",
-            CircleColor = Color.FromArgb(226, 236, 248),
-            ForeColor = ModernUi.Navy,
-            Font = ModernUi.Font(13f, FontStyle.Bold),
-            Location = new Point(w - 128, 11),
-            Size = new Size(34, 34)
-        };
-        syncedHeaderAvatar.Cursor = Cursors.Hand;
-        page.Controls.Add(syncedHeaderAvatar);
-
-        var syncedHeaderUser = ModernUi.Label($"{CurrentUsername()} ▾", 9.5f, FontStyle.Bold, ModernUi.Navy);
-        syncedHeaderUser.Location = new Point(w - 88, 14);
-        syncedHeaderUser.Size = new Size(92, 30);
-        syncedHeaderUser.Cursor = Cursors.Hand;
-        page.Controls.Add(syncedHeaderUser);
-
-        void ToggleNotificationDropdown()
-        {
-            try
-            {
-                ShowNotificationMenu(syncedHeaderBell);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this,
-                    $"Không thể tải danh sách thông báo.\nChi tiết: {ex.Message}",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
-        }
-
-        void ToggleAccountDropdown()
-        {
-            try
-            {
-                ShowAccountMenu(syncedHeaderUser);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this,
-                    $"Không thể mở menu tài khoản.\nChi tiết: {ex.Message}",
-                    "Tài khoản",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
-        }
-
-        syncedHeaderBell.Click += (_, _) => ToggleNotificationDropdown();
-        syncedHeaderBadge.Click += (_, _) => ToggleNotificationDropdown();
-        syncedHeaderAvatar.Click += (_, _) => ToggleAccountDropdown();
-        syncedHeaderUser.Click += (_, _) => ToggleAccountDropdown();
-
         var toolbar = new Panel
         {
-            Location = new Point(margin, 82),
+            Location = new Point(margin, 88),
             Size = new Size(w, 50),
             BackColor = ModernUi.Surface
         };
@@ -212,7 +93,6 @@ public partial class FrmMainDashboard
         int pageSizeTextX = pageSizeX - pageSizeTextWidth - 8;
         int pagerButtonsX = pageSizeTextX - 14 - pagerButtonGroupWidth;
         var accountPager = AddPaginationControls(users, 16, pagerY + 2, pagerButtonsX, pagerY, pageSizeX, pagerY, Math.Max(280, pagerButtonsX - 32));
-        var paging = accountPager.SummaryLabel; // Giữ tương thích với hàm refresh cũ trong cùng scope.
         var perPage = accountPager.PageSizeCombo;
         var perPageText = ModernUi.Label("mục/trang", 9f, FontStyle.Regular, ModernUi.Text);
         perPageText.Location = new Point(pageSizeTextX, pagerY + 2);
@@ -287,6 +167,7 @@ public partial class FrmMainDashboard
         bottom.Size = new Size(w, bottomH);
         bottom.Padding = new Padding(0);
         page.Controls.Add(bottom);
+        page.AutoScrollMinSize = new Size(0, bottom.Bottom + 24);
 
         var permissionTab = new Label
         {
@@ -347,7 +228,6 @@ public partial class FrmMainDashboard
         string? selectedAvatarPath = null;
         bool suppressAccountSelectionChanged = false;
         bool suppressPermissionMatrixEvents = false;
-        bool permissionMatrixDirty = false;
 
         var accountPagination = new PaginationState();
 
@@ -511,7 +391,6 @@ public partial class FrmMainDashboard
             try
             {
                 PopulatePermissionMatrixGrid(matrix, roles, permissions);
-                permissionMatrixDirty = false;
                 savePermissionsButton.Enabled = false;
             }
             finally
@@ -598,43 +477,6 @@ public partial class FrmMainDashboard
             {
                 logGrid.BringToFront();
             }
-        }
-
-        void RefreshUsers(int? selectUserId = null)
-        {
-            var filteredUsers = FilterUsers();
-            PopulateAccountUsersGrid(userGrid, filteredUsers);
-            paging.Text = filteredUsers.Count == 0
-                ? "Không có tài khoản phù hợp"
-                : $"Hiển thị 1 - {filteredUsers.Count} / {UserDAL.GetAllUsers().Count} tài khoản";
-
-            if (selectUserId.HasValue)
-            {
-                foreach (DataGridViewRow row in userGrid.Rows)
-                {
-                    if (row.Tag is UserDTO rowUser && rowUser.UserID == selectUserId.Value)
-                    {
-                        row.Selected = true;
-                        userGrid.CurrentCell = row.Cells[0];
-                        PopulateAccountForm(rowUser);
-                        RefreshAuditLog();
-                        return;
-                    }
-                }
-            }
-
-            if (filteredUsers.Count > 0)
-            {
-                userGrid.Rows[0].Selected = true;
-                userGrid.CurrentCell = userGrid.Rows[0].Cells[0];
-                PopulateAccountForm(filteredUsers[0]);
-            }
-            else
-            {
-                PopulateAccountForm(null);
-            }
-
-            RefreshAuditLog();
         }
 
         void RefreshUsersWithPaging(int? selectUserId = null)
@@ -853,7 +695,21 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            AuditLogDAL.LogAction(_session?.UserID, "Update_User", "User", selectedUser.UserID, $"Cập nhật tài khoản: {username}");
+            if (string.Equals(dbStatus, "Rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                var reject = UserBLL.RejectUser(selectedUser.UserID, _session?.UserID, "Từ chối từ màn hình quản lý tài khoản");
+                if (!reject.success)
+                {
+                    MessageBox.Show(this, reject.message,
+                        "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            else
+            {
+                AuditLogDAL.LogAction(_session?.UserID, "Update_User", "User", selectedUser.UserID, $"Cập nhật tài khoản: {username}");
+            }
+
             MessageBox.Show(this, "Đã lưu thay đổi tài khoản.",
                 "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Information);
             RefreshUsersWithPaging(selectedUser.UserID);
@@ -914,32 +770,18 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            bool isActive = string.Equals(selectedUser.Status, "Active", StringComparison.OrdinalIgnoreCase);
-            string targetStatus;
-            DateTime? lockedUntil;
-            string actionName;
+            bool isInactive = string.Equals(selectedUser.Status, "Inactive", StringComparison.OrdinalIgnoreCase);
+            var result = isInactive
+                ? UserBLL.UnlockUserAccount(selectedUser.UserID, _session?.UserID, "Mở khóa từ màn hình quản lý tài khoản")
+                : UserBLL.LockUserAccount(selectedUser.UserID, _session?.UserID, "Khóa từ màn hình quản lý tài khoản");
 
-            if (isActive)
+            if (!result.success)
             {
-                targetStatus = "Inactive";
-                lockedUntil = DateTime.Now.AddYears(10);
-                actionName = "Lock_Account";
-            }
-            else
-            {
-                targetStatus = selectedUser.IsApproved || !IsResidentRole(selectedUser.RoleName) ? "Active" : "Pending";
-                lockedUntil = null;
-                actionName = "Unlock_Account";
-            }
-
-            if (!UserDAL.UpdateUserStatus(selectedUser.UserID, targetStatus, lockedUntil))
-            {
-                MessageBox.Show(this, "Không thể cập nhật trạng thái khóa/mở khóa.",
+                MessageBox.Show(this, result.message,
                     "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            AuditLogDAL.LogAction(_session?.UserID, actionName, "User", selectedUser.UserID, $"{actionName}: {selectedUser.Username}");
             RefreshUsersWithPaging(selectedUser.UserID);
         }
 
@@ -1025,7 +867,6 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            permissionMatrixDirty = true;
             savePermissionsButton.Enabled = true;
         };
 

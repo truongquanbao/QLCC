@@ -117,28 +117,28 @@ public class AuthenticationBLL
         {
             // Validate inputs
             if (string.IsNullOrWhiteSpace(username) || !ValidationHelper.IsValidUsername(username))
-                return (false, "TÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡ (3-50 kÃ½ tá»±, chá»‰ chá»©a chá»¯, sá»‘, dáº¥u gáº¡ch dÆ°á»›i)", null);
+                return (false, "Tên đăng nhập không hợp lệ (3-50 ký tự, chỉ chứa chữ, số, dấu gạch dưới)", null);
 
             if (UserDAL.UsernameExists(username))
-                return (false, "TÃªn Ä‘Äƒng nháº­p Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng", null);
+                return (false, "Tên đăng nhập đã được sử dụng", null);
 
             if (!ValidationHelper.IsValidEmail(email))
-                return (false, "Email khÃ´ng há»£p lá»‡", null);
+                return (false, "Email không hợp lệ", null);
 
             if (UserDAL.EmailExists(email))
-                return (false, "Email Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng", null);
+                return (false, "Email đã được sử dụng", null);
 
             if (!ValidationHelper.IsValidPhone(phone))
-                return (false, "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡ (Ä‘á»‹nh dáº¡ng: 09xxxxxxxxx)", null);
+                return (false, "Số điện thoại không hợp lệ (định dạng: 09xxxxxxxxx)", null);
 
             if (!ValidationHelper.IsValidCCCD(cccd))
-                return (false, "CCCD/CMND khÃ´ng há»£p lá»‡", null);
+                return (false, "CCCD/CMND không hợp lệ", null);
 
             if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(passwordConfirm))
-                return (false, "Máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng", null);
+                return (false, "Mật khẩu không được bỏ trống", null);
 
             if (password != passwordConfirm)
-                return (false, "XÃ¡c nháº­n máº­t kháº©u khÃ´ng khá»›p", null);
+                return (false, "Xác nhận mật khẩu không khớp", null);
 
             var passwordValidation = PasswordHasher.ValidatePasswordStrength(password);
             if (!passwordValidation.isValid)
@@ -150,15 +150,15 @@ public class AuthenticationBLL
             // Create user account (Resident role = 3, status = Pending)
             var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, roleID: 3, status: "Pending");
 
-            AuditLogDAL.LogAction(userID, "Register", "User", userID, "ÄÄƒng kÃ½ tÃ i khoáº£n cÆ° dÃ¢n");
+            AuditLogDAL.LogAction(userID, "Register", "User", userID, "Đăng ký tài khoản cư dân");
 
             Log.Information("New resident registered: {Username} (ID: {UserID})", username, userID);
-            return (true, "ÄÄƒng kÃ½ thÃ nh cÃ´ng! TÃ i khoáº£n sáº½ Ä‘Æ°á»£c xÃ¡c minh bá»Ÿi quáº£n lÃ½", userID);
+            return (true, "Đăng ký thành công! Tài khoản sẽ được xác minh bởi quản lý", userID);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error during registration: {Username}", username);
-            return (false, "Lá»—i khi Ä‘Äƒng kÃ½. Vui lÃ²ng thá»­ láº¡i", null);
+            return (false, "Lỗi khi đăng ký. Vui lòng thử lại", null);
         }
     }
 
