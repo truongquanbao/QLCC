@@ -3,12 +3,18 @@ using Serilog;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows.Forms;
 
 namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmLogin : Form
 {
+    private const string RememberMeRegistryPath = @"Software\ApartmentManager\RememberMe";
+    private const string RememberUsernameValue = "Username";
+    private const string RememberPasswordValue = "Password";
+
     private TextBox _txtUsername = null!;
     private TextBox _txtPassword = null!;
     private CheckBox _chkRemember = null!;
@@ -36,6 +42,20 @@ public partial class FrmLogin : Form
     {
         Controls.Clear();
 
+        var root = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            BackColor = ModernUi.Surface
+        };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54f));
+        Controls.Add(root);
+
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -47,14 +67,14 @@ public partial class FrmLogin : Form
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 53f));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 47f));
-        Controls.Add(body);
 
         var footer = CreateFooter();
-        Controls.Add(footer);
-        footer.BringToFront();
+        footer.Dock = DockStyle.Fill;
 
         body.Controls.Add(CreateHero(), 0, 0);
         body.Controls.Add(CreateLoginSurface(), 1, 0);
+        root.Controls.Add(body, 0, 0);
+        root.Controls.Add(footer, 0, 1);
     }
 
     private Panel CreateFooter()
@@ -268,6 +288,13 @@ public partial class FrmLogin : Form
             Font = ModernUi.Font(10f),
             ForeColor = ModernUi.Text,
             AutoSize = true
+        };
+        _chkRemember.CheckedChanged += (_, _) =>
+        {
+            if (!_chkRemember.Checked)
+            {
+                ClearRememberedLogin();
+            }
         };
         card.Controls.Add(_chkRemember);
 
@@ -486,39 +513,69 @@ public partial class FrmLogin : Form
     {
         try
         {
-            var registryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\ApartmentManager\RememberMe");
+            using var registryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RememberMeRegistryPath);
             if (registryKey == null)
             {
                 return;
             }
 
-            var username = registryKey.GetValue("Username") as string;
+            var username = registryKey.GetValue(RememberUsernameValue) as string;
+            var protectedPassword = registryKey.GetValue(RememberPasswordValue) as string;
             if (!string.IsNullOrEmpty(username))
             {
                 _txtUsername.Text = username;
                 _chkRemember.Checked = true;
             }
 
-            registryKey.Close();
+            if (!string.IsNullOrWhiteSpace(protectedPassword))
+            {
+                _txtPassword.Text = UnprotectRememberedPassword(protectedPassword);
+            }
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Could not load remembered username");
+            Log.Warning(ex, "Could not load remembered login");
         }
     }
 
-    private static void RememberUsername(string username)
+    private static void RememberLogin(string username, string password)
     {
         try
         {
-            var registryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\ApartmentManager\RememberMe");
-            registryKey.SetValue("Username", username);
-            registryKey.Close();
+            using var registryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RememberMeRegistryPath);
+            registryKey.SetValue(RememberUsernameValue, username);
+            registryKey.SetValue(RememberPasswordValue, ProtectRememberedPassword(password));
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Could not save remembered username");
+            Log.Warning(ex, "Could not save remembered login");
         }
+    }
+
+    private static void ClearRememberedLogin()
+    {
+        try
+        {
+            Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(RememberMeRegistryPath, false);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not clear remembered login");
+        }
+    }
+
+    private static string ProtectRememberedPassword(string password)
+    {
+        byte[] plainBytes = Encoding.UTF8.GetBytes(password);
+        byte[] protectedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
+        return Convert.ToBase64String(protectedBytes);
+    }
+
+    private static string UnprotectRememberedPassword(string protectedPassword)
+    {
+        byte[] protectedBytes = Convert.FromBase64String(protectedPassword);
+        byte[] plainBytes = ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser);
+        return Encoding.UTF8.GetString(plainBytes);
     }
 }
 

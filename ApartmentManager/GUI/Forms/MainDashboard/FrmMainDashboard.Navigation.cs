@@ -24,6 +24,8 @@ public partial class FrmMainDashboard
         {
             bool active = pair.Key == page;
             pair.Value.BackColor = active ? ModernUi.Blue : _sidebar.BackColor;
+            pair.Value.ForeColor = active ? Color.White : Color.FromArgb(226, 232, 240);
+            pair.Value.Invalidate();
         }
 
         if (page is "dashboard")
@@ -92,7 +94,7 @@ public partial class FrmMainDashboard
                 RenderAssets();
                 break;
             case "reports":
-                RenderReports();
+                RenderReportsDashboard();
                 break;
             case "logs":
                 RenderSystemLogs();
@@ -124,93 +126,69 @@ public partial class FrmMainDashboard
         var header = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 74,
-            BackColor = Color.White,
+            Height = 64,
+            BackColor = ModernUi.Navy,
             Margin = Padding.Empty,
             Padding = Padding.Empty
         };
         page.Controls.Add(header);
 
-        bool isResidentsPage =
-            title.IndexOf("cư dân", StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-            title.IndexOf("resident", StringComparison.CurrentCultureIgnoreCase) >= 0;
-
-        var headerIcon = new CircleLabel
-        {
-            Text = isResidentsPage ? "●" : "◉",
-            CircleColor = ModernUi.Blue,
-            ForeColor = Color.White,
-            Font = ModernUi.Font(isResidentsPage ? 12f : 11f, FontStyle.Bold),
-            Location = new Point(22, 19),
-            Size = new Size(36, 36),
-            TextAlign = ContentAlignment.MiddleCenter
-        };
+        var headerIcon = ModernUi.Label("\u2630", 18f, FontStyle.Bold, Color.White);
+        headerIcon.BackColor = Color.Transparent;
+        headerIcon.TextAlign = ContentAlignment.MiddleCenter;
+        headerIcon.Location = new Point(18, 13);
+        headerIcon.Size = new Size(36, 36);
         header.Controls.Add(headerIcon);
 
-        var label = ModernUi.Label(title, 15f, FontStyle.Bold, ModernUi.Navy);
+        var label = ModernUi.Label(title, 14.4f, FontStyle.Bold, Color.White);
+        label.BackColor = Color.Transparent;
         label.AutoEllipsis = true;
-        int rightReserved = IsResident ? 24 : 500;
-        int maxTitleWidth = Math.Min(560, Math.Max(220, header.Width - 72 - rightReserved - 90));
-        int titleWidth = Math.Min(maxTitleWidth, Math.Max(130, TextRenderer.MeasureText(title, label.Font).Width + 10));
-        label.Location = new Point(72, 14);
-        label.Size = new Size(titleWidth, 30);
+        label.Location = new Point(62, 16);
+        label.Size = new Size(320, 30);
         header.Controls.Add(label);
 
         var divider = new Panel
         {
-            BackColor = ModernUi.Border,
-            Location = new Point(label.Right + 16, 14),
-            Size = new Size(1, 35)
+            BackColor = Color.FromArgb(120, 226, 232, 240),
+            Location = new Point(label.Right + 14, 17),
+            Size = new Size(1, 28)
         };
         header.Controls.Add(divider);
 
-        var crumb = ModernUi.Label(breadcrumb, 8.8f, FontStyle.Regular, ModernUi.Muted);
-        crumb.Location = new Point(divider.Right + 16, 18);
+        var crumb = ModernUi.Label(breadcrumb, 8.5f, FontStyle.Regular, Color.FromArgb(220, 235, 244, 255));
+        crumb.BackColor = Color.Transparent;
+        crumb.Location = new Point(divider.Right + 14, 20);
         crumb.AutoEllipsis = true;
-        crumb.Size = new Size(Math.Max(0, header.Width - crumb.Left - rightReserved), 24);
+        crumb.Size = new Size(320, 22);
         header.Controls.Add(crumb);
 
         void LayoutHeaderBase(int rightEdge)
         {
-            headerIcon.SetBounds(22, 19, 36, 36);
+            headerIcon.SetBounds(18, 13, 36, 36);
 
-            int titleLeft = 72;
-            int titleMaxWidth = Math.Max(150, rightEdge - titleLeft - 24);
+            int titleLeft = 62;
+            int titleMaxWidth = Math.Max(120, rightEdge - titleLeft - 24);
             int desiredTitleWidth = Math.Max(130, TextRenderer.MeasureText(title, label.Font).Width + 10);
-            label.SetBounds(titleLeft, 20, Math.Min(titleMaxWidth, desiredTitleWidth), 30);
+            label.SetBounds(titleLeft, 16, Math.Min(titleMaxWidth, desiredTitleWidth), 30);
 
             divider.Visible = !string.IsNullOrWhiteSpace(breadcrumb);
             crumb.Visible = divider.Visible;
-            divider.Location = new Point(label.Right + 16, 19);
-            crumb.Location = new Point(divider.Right + 16, 22);
+            divider.Location = new Point(label.Right + 14, 17);
+            divider.Height = 28;
+            crumb.Location = new Point(divider.Right + 14, 20);
             crumb.Size = new Size(Math.Max(0, rightEdge - crumb.Left), 22);
         }
 
         if (!IsResident)
         {
-            bool hideTopSearch = true;
-
-            Panel search = null;
-
-            if (!hideTopSearch)
-            {
-                search = ModernUi.SearchBox("Tìm kiếm nhanh...", 270, 42);
-                search.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-                search.Location = new Point(header.Width - 455, 12);
-                header.Controls.Add(search);
-
-                var searchInput = search.Controls.OfType<TextBox>().FirstOrDefault();
-                if (searchInput != null)
-                {
-                    searchInput.PlaceholderText = "Tìm kiếm nhanh...";
-                }
-            }
-
-            var bell = ModernUi.IconButton("!", 36);
+            var bell = ModernUi.IconButton("!", 34);
             bell.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            bell.Location = new Point(header.Width - 176, 18);
+            bell.Location = new Point(header.Width - 242, 14);
             bell.Cursor = Cursors.Hand;
-            // Use a safe, non-emoji font for the symbol and center it
+            bell.BackColor = ModernUi.Navy;
+            bell.ForeColor = Color.White;
+            bell.FlatAppearance.MouseOverBackColor = ModernUi.Navy2;
+            bell.FlatAppearance.MouseDownBackColor = ModernUi.Navy2;
             bell.Font = ModernUi.Font(12f, FontStyle.Bold);
             bell.TextAlign = ContentAlignment.MiddleCenter;
             bell.Padding = Padding.Empty;
@@ -228,25 +206,55 @@ public partial class FrmMainDashboard
             };
             header.Controls.Add(badge);
 
+            var help = ModernUi.IconButton("?", 34);
+            help.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            help.BackColor = ModernUi.Navy;
+            help.ForeColor = Color.White;
+            help.FlatAppearance.MouseOverBackColor = ModernUi.Navy2;
+            help.FlatAppearance.MouseDownBackColor = ModernUi.Navy2;
+            help.Font = ModernUi.Font(12f, FontStyle.Bold);
+            help.TextAlign = ContentAlignment.MiddleCenter;
+            help.Padding = Padding.Empty;
+            help.Cursor = Cursors.Hand;
+            header.Controls.Add(help);
+
             var avatar = new CircleLabel
             {
                 Text = GetUserInitials(),
                 CircleColor = Color.FromArgb(226, 236, 248),
                 ForeColor = ModernUi.Navy,
                 Font = ModernUi.Font(9f, FontStyle.Bold),
-                Size = new Size(34, 34),
+                Size = new Size(38, 38),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor = Cursors.Hand
             };
             header.Controls.Add(avatar);
 
-            var userName = ModernUi.Label($"{CurrentUsername()} ▾", 9f, FontStyle.Bold, ModernUi.Text);
+            var userName = ModernUi.Label(CurrentUsername(), 9f, FontStyle.Bold, Color.White);
             userName.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            userName.Size = new Size(92, 26);
+            userName.BackColor = Color.Transparent;
+            userName.Size = new Size(104, 18);
             userName.AutoEllipsis = true;
             userName.Cursor = Cursors.Hand;
             userName.TextAlign = ContentAlignment.MiddleLeft;
             header.Controls.Add(userName);
+
+            var userRole = ModernUi.Label(HeaderRoleText(), 8f, FontStyle.Regular, Color.FromArgb(220, 235, 244, 255));
+            userRole.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            userRole.BackColor = Color.Transparent;
+            userRole.Size = new Size(104, 16);
+            userRole.AutoEllipsis = true;
+            userRole.Cursor = Cursors.Hand;
+            userRole.TextAlign = ContentAlignment.MiddleLeft;
+            header.Controls.Add(userRole);
+
+            var arrow = ModernUi.Label("\u25BE", 10f, FontStyle.Bold, Color.White);
+            arrow.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            arrow.BackColor = Color.Transparent;
+            arrow.TextAlign = ContentAlignment.MiddleCenter;
+            arrow.Size = new Size(18, 20);
+            arrow.Cursor = Cursors.Hand;
+            header.Controls.Add(arrow);
 
             void ToggleNotificationDropdown()
             {
@@ -282,64 +290,115 @@ public partial class FrmMainDashboard
 
             bell.Click += (_, _) => ToggleNotificationDropdown();
             badge.Click += (_, _) => ToggleNotificationDropdown();
+            help.Click += (_, _) => Navigate("notifications");
             avatar.Click += (_, _) => ToggleAccountDropdown();
             userName.Click += (_, _) => ToggleAccountDropdown();
+            userRole.Click += (_, _) => ToggleAccountDropdown();
+            arrow.Click += (_, _) => ToggleAccountDropdown();
 
             void LayoutInteractiveHeader()
             {
-                int rightEdge = Math.Max(0, header.ClientSize.Width - 18);
+                int headerWidth = header.ClientSize.Width > 80
+                    ? header.ClientSize.Width
+                    : Math.Max(760, _content.ClientSize.Width);
+                int rightEdge = Math.Max(0, headerWidth - 22);
+                int centerY = header.Height / 2;
 
-                // Username: fixed width, vertically centered at y = 23
-                userName.SetBounds(Math.Max(0, rightEdge - 112), 23, 112, 24);
-                rightEdge = userName.Left - 10;
+                arrow.SetBounds(rightEdge - 18, centerY - 10, 18, 20);
+                rightEdge = arrow.Left - 8;
 
-                // Avatar: 34x34, y = 18 (slightly higher to vertically center with username)
-                avatar.SetBounds(Math.Max(0, rightEdge - 34), 18, 34, 34);
-                rightEdge = avatar.Left - 12;
+                int userWidth = 112;
+                userName.SetBounds(Math.Max(0, rightEdge - userWidth), 13, userWidth, 18);
+                userRole.SetBounds(userName.Left, 31, userWidth, 16);
+                rightEdge = userName.Left - 12;
 
-                // Notification button: 36x36, y = 17
-                bell.SetBounds(Math.Max(0, rightEdge - 36), 17, 36, 36);
+                avatar.SetBounds(Math.Max(0, rightEdge - 38), centerY - 19, 38, 38);
+                rightEdge = avatar.Left - 16;
 
-                // Badge: corner top-right of bell, shift up by 4px
-                badge.SetBounds(
-                    bell.Right - 7,
-                    bell.Top - 4,
-                    16,
-                    16);
+                help.SetBounds(Math.Max(0, rightEdge - 34), centerY - 17, 34, 34);
+                rightEdge = help.Left - 12;
 
-                rightEdge = bell.Left - 18;
+                bell.SetBounds(Math.Max(0, rightEdge - 34), centerY - 17, 34, 34);
+                badge.SetBounds(bell.Right - 10, bell.Top - 4, 17, 17);
 
-                if (search != null)
-                {
-                    int searchWidth = Math.Min(300, Math.Max(240, header.ClientSize.Width / 5));
-
-                    // place search to the left of bell with a minimum gap
-                    int searchRight = rightEdge - 18;
-                    search.SetBounds(
-                        Math.Max(0, searchRight - searchWidth),
-                        14,
-                        searchWidth,
-                        42);
-
-                    LayoutHeaderBase(search.Left - 18);
-                }
-                else
-                {
-                    LayoutHeaderBase(rightEdge - 18);
-                }
+                LayoutHeaderBase(bell.Left - 24);
             }
 
             header.Resize += (_, _) => LayoutInteractiveHeader();
             LayoutInteractiveHeader();
+            if (header.IsHandleCreated)
+            {
+                header.BeginInvoke(new Action(LayoutInteractiveHeader));
+            }
+            else
+            {
+                header.HandleCreated += (_, _) => header.BeginInvoke(new Action(LayoutInteractiveHeader));
+            }
         }
 
         if (IsResident)
         {
             header.Resize += (_, _) => LayoutHeaderBase(header.ClientSize.Width - 24);
             LayoutHeaderBase(header.ClientSize.Width - 24);
+            if (header.IsHandleCreated)
+            {
+                header.BeginInvoke(new Action(() => LayoutHeaderBase(header.ClientSize.Width - 24)));
+            }
+            else
+            {
+                header.HandleCreated += (_, _) => header.BeginInvoke(new Action(() => LayoutHeaderBase(header.ClientSize.Width - 24)));
+            }
         }
 
         return page;
+    }
+
+    private static string PageHeaderIcon(string title)
+    {
+        string value = title ?? string.Empty;
+        if (value.Contains("Báo cáo", StringComparison.OrdinalIgnoreCase))
+        {
+            return "☰";
+        }
+
+        if (value.Contains("Dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            return "⌂";
+        }
+
+        if (value.Contains("hóa đơn", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("phí", StringComparison.OrdinalIgnoreCase))
+        {
+            return "▤";
+        }
+
+        if (value.Contains("cư dân", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("tài khoản", StringComparison.OrdinalIgnoreCase))
+        {
+            return "●";
+        }
+
+        if (value.Contains("phương tiện", StringComparison.OrdinalIgnoreCase))
+        {
+            return "▣";
+        }
+
+        return "☰";
+    }
+
+    private string HeaderRoleText()
+    {
+        if (IsResident)
+        {
+            return "Cư dân";
+        }
+
+        if (IsManager)
+        {
+            return "Quản lý";
+        }
+
+        return "Quản trị viên";
     }
 
     private int PageWorkWidth(int minWidth = 980)

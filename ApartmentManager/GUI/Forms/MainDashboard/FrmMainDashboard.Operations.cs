@@ -17,30 +17,45 @@ namespace ApartmentManager.GUI.Forms;
 
 public partial class FrmMainDashboard
 {
+    private readonly List<object[]> _reportHistoryRows = new();
+
+    private sealed class ReportSnapshot
+    {
+        public List<ResidentDTO> Residents { get; init; } = new();
+        public List<ApartmentDTO> Apartments { get; init; } = new();
+        public List<InvoiceDTO> Invoices { get; init; } = new();
+        public List<dynamic> Complaints { get; init; } = new();
+        public List<dynamic> Vehicles { get; init; } = new();
+        public List<dynamic> Visitors { get; init; } = new();
+        public DateTime StartDate { get; init; }
+        public DateTime EndDate { get; init; }
+        public string Building { get; init; } = "Tất cả";
+    }
+
     private void RenderReports()
     {
         var page = BeginPage("Báo cáo & thống kê", "Dashboard / Báo cáo");
         int w = PageWorkWidth();
         int y = 72;
-        var residents = ResidentDAL.GetAllResidents();
-        var apartments = ApartmentDAL.GetAllApartments();
-        var invoices = InvoiceDAL.GetAllInvoices();
-        var complaints = ComplaintDAL.GetAllComplaints();
-        var vehicles = VehicleDAL.GetAllVehicles();
-        var visitors = VisitorDAL.GetAllVisitors();
-        int occupied = apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
-        int occupancyRate = apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / apartments.Count);
-        decimal revenueTotal = invoices.Sum(i => i.PaidAmount);
-        decimal debtTotal = invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
-        int unpaidCount = invoices.Count(i => ViStatus(i.PaymentStatus) != "Đã thanh toán");
+        List<ResidentDTO> residents = new();
+        List<ApartmentDTO> apartments = new();
+        List<InvoiceDTO> invoices = new();
+        List<dynamic> complaints = new();
+        List<dynamic> vehicles = new();
+        List<dynamic> visitors = new();
+        LoadSourceData();
+
+        DateTime defaultReportDate = LatestReportDate();
+        DateTime defaultStart = new(defaultReportDate.Year, defaultReportDate.Month, 1);
+        DateTime defaultEnd = MonthEnd(defaultReportDate);
 
         var filters = ModernUi.CardPanel();
         filters.Location = new Point(18, y);
         filters.Size = new Size(w, 96);
-        AddFilter(filters, "Kỳ báo cáo", "Tháng 05/2024", 14);
-        AddFilter(filters, "Từ ngày", "01/05/2024", 238);
-        AddFilter(filters, "Đến ngày", "17/05/2024", 462);
-        AddFilter(filters, "Tòa nhà", "Tất cả", 686);
+        var periodPicker = AddReportMonthPicker(filters, "Kỳ báo cáo", defaultReportDate, 14);
+        var fromPicker = AddReportDatePicker(filters, "Từ ngày", defaultStart, 238);
+        var toPicker = AddReportDatePicker(filters, "Đến ngày", defaultEnd, 462);
+        var buildingFilter = AddReportBuildingFilter(filters, apartments, 686);
         var excel = ModernUi.Button("▥  Excel", ModernUi.Green, 100, 32);
         excel.Location = new Point(w - 330, 60);
         filters.Controls.Add(excel);
@@ -53,14 +68,13 @@ public partial class FrmMainDashboard
         page.Controls.Add(filters);
 
         y += 112;
-        int cardW = (w - 36 - 12 * 5) / 6;
-        AddRow(page, y, 12,
-            ModernUi.StatCard("Cư dân", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} hoạt động", cardW, 124),
-            ModernUi.StatCard("Lấp đầy", $"{occupancyRate}%", "Căn hộ", ModernUi.Green, "◔", $"{occupied:N0}/{apartments.Count:N0}", cardW, 124),
-            ModernUi.StatCard("Doanh thu", MoneyShort(revenueTotal), "VNĐ", ModernUi.Orange, "$", "Đã thu", cardW, 124),
-            ModernUi.StatCard("Công nợ", MoneyShort(debtTotal), "VNĐ", ModernUi.Red, "!", $"{unpaidCount:N0} hóa đơn", cardW, 124),
-            ModernUi.StatCard("Phản ánh", complaints.Count.ToString("N0"), "Phiếu", ModernUi.Purple, "▤", $"{complaints.Count(c => ViStatus(c.Status) == "Mới")} mới", cardW, 124),
-            ModernUi.StatCard("Phương tiện", vehicles.Count.ToString("N0"), "Xe", ModernUi.Teal, "▣", $"{vehicles.Count(v => IsActiveStatus(v.Status))} hoạt động", cardW, 124));
+        var statHost = new Panel
+        {
+            Location = new Point(0, y),
+            Size = new Size(w + 36, 124),
+            BackColor = ModernUi.Surface
+        };
+        page.Controls.Add(statHost);
 
         y += 140;
         int chartW = (w - 12) / 2;
@@ -74,17 +88,6 @@ public partial class FrmMainDashboard
             Location = new Point(12, 42),
             Size = new Size(revenue.Width - 24, 188)
         };
-        var monthly = invoices
-            .GroupBy(i => new DateTime(i.Year, i.Month, 1))
-            .OrderBy(g => g.Key)
-            .TakeLast(12)
-            .Select(g => (Label: $"T{g.Key.Month}", Value: ChartValue(g.Sum(i => i.PaidAmount))))
-            .ToList();
-        chart.AxisMax = Math.Max(1, monthly.Count == 0 ? 1 : (int)(monthly.Max(m => m.Value) * 1.2m));
-        foreach (var item in monthly)
-        {
-            chart.Bars.Add(item);
-        }
         revenue.Controls.Add(chart);
         page.Controls.Add(revenue);
 
@@ -93,15 +96,15 @@ public partial class FrmMainDashboard
         int donutW = Math.Min(270, Math.Max(220, operations.Width - 280));
         var occupancy = new DonutChartPanel
         {
-            Percent = occupancyRate,
-            CenterText = $"{occupancyRate}%",
+            Percent = 0,
+            CenterText = "0%",
             SubText = "Lấp đầy",
             AccentColor = ModernUi.Green,
             Location = new Point(16, 48),
             Size = new Size(donutW, 168)
         };
         operations.Controls.Add(occupancy);
-        var reportText = ModernUi.Label($"Phản ánh đã xử lý: {complaints.Count(c => ViStatus(c.Status) == "Đã xử lý"):N0} / {complaints.Count:N0}\r\nKhách ra vào hôm nay: {visitors.Count(v => ((DateTime)v.ArrivalTime).Date == DateTime.Today):N0} lượt\r\nCăn hộ bảo trì: {apartments.Count(a => ViStatus(a.Status) == "Bảo trì"):N0}\r\nPhương tiện hoạt động: {vehicles.Count(v => IsActiveStatus(v.Status)):N0} / {vehicles.Count:N0}",
+        var reportText = ModernUi.Label("",
             9.5f, FontStyle.Regular, ModernUi.Text);
         reportText.Location = new Point(donutW + 38, 64);
         reportText.Size = new Size(operations.Width - donutW - 56, 116);
@@ -121,35 +124,538 @@ public partial class FrmMainDashboard
             Location = new Point(12, 42),
             Size = new Size(complaintChart.Width - 24, 160)
         };
-        var complaintGroups = complaints
-            .GroupBy(c => (string)Display(c.Category, "Khác"))
-            .OrderByDescending(g => g.Count())
-            .Take(6)
-            .Select(g => (Label: g.Key.Length > 10 ? g.Key[..10] : g.Key, Value: g.Count()))
-            .ToList();
-        complaintBars.AxisMax = Math.Max(1, complaintGroups.Count == 0 ? 1 : (int)(complaintGroups.Max(g => g.Value) * 1.2m));
-        foreach (var item in complaintGroups)
-        {
-            complaintBars.Bars.Add(item);
-        }
         complaintChart.Controls.Add(complaintBars);
         page.Controls.Add(complaintChart);
 
         var saved = ModernUi.Section("Danh sách báo cáo đã tạo", w - complaintW - 12, 234);
         saved.Location = new Point(complaintChart.Right + 12, y);
+        string[] reportColumns = { "Báo cáo", "Kỳ", "Người tạo", "Ngày tạo", "Định dạng", "Trạng thái" };
         var savedGrid = CreateGrid(
-            new[] { "Báo cáo", "Kỳ", "Người tạo", "Ngày tạo", "Định dạng", "Trạng thái" },
-            new object[][]
-            {
-                new object[] { "Doanh thu tháng", "05/2024", "ketoan01", "17/05/2024 15:10", "Excel", "Thành công" },
-                new object[] { "Công nợ cư dân", "05/2024", "manager1", "17/05/2024 14:40", "PDF", "Thành công" },
-                new object[] { "Phản ánh vận hành", "Tuần 20", "manager1", "16/05/2024 18:20", "Excel", "Thành công" },
-                new object[] { "Tài sản bảo trì", "05/2024", "admin1", "16/05/2024 16:05", "PDF", "Chờ xử lý" }
-            });
+            reportColumns,
+            BuildReportHistoryRows());
         savedGrid.Location = new Point(12, 44);
         savedGrid.Size = new Size(saved.Width - 24, 150);
         saved.Controls.Add(savedGrid);
         page.Controls.Add(saved);
+
+        bool syncingDates = false;
+
+        periodPicker.ValueChanged += (_, _) =>
+        {
+            if (syncingDates)
+            {
+                return;
+            }
+
+            syncingDates = true;
+            DateTime selectedMonth = periodPicker.Value.Date;
+            fromPicker.Value = SafePickerValue(fromPicker, new DateTime(selectedMonth.Year, selectedMonth.Month, 1));
+            toPicker.Value = SafePickerValue(toPicker, MonthEnd(selectedMonth));
+            syncingDates = false;
+            RefreshReportData();
+        };
+
+        fromPicker.ValueChanged += (_, _) =>
+        {
+            if (syncingDates)
+            {
+                return;
+            }
+
+            if (fromPicker.Value.Date > toPicker.Value.Date)
+            {
+                syncingDates = true;
+                toPicker.Value = SafePickerValue(toPicker, fromPicker.Value.Date);
+                syncingDates = false;
+            }
+
+            RefreshReportData();
+        };
+
+        toPicker.ValueChanged += (_, _) =>
+        {
+            if (syncingDates)
+            {
+                return;
+            }
+
+            if (toPicker.Value.Date < fromPicker.Value.Date)
+            {
+                syncingDates = true;
+                fromPicker.Value = SafePickerValue(fromPicker, toPicker.Value.Date);
+                syncingDates = false;
+            }
+
+            RefreshReportData();
+        };
+
+        buildingFilter.SelectedIndexChanged += (_, _) => RefreshReportData();
+        refresh.Click += (_, _) =>
+        {
+            LoadSourceData();
+            RefreshBuildingFilterItems();
+            RefreshReportData();
+        };
+        excel.Click += (_, _) => ExportCurrentReport("Excel");
+        pdf.Click += (_, _) => ExportCurrentReport("PDF");
+
+        RefreshReportData();
+
+        void LoadSourceData()
+        {
+            residents = ResidentDAL.GetAllResidents();
+            apartments = ApartmentDAL.GetAllApartments();
+            invoices = InvoiceDAL.GetAllInvoices();
+            complaints = ComplaintDAL.GetAllComplaints();
+            vehicles = VehicleDAL.GetAllVehicles();
+            visitors = VisitorDAL.GetAllVisitors();
+        }
+
+        DateTime LatestReportDate()
+        {
+            var dates = new List<DateTime>();
+            dates.AddRange(invoices.Select(i => i.CreatedAt));
+            dates.AddRange(apartments.Select(a => a.CreatedAt));
+            dates.AddRange(residents.Select(r => r.CreatedAt));
+            dates.AddRange(complaints.Select(c => FirstDynamicDate(c, "CreatedAt")).Where(d => d.HasValue).Select(d => d!.Value));
+            dates.AddRange(vehicles.Select(v => FirstDynamicDate(v, "CreatedAt", "RegisteredAt")).Where(d => d.HasValue).Select(d => d!.Value));
+            dates.AddRange(visitors.Select(v => FirstDynamicDate(v, "ArrivalTime", "CheckInTime", "CreatedAt")).Where(d => d.HasValue).Select(d => d!.Value));
+
+            var validDates = dates
+                .Where(d => d > DateTime.MinValue && d.Date <= DateTime.Today)
+                .Select(d => d.Date)
+                .ToList();
+
+            return validDates.Count == 0 ? DateTime.Today : validDates.Max();
+        }
+
+        DateTime MonthEnd(DateTime date)
+        {
+            var end = new DateTime(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month));
+            return end > DateTime.Today ? DateTime.Today : end;
+        }
+
+        DateTime SafePickerValue(DateTimePicker picker, DateTime value)
+        {
+            DateTime date = value.Date;
+            if (date < picker.MinDate.Date)
+            {
+                return picker.MinDate.Date;
+            }
+
+            if (date > picker.MaxDate.Date)
+            {
+                return picker.MaxDate.Date;
+            }
+
+            return date;
+        }
+
+        void RefreshReportData()
+        {
+            var snapshot = BuildSnapshot();
+            RenderStatCards(snapshot);
+            RenderCharts(snapshot);
+            SetGridData(savedGrid, reportColumns, BuildReportHistoryRows());
+        }
+
+        void RefreshBuildingFilterItems()
+        {
+            string selected = buildingFilter.SelectedItem?.ToString() ?? "Tất cả";
+            var buildings = apartments
+                .Select(a => Display(a.BuildingName, "Chưa rõ"))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            buildings.Insert(0, "Tất cả");
+
+            buildingFilter.BeginUpdate();
+            buildingFilter.Items.Clear();
+            foreach (string building in buildings)
+            {
+                buildingFilter.Items.Add(building);
+            }
+
+            int selectedIndex = buildings.FindIndex(name => string.Equals(name, selected, StringComparison.CurrentCultureIgnoreCase));
+            buildingFilter.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+            buildingFilter.EndUpdate();
+        }
+
+        ReportSnapshot BuildSnapshot()
+        {
+            DateTime start = fromPicker.Value.Date;
+            DateTime end = toPicker.Value.Date;
+            if (start > end)
+            {
+                (start, end) = (end, start);
+            }
+
+            DateTime endInclusive = end.AddDays(1).AddTicks(-1);
+            string selectedBuilding = buildingFilter.SelectedItem?.ToString() ?? "Tất cả";
+
+            var filteredApartments = apartments
+                .Where(a => BuildingMatches(a.BuildingName, selectedBuilding))
+                .Where(a => a.CreatedAt <= DateTime.MinValue || a.CreatedAt.Date <= end)
+                .ToList();
+
+            var apartmentIds = filteredApartments.Select(a => a.ApartmentID).ToHashSet();
+
+            return new ReportSnapshot
+            {
+                StartDate = start,
+                EndDate = end,
+                Building = selectedBuilding,
+                Apartments = filteredApartments,
+                Residents = residents
+                    .Where(r => apartmentIds.Contains(r.ApartmentID))
+                    .Where(r => ResidentOverlapsRange(r, start, endInclusive))
+                    .ToList(),
+                Invoices = invoices
+                    .Where(i => apartmentIds.Contains(i.ApartmentID))
+                    .Where(i => InRange(i.CreatedAt, start, endInclusive))
+                    .ToList(),
+                Complaints = complaints
+                    .Where(c => apartmentIds.Contains(GetDynamicInt(c, "ApartmentID")))
+                    .Where(c => InRange(FirstDynamicDate(c, "CreatedAt", "ReportDate"), start, endInclusive))
+                    .ToList(),
+                Vehicles = vehicles
+                    .Where(v => apartmentIds.Contains(GetDynamicInt(v, "ApartmentID")))
+                    .Where(v => InRange(FirstDynamicDate(v, "CreatedAt", "RegisteredAt"), start, endInclusive))
+                    .ToList(),
+                Visitors = visitors
+                    .Where(v => apartmentIds.Contains(GetDynamicInt(v, "ApartmentID")))
+                    .Where(v => InRange(FirstDynamicDate(v, "ArrivalTime", "CheckInTime", "CreatedAt"), start, endInclusive))
+                    .ToList()
+            };
+        }
+
+        bool BuildingMatches(string buildingName, string selectedBuilding)
+            => selectedBuilding == "Tất cả" ||
+               string.Equals(Display(buildingName, "Chưa rõ"), selectedBuilding, StringComparison.CurrentCultureIgnoreCase);
+
+        bool InRange(DateTime? value, DateTime start, DateTime endInclusive)
+            => value.HasValue && value.Value >= start && value.Value <= endInclusive;
+
+        bool ResidentOverlapsRange(ResidentDTO resident, DateTime start, DateTime endInclusive)
+        {
+            DateTime residentStart = (resident.StartDate ?? resident.MoveInDate ?? resident.CreatedAt).Date;
+            DateTime? residentEnd = resident.EndDate ?? resident.MoveOutDate;
+            return residentStart <= endInclusive && (!residentEnd.HasValue || residentEnd.Value.Date >= start);
+        }
+
+        DateTime? FirstDynamicDate(dynamic row, params string[] names)
+        {
+            foreach (string name in names)
+            {
+                DateTime? date = GetDynamicDate(row, name);
+                if (date.HasValue && date.Value > DateTime.MinValue)
+                {
+                    return date.Value;
+                }
+            }
+
+            return null;
+        }
+
+        void RenderStatCards(ReportSnapshot snapshot)
+        {
+            statHost.Controls.Clear();
+
+            int cardW = Math.Max(150, (w - 36 - 12 * 5) / 6);
+            int occupied = snapshot.Apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
+            int occupancyRate = snapshot.Apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / snapshot.Apartments.Count);
+            decimal revenueTotal = snapshot.Invoices.Sum(i => i.PaidAmount);
+            decimal debtTotal = snapshot.Invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+            int unpaidCount = snapshot.Invoices.Count(i => ViStatus(i.PaymentStatus) != "Đã thanh toán");
+
+            AddRow(statHost, 0, 12,
+                ModernUi.StatCard("Cư dân", snapshot.Residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{snapshot.Residents.Count(r => IsActiveStatus(r.Status))} hoạt động", cardW, 124),
+                ModernUi.StatCard("Lấp đầy", $"{occupancyRate}%", "Căn hộ", ModernUi.Green, "◔", $"{occupied:N0}/{snapshot.Apartments.Count:N0}", cardW, 124),
+                ModernUi.StatCard("Doanh thu", MoneyShort(revenueTotal), "VNĐ", ModernUi.Orange, "$", "Đã thu", cardW, 124),
+                ModernUi.StatCard("Công nợ", MoneyShort(debtTotal), "VNĐ", ModernUi.Red, "!", $"{unpaidCount:N0} hóa đơn", cardW, 124),
+                ModernUi.StatCard("Phản ánh", snapshot.Complaints.Count.ToString("N0"), "Phiếu", ModernUi.Purple, "▤", $"{snapshot.Complaints.Count(c => ViStatus(c.Status) == "Mới")} mới", cardW, 124),
+                ModernUi.StatCard("Phương tiện", snapshot.Vehicles.Count.ToString("N0"), "Xe", ModernUi.Teal, "▣", $"{snapshot.Vehicles.Count(v => IsActiveStatus(v.Status))} hoạt động", cardW, 124));
+        }
+
+        void RenderCharts(ReportSnapshot snapshot)
+        {
+            int occupied = snapshot.Apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
+            int occupancyRate = snapshot.Apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / snapshot.Apartments.Count);
+
+            var monthly = snapshot.Invoices
+                .GroupBy(i => new DateTime(i.Year, i.Month, 1))
+                .OrderBy(g => g.Key)
+                .TakeLast(12)
+                .Select(g => (Label: $"T{g.Key.Month}", Value: ChartValue(g.Sum(i => i.PaidAmount))))
+                .ToList();
+
+            chart.Bars.Clear();
+            chart.AxisMax = Math.Max(1, monthly.Count == 0 ? 1 : (int)(monthly.Max(m => m.Value) * 1.2m));
+            chart.Bars.AddRange(monthly);
+            chart.Invalidate();
+
+            occupancy.Percent = occupancyRate;
+            occupancy.CenterText = $"{occupancyRate}%";
+            occupancy.PrimaryLabel = "Đã thanh toán";
+            occupancy.PrimaryValue = $"{snapshot.Invoices.Count(i => ViStatus(i.PaymentStatus) == "Đã thanh toán"):N0}";
+            occupancy.SecondaryLabel = "Chưa thanh toán";
+            occupancy.SecondaryValue = $"{snapshot.Invoices.Count(i => ViStatus(i.PaymentStatus) != "Đã thanh toán"):N0}";
+            occupancy.Invalidate();
+
+            reportText.Text =
+                $"Phản ánh đã xử lý: {snapshot.Complaints.Count(c => ViStatus(c.Status) == "Đã xử lý"):N0} / {snapshot.Complaints.Count:N0}\r\n" +
+                $"Khách ra vào trong kỳ: {snapshot.Visitors.Count:N0} lượt\r\n" +
+                $"Căn hộ bảo trì: {snapshot.Apartments.Count(a => ViStatus(a.Status) == "Bảo trì"):N0}\r\n" +
+                $"Phương tiện hoạt động: {snapshot.Vehicles.Count(v => IsActiveStatus(v.Status)):N0} / {snapshot.Vehicles.Count:N0}";
+
+            var complaintGroups = snapshot.Complaints
+                .GroupBy(c => (string)Display(c.Category, "Khác"))
+                .OrderByDescending(g => g.Count())
+                .Take(6)
+                .Select(g => (Label: g.Key.Length > 10 ? g.Key[..10] : g.Key, Value: g.Count()))
+                .ToList();
+
+            complaintBars.Bars.Clear();
+            complaintBars.AxisMax = Math.Max(1, complaintGroups.Count == 0 ? 1 : (int)(complaintGroups.Max(g => g.Value) * 1.2m));
+            complaintBars.Bars.AddRange(complaintGroups);
+            complaintBars.Invalidate();
+        }
+
+        object[][] BuildReportHistoryRows()
+        {
+            return _reportHistoryRows.Count == 0
+                ? new[] { EmptyRow(reportColumns.Length, "Chưa có báo cáo được tạo trong phiên này") }
+                : _reportHistoryRows.Take(20).ToArray();
+        }
+
+        string ReportPeriodText(ReportSnapshot snapshot)
+            => $"{DateText(snapshot.StartDate)} - {DateText(snapshot.EndDate)}";
+
+        void ExportCurrentReport(string format)
+        {
+            var snapshot = BuildSnapshot();
+            var result = format == "Excel"
+                ? BuildExcelReport(snapshot)
+                : BuildPdfReport(snapshot);
+            string filter = format == "Excel" ? "Excel Workbook (*.xlsx)|*.xlsx" : "PDF (*.pdf)|*.pdf";
+
+            if (!SaveGeneratedFile(result, filter, $"Reports{format}Export"))
+            {
+                return;
+            }
+
+            _reportHistoryRows.Insert(0, new object[]
+            {
+                "Báo cáo thống kê",
+                ReportPeriodText(snapshot),
+                CurrentUsername(),
+                DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture),
+                format,
+                "Thành công"
+            });
+            SetGridData(savedGrid, reportColumns, BuildReportHistoryRows());
+        }
+
+        (bool Success, string Message, byte[] FileContent, string FileName) BuildExcelReport(ReportSnapshot snapshot)
+        {
+            try
+            {
+                using var workbook = new ClosedXML.Excel.XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Tong hop");
+
+                worksheet.Cell(1, 1).Value = "Báo cáo thống kê";
+                worksheet.Cell(1, 1).Style.Font.Bold = true;
+                worksheet.Cell(1, 1).Style.Font.FontSize = 16;
+                worksheet.Range(1, 1, 1, 4).Merge();
+
+                worksheet.Cell(2, 1).Value = "Kỳ";
+                worksheet.Cell(2, 2).Value = ReportPeriodText(snapshot);
+                worksheet.Cell(3, 1).Value = "Tòa nhà";
+                worksheet.Cell(3, 2).Value = snapshot.Building;
+                worksheet.Cell(4, 1).Value = "Ngày tạo";
+                worksheet.Cell(4, 2).Value = DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+
+                int row = 6;
+                worksheet.Cell(row, 1).Value = "Chỉ tiêu";
+                worksheet.Cell(row, 2).Value = "Giá trị";
+                worksheet.Range(row, 1, row, 2).Style.Font.Bold = true;
+
+                var summary = new (string Label, string Value)[]
+                {
+                    ("Cư dân", snapshot.Residents.Count.ToString("N0", CultureInfo.InvariantCulture)),
+                    ("Căn hộ", snapshot.Apartments.Count.ToString("N0", CultureInfo.InvariantCulture)),
+                    ("Doanh thu đã thu", Money(snapshot.Invoices.Sum(i => i.PaidAmount))),
+                    ("Công nợ", Money(snapshot.Invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount)))),
+                    ("Phản ánh", snapshot.Complaints.Count.ToString("N0", CultureInfo.InvariantCulture)),
+                    ("Phương tiện", snapshot.Vehicles.Count.ToString("N0", CultureInfo.InvariantCulture)),
+                    ("Khách ra vào", snapshot.Visitors.Count.ToString("N0", CultureInfo.InvariantCulture))
+                };
+
+                foreach (var item in summary)
+                {
+                    row++;
+                    worksheet.Cell(row, 1).Value = item.Label;
+                    worksheet.Cell(row, 2).Value = item.Value;
+                }
+
+                row += 3;
+                worksheet.Cell(row, 1).Value = "Doanh thu theo tháng";
+                worksheet.Cell(row, 1).Style.Font.Bold = true;
+                row++;
+                worksheet.Cell(row, 1).Value = "Tháng";
+                worksheet.Cell(row, 2).Value = "Đã thu";
+                worksheet.Range(row, 1, row, 2).Style.Font.Bold = true;
+
+                foreach (var month in snapshot.Invoices.GroupBy(i => new DateTime(i.Year, i.Month, 1)).OrderBy(g => g.Key))
+                {
+                    row++;
+                    worksheet.Cell(row, 1).Value = month.Key.ToString("MM/yyyy", CultureInfo.InvariantCulture);
+                    worksheet.Cell(row, 2).Value = (double)month.Sum(i => i.PaidAmount);
+                }
+
+                row += 3;
+                worksheet.Cell(row, 1).Value = "Phản ánh theo loại";
+                worksheet.Cell(row, 1).Style.Font.Bold = true;
+                row++;
+                worksheet.Cell(row, 1).Value = "Loại";
+                worksheet.Cell(row, 2).Value = "Số lượng";
+                worksheet.Range(row, 1, row, 2).Style.Font.Bold = true;
+
+                foreach (var group in snapshot.Complaints.GroupBy(c => (string)Display(c.Category, "Khác")).OrderByDescending(g => g.Count()))
+                {
+                    row++;
+                    worksheet.Cell(row, 1).Value = group.Key;
+                    worksheet.Cell(row, 2).Value = group.Count();
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                return (true, "Đã tạo file Excel.", stream.ToArray(), $"bao-cao-thong-ke-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Không thể tạo Excel: {ex.Message}", null, null);
+            }
+        }
+
+        (bool Success, string Message, byte[] FileContent, string FileName) BuildPdfReport(ReportSnapshot snapshot)
+        {
+            try
+            {
+                using var stream = new MemoryStream();
+                var writer = new iText.Kernel.Pdf.PdfWriter(stream);
+                var pdfDocument = new iText.Kernel.Pdf.PdfDocument(writer);
+                var document = new iText.Layout.Document(pdfDocument);
+
+                document.Add(new iText.Layout.Element.Paragraph("Bao cao thong ke").SetFontSize(16).SetBold());
+                document.Add(new iText.Layout.Element.Paragraph($"Ky: {ReportPeriodText(snapshot)}"));
+                document.Add(new iText.Layout.Element.Paragraph($"Toa nha: {PdfText(snapshot.Building)}"));
+                document.Add(new iText.Layout.Element.Paragraph($"Ngay tao: {DateTime.Now:dd/MM/yyyy HH:mm}"));
+
+                var table = new iText.Layout.Element.Table(2, false);
+                table.AddHeaderCell("Chi tieu");
+                table.AddHeaderCell("Gia tri");
+                table.AddCell("Cu dan");
+                table.AddCell(snapshot.Residents.Count.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddCell("Can ho");
+                table.AddCell(snapshot.Apartments.Count.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddCell("Doanh thu da thu");
+                table.AddCell(Money(snapshot.Invoices.Sum(i => i.PaidAmount)) + " VND");
+                table.AddCell("Cong no");
+                table.AddCell(Money(snapshot.Invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount))) + " VND");
+                table.AddCell("Phan anh");
+                table.AddCell(snapshot.Complaints.Count.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddCell("Phuong tien");
+                table.AddCell(snapshot.Vehicles.Count.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddCell("Khach ra vao");
+                table.AddCell(snapshot.Visitors.Count.ToString("N0", CultureInfo.InvariantCulture));
+                document.Add(table);
+
+                document.Close();
+                return (true, "Đã tạo file PDF.", stream.ToArray(), $"bao-cao-thong-ke-{DateTime.Now:yyyyMMdd-HHmmss}.pdf");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Không thể tạo PDF: {ex.Message}", null, null);
+            }
+        }
+
+        string PdfText(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "-";
+            }
+
+            string normalized = value
+                .Replace('Đ', 'D')
+                .Replace('đ', 'd')
+                .Normalize(System.Text.NormalizationForm.FormD);
+            var chars = new List<char>();
+            foreach (char ch in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                {
+                    chars.Add(ch);
+                }
+            }
+
+            return new string(chars.ToArray()).Normalize(System.Text.NormalizationForm.FormC);
+        }
+    }
+
+    private static DateTimePicker AddReportDatePicker(Control parent, string label, DateTime selected, int x)
+    {
+        var lbl = ModernUi.Label(label, 8.7f, FontStyle.Bold, ModernUi.Text);
+        lbl.Location = new Point(x, 8);
+        lbl.Size = new Size(170, 18);
+        parent.Controls.Add(lbl);
+
+        var picker = new DateTimePicker
+        {
+            Format = DateTimePickerFormat.Custom,
+            CustomFormat = "dd/MM/yyyy",
+            MinDate = new DateTime(2000, 1, 1),
+            MaxDate = DateTime.Today,
+            Width = 210,
+            Height = 30,
+            Font = ModernUi.Font(9.5f),
+            Location = new Point(x, 30)
+        };
+        picker.Value = selected.Date < picker.MinDate ? picker.MinDate : selected.Date > picker.MaxDate ? picker.MaxDate : selected.Date;
+        parent.Controls.Add(picker);
+        return picker;
+    }
+
+    private static DateTimePicker AddReportMonthPicker(Control parent, string label, DateTime selected, int x)
+    {
+        var picker = AddReportDatePicker(parent, label, selected, x);
+        picker.CustomFormat = "'Tháng' MM/yyyy";
+        return picker;
+    }
+
+    private static ComboBox AddReportBuildingFilter(Control parent, IEnumerable<ApartmentDTO> apartments, int x)
+    {
+        var lbl = ModernUi.Label("Tòa nhà", 8.7f, FontStyle.Bold, ModernUi.Text);
+        lbl.Location = new Point(x, 8);
+        lbl.Size = new Size(170, 18);
+        parent.Controls.Add(lbl);
+
+        var buildings = apartments
+            .Select(a => Display(a.BuildingName, "Chưa rõ"))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        buildings.Insert(0, "Tất cả");
+
+        var combo = ModernUi.ComboBox(buildings, 210);
+        combo.Location = new Point(x, 30);
+        parent.Controls.Add(combo);
+        return combo;
     }
 
     private void RenderSystemLogs()

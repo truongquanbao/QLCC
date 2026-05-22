@@ -12,6 +12,8 @@ internal static class ModernUi
 {
     public static readonly Color Navy = Color.FromArgb(0, 48, 104);
     public static readonly Color Navy2 = Color.FromArgb(0, 60, 130);
+    public static readonly Color SidebarTop = Color.FromArgb(2, 36, 82);
+    public static readonly Color SidebarBottom = Color.FromArgb(0, 52, 112);
     public static readonly Color Blue = Color.FromArgb(21, 96, 205);
     public static readonly Color LightBlue = Color.FromArgb(232, 241, 255);
     public static readonly Color Surface = Color.FromArgb(246, 248, 252);
@@ -124,6 +126,7 @@ internal static class ModernUi
             Font = Font(9.5f, FontStyle.Bold),
             Cursor = Cursors.Hand,
             TextAlign = ContentAlignment.MiddleCenter,
+            Padding = new Padding(10, 0, 10, 1),
             UseVisualStyleBackColor = false
         };
         button.FlatAppearance.BorderSize = 0;
@@ -147,7 +150,7 @@ internal static class ModernUi
         return new TextBox
         {
             Width = width,
-            Height = 30,
+            Height = 32,
             Font = Font(9.5f),
             PlaceholderText = placeholder,
             BorderStyle = BorderStyle.FixedSingle
@@ -159,7 +162,7 @@ internal static class ModernUi
         var combo = new ComboBox
         {
             Width = width,
-            Height = 30,
+            Height = 32,
             Font = Font(9.5f),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
@@ -199,6 +202,7 @@ internal static class ModernUi
         grid.DefaultCellStyle.ForeColor = Text;
         grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(217, 232, 252);
         grid.DefaultCellStyle.SelectionForeColor = Text;
+        grid.DefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
         grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 252, 255);
         return grid;
     }
@@ -259,8 +263,7 @@ internal static class ModernUi
         card.Size = new Size(width, height);
 
         var titleLabel = Label(title.ToUpperInvariant(), 8.4f, FontStyle.Bold, accent);
-        titleLabel.Location = new Point(14, 12);
-        titleLabel.Size = new Size(width - 28, 22);
+        titleLabel.AutoEllipsis = true;
         titleLabel.TextAlign = ContentAlignment.MiddleCenter;
         card.Controls.Add(titleLabel);
 
@@ -269,32 +272,46 @@ internal static class ModernUi
             Text = iconText,
             CircleColor = accent,
             ForeColor = Color.White,
-            Font = Font(24f, FontStyle.Bold),
-            Location = new Point(24, 42),
-            Size = new Size(58, 58),
             TextAlign = ContentAlignment.MiddleCenter
         };
         card.Controls.Add(icon);
 
-        float valueSize = value.Length > 11 ? 13.5f : value.Length > 7 ? 18f : 20f;
-        var valueLabel = Label(value, valueSize, FontStyle.Bold, accent);
-        valueLabel.Location = new Point(92, 42);
-        valueLabel.Size = new Size(width - 104, 34);
-        valueLabel.TextAlign = ContentAlignment.MiddleCenter;
+        var valueLabel = Label(value, 20f, FontStyle.Bold, accent);
+        valueLabel.AutoEllipsis = true;
+        valueLabel.TextAlign = ContentAlignment.MiddleLeft;
         card.Controls.Add(valueLabel);
 
         var unitLabel = Label(unit, 9f, FontStyle.Regular, Muted);
-        unitLabel.Location = new Point(92, 76);
-        unitLabel.Size = new Size(width - 104, 20);
-        unitLabel.TextAlign = ContentAlignment.MiddleCenter;
+        unitLabel.AutoEllipsis = true;
+        unitLabel.TextAlign = ContentAlignment.MiddleLeft;
         card.Controls.Add(unitLabel);
 
         var trendLabel = Label(trend, 8.7f, FontStyle.Regular, Green);
-        trendLabel.Location = new Point(18, height - 28);
-        trendLabel.Size = new Size(width - 36, 22);
-        trendLabel.TextAlign = ContentAlignment.MiddleCenter;
+        trendLabel.AutoEllipsis = true;
+        trendLabel.TextAlign = ContentAlignment.MiddleLeft;
         card.Controls.Add(trendLabel);
 
+        void LayoutStatCard()
+        {
+            int iconSize = card.Width < 176 ? 44 : 56;
+            int iconLeft = card.Width < 176 ? 14 : 18;
+            int iconTop = Math.Max(42, (card.Height - iconSize) / 2 + 8);
+            int textLeft = iconLeft + iconSize + (card.Width < 176 ? 10 : 16);
+            int textWidth = Math.Max(70, card.Width - textLeft - 14);
+
+            titleLabel.SetBounds(14, 12, Math.Max(80, card.Width - 28), 22);
+            icon.Font = Font(iconSize > 50 ? 20f : 16f, FontStyle.Bold);
+            icon.SetBounds(iconLeft, iconTop, iconSize, iconSize);
+
+            float valueSize = value.Length > 11 ? 13f : value.Length > 7 ? 17f : 20f;
+            valueLabel.Font = Font(card.Width < 176 ? Math.Min(valueSize, 16f) : valueSize, FontStyle.Bold);
+            valueLabel.SetBounds(textLeft, iconTop - 2, textWidth, 30);
+            unitLabel.SetBounds(textLeft, valueLabel.Bottom - 2, textWidth, 20);
+            trendLabel.SetBounds(textLeft, Math.Max(unitLabel.Bottom + 6, card.Height - 30), textWidth, 20);
+        }
+
+        card.Resize += (_, _) => LayoutStatCard();
+        LayoutStatCard();
         return card;
     }
 
@@ -369,6 +386,37 @@ internal sealed class RoundedPanel : Panel
         path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
         path.CloseFigure();
         return path;
+    }
+}
+
+internal sealed class GradientPanel : Panel
+{
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Color StartColor { get; set; } = ModernUi.SidebarTop;
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Color EndColor { get; set; } = ModernUi.SidebarBottom;
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public LinearGradientMode GradientMode { get; set; } = LinearGradientMode.Vertical;
+
+    public GradientPanel()
+    {
+        DoubleBuffered = true;
+        ResizeRedraw = true;
+        BackColor = ModernUi.SidebarTop;
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        if (ClientRectangle.Width <= 0 || ClientRectangle.Height <= 0)
+        {
+            base.OnPaintBackground(e);
+            return;
+        }
+
+        using var brush = new LinearGradientBrush(ClientRectangle, StartColor, EndColor, GradientMode);
+        e.Graphics.FillRectangle(brush, ClientRectangle);
     }
 }
 

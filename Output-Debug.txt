@@ -1,0 +1,222 @@
+﻿'ApartmentManager.exe' (CoreCLR: DefaultDomain): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Private.CoreLib.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\ApartmentManager.dll'. Symbols loaded.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Runtime.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'c:\program files\microsoft visual studio\18\community\common7\ide\extensions\microsoft\managedprojectsystem\HotReload\net6.0\Microsoft.Extensions.DotNetDeltaApplier.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Linq.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Runtime.Loader.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Console.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Private.Uri.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.IO.Pipes.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Collections.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Runtime.InteropServices.RuntimeInformation.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Collections.Concurrent.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Threading.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Runtime.InteropServices.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Threading.Overlapped.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Security.AccessControl.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Security.Principal.Windows.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Security.Claims.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\System.Windows.Forms.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.ComponentModel.Primitives.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\System.Windows.Forms.Primitives.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\System.Private.Windows.Core.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Drawing.Primitives.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Collections.Specialized.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\Serilog.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\Serilog.Sinks.Console.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\Serilog.Sinks.File.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\PrivateAssemblies\Runtime\Microsoft.VisualStudio.Debugger.Runtime.NetCoreApp.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Text.RegularExpressions.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.IO.FileSystem.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Memory.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Reflection.Emit.Lightweight.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Reflection.Emit.ILGeneration.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Reflection.Primitives.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Diagnostics.DiagnosticSource.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Diagnostics.Tracing.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Text.Encoding.Extensions.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Numerics.Vectors.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\System.Drawing.Common.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\Microsoft.Win32.Primitives.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.ComponentModel.EventBasedAsync.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Threading.Thread.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\Accessibility.dll'. Module was built without symbols.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.ComponentModel.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\Microsoft.Win32.SystemEvents.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Collections.NonGeneric.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.ComponentModel.TypeConverter.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Threading.ThreadPool.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\runtimes\win\lib\net6.0\Microsoft.Data.SqlClient.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Data.Common.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.16\System.Configuration.ConfigurationManager.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\Microsoft.Win32.Registry.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Transactions.Local.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Diagnostics.StackTrace.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Xml.ReaderWriter.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Private.Xml.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Net.WebClient.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Security.Cryptography.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\Microsoft.Identity.Client.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Text.Encoding.CodePages.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Diagnostics.TraceSource.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Net.Primitives.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Diagnostics.Process.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+The thread '.NET TP Worker' (8616) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3188) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3968) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3440) has exited with code 0 (0x0).
+The thread 3132 has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12612) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (16768) has exited with code 0 (0x0).
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\Microsoft.SqlServer.Server.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\netstandard.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Users\admin\source\repos\QLCC\ApartmentManager\bin\Debug\net9.0-windows\BCrypt.Net-Next.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Security.Cryptography.Algorithms.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Net.NameResolution.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Reflection.Metadata.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Collections.Immutable.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.IO.MemoryMappedFiles.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Linq.Expressions.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\Microsoft.CSharp.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'Anonymously Hosted DynamicMethods Assembly'. 
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.Runtime.Numerics.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+'ApartmentManager.exe' (CoreCLR: clrhost): Loaded 'C:\Program Files\dotnet\shared\Microsoft.NETCore.App\9.0.16\System.ObjectModel.dll'. Skipped loading symbols. Module is optimized and the debugger option 'Just My Code' is enabled.
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (10580) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (18016) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (13956) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (19476) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (18048) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (17188) has exited with code 0 (0x0).
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (11652) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (18096) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11612) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21412) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11656) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (2428) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (19296) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (14020) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (4976) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3028) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (4204) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (4852) has exited with code 0 (0x0).
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (12484) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (6988) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (228) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (388) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (16268) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3952) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (10532) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3152) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11652) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (14636) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (2256) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11992) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (19272) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (17000) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12612) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (18388) has exited with code 0 (0x0).
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (11016) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (4332) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12836) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (15256) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12852) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (1168) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (20868) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11740) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22432) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21344) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21260) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (13564) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22332) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22328) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (2604) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (16336) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21992) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (19244) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (6416) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (3740) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22288) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (18476) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (15968) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12768) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22344) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (1940) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (20296) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21412) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21808) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (14676) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (4888) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22156) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (15752) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (18908) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (20300) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (1368) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (14768) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21256) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (1176) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (8064) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (8332) has exited with code 0 (0x0).
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (3572) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (2492) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (14448) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (6284) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (14160) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12504) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21432) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22112) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22984) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (1344) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11868) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (12948) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (15044) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (4584) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22712) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21596) has exited with code 0 (0x0).
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (13588) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22580) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (20524) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (23092) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (6840) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (16032) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22652) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (11492) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (19848) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22824) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21156) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (17304) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (2000) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21448) has exited with code 0 (0x0).
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+Exception thrown: 'System.Data.SqlTypes.SqlNullValueException' in Microsoft.Data.SqlClient.dll
+The thread '.NET TP Worker' (23100) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21832) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (23160) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (8880) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22584) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (13908) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (13836) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22504) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (10000) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (21700) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (8300) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (15432) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (20268) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (6988) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (7680) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (7804) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22412) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (6400) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (22960) has exited with code 0 (0x0).
+The thread '.NET TP Worker' (9748) has exited with code 0 (0x0).
+The program '[2124] ApartmentManager.exe' has exited with code 4294967295 (0xffffffff).

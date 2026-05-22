@@ -54,7 +54,7 @@ public partial class FrmMainDashboard
             Padding = Padding.Empty
         };
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderHeight));
+        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         shell.RowStyles.Add(new RowStyle(SizeType.Absolute, FooterHeight));
         Controls.Add(shell);
@@ -62,7 +62,7 @@ public partial class FrmMainDashboard
         var topBar = new Panel
         {
             Dock = DockStyle.Fill,
-            Height = HeaderHeight,
+            Height = 0,
             BackColor = ModernUi.Navy
         };
         shell.Controls.Add(topBar, 0, 0);
@@ -119,10 +119,10 @@ public partial class FrmMainDashboard
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         shell.Controls.Add(body, 0, 1);
 
-        _sidebar = new Panel
+        _sidebar = new GradientPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(0, 46, 99)
+            BackColor = ModernUi.SidebarTop
         };
         body.Controls.Add(_sidebar, 0, 0);
         BuildSidebar();
@@ -281,12 +281,12 @@ public partial class FrmMainDashboard
             int top = Math.Max(10, (_footer.ClientSize.Height - 28) / 2);
             int left = 24;
             int gap = 18;
-            int available = Math.Max(980, _footer.ClientSize.Width - left * 2 - gap * 3);
+            int available = Math.Max(320, _footer.ClientSize.Width - left * 2 - gap * 3);
 
-            int userWidth = Math.Max(220, (int)(available * 0.20f));
-            int roleWidth = Math.Max(190, (int)(available * 0.18f));
-            int clockWidth = Math.Max(290, (int)(available * 0.29f));
-            int dbWidth = Math.Max(280, available - userWidth - roleWidth - clockWidth);
+            int userWidth = Math.Max(170, (int)(available * 0.22f));
+            int roleWidth = Math.Max(150, (int)(available * 0.18f));
+            int clockWidth = Math.Max(230, (int)(available * 0.28f));
+            int dbWidth = Math.Max(180, available - userWidth - roleWidth - clockWidth);
 
             user.Location = new Point(left, top);
             user.Size = new Size(userWidth, 28);
@@ -310,14 +310,42 @@ public partial class FrmMainDashboard
         _sidebar.Controls.Clear();
         _navButtons.Clear();
 
+        var brand = new Panel
+        {
+            Size = new Size(SidebarWidth, 84),
+            BackColor = Color.Transparent,
+            Padding = new Padding(14, 14, 12, 10)
+        };
+        _sidebar.Controls.Add(brand);
+
+        var brandIcon = ModernUi.Label("\u25A6", 24f, FontStyle.Bold, Color.White);
+        brandIcon.BackColor = Color.Transparent;
+        brandIcon.TextAlign = ContentAlignment.MiddleCenter;
+        brandIcon.SetBounds(10, 16, 42, 42);
+        brand.Controls.Add(brandIcon);
+
+        var brandTitle = ModernUi.Label("PH\u1EA6N M\u1EC0M QU\u1EA2N L\u00DD\r\nKHU CHUNG C\u01AF", 9.2f, FontStyle.Bold, Color.White);
+        brandTitle.BackColor = Color.Transparent;
+        brandTitle.TextAlign = ContentAlignment.MiddleLeft;
+        brandTitle.SetBounds(58, 17, SidebarWidth - 76, 44);
+        brand.Controls.Add(brandTitle);
+
+        var brandLine = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 1,
+            BackColor = Color.FromArgb(42, 83, 135)
+        };
+        brand.Controls.Add(brandLine);
+
         var menu = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Size = new Size(SidebarWidth, Math.Max(0, _sidebar.Height - brand.Height)),
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            Padding = new Padding(12, 13, 12, 0),
+            Padding = new Padding(12, 12, 12, 0),
             AutoScroll = true,
-            BackColor = _sidebar.BackColor
+            BackColor = Color.Transparent
         };
         _sidebar.Controls.Add(menu);
 
@@ -418,6 +446,23 @@ public partial class FrmMainDashboard
             _navButtons[item.Key] = button;
             menu.Controls.Add(button);
         }
+
+        void LayoutSidebar()
+        {
+            int width = Math.Max(160, _sidebar.ClientSize.Width);
+            brand.SetBounds(0, 0, width, 84);
+            brandIcon.SetBounds(12, 17, 40, 40);
+            brandTitle.SetBounds(60, 16, Math.Max(80, width - 76), 46);
+            menu.SetBounds(0, brand.Bottom, width, Math.Max(0, _sidebar.ClientSize.Height - brand.Height));
+            int itemWidth = Math.Max(120, width - 24 - SystemInformation.VerticalScrollBarWidth);
+            foreach (Control control in menu.Controls)
+            {
+                control.Width = itemWidth;
+            }
+        }
+
+        _sidebar.Resize += (_, _) => LayoutSidebar();
+        LayoutSidebar();
     }
 
     private IEnumerable<(string? Group, string Key, string Text, string Icon)> MenuItemsForRole()

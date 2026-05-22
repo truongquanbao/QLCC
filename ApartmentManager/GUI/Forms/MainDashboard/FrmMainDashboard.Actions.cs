@@ -298,7 +298,7 @@ public partial class FrmMainDashboard
             MessageBoxIcon.Information);
     }
 
-    private void SaveGeneratedFile((bool Success, string Message, byte[] FileContent, string FileName) result, string filter, string auditAction)
+    private bool SaveGeneratedFile((bool Success, string Message, byte[] FileContent, string FileName) result, string filter, string auditAction)
     {
         if (!result.Success || result.FileContent == null || result.FileContent.Length == 0 || string.IsNullOrWhiteSpace(result.FileName))
         {
@@ -307,7 +307,7 @@ public partial class FrmMainDashboard
                 "Xuất dữ liệu",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
-            return;
+            return false;
         }
 
         using var dialog = new SaveFileDialog
@@ -321,7 +321,7 @@ public partial class FrmMainDashboard
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
-            return;
+            return false;
         }
 
         File.WriteAllBytes(dialog.FileName, result.FileContent);
@@ -332,6 +332,8 @@ public partial class FrmMainDashboard
             "Báo cáo nhanh",
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
+
+        return true;
     }
 
     private void RunDatabaseBackup()

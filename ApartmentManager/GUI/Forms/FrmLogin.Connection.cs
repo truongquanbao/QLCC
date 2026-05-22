@@ -112,7 +112,11 @@ public partial class FrmLogin
             {
                 if (_chkRemember.Checked)
                 {
-                    RememberUsername(username);
+                    RememberLogin(username, password);
+                }
+                else
+                {
+                    ClearRememberedLogin();
                 }
 
                 _lblStatus.Text = message;
