@@ -50,9 +50,9 @@ public class PhiDichVu
 
 public partial class FrmMainDashboard : Form
 {
-    private const int SidebarWidth = 238;
-    private const int HeaderHeight = 64;
-    private const int FooterHeight = 64;
+    private const int SidebarWidth = 240;
+    private const int HeaderHeight = 72;
+    private const int FooterHeight = 56;
     private static readonly Font GridBadgeFont = ModernUi.Font(8.4f, FontStyle.Bold);
 
     private readonly Dictionary<string, Button> _navButtons = new();
@@ -67,6 +67,8 @@ public partial class FrmMainDashboard : Form
     private ContextMenuStrip? _quickActionMenu;
     private string? _quickActionMenuKey;
     private Control? _quickActionAnchor;
+    private CircleLabel _headerNotificationBadge;
+    private ToolTip _headerNotificationToolTip;
     private string? _pendingQuickActionPage;
     private string? _pendingQuickActionMode;
 

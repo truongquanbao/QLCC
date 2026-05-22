@@ -32,4 +32,8 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Remove="GUI\Forms\MainDashboard\FrmMainDashboard.*.resx" />
+  </ItemGroup>
+
 </Project>

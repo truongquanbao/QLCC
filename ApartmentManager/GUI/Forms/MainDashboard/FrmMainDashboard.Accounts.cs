@@ -1277,89 +1277,210 @@ public partial class FrmMainDashboard
 
     private void RenderProfilePage()
     {
-        var page = BeginPage("Hồ sơ cá nhân", "Dashboard / Tài khoản");
-        int width = Math.Min(PageWorkWidth(760), 900);
+        var page = BeginPage("Hồ sơ cá nhân", "Dashboard / Hồ sơ cá nhân");
+        page.BackColor = ModernUi.Surface;
+        page.AutoScroll = true;
+        page.HorizontalScroll.Enabled = false;
+        page.HorizontalScroll.Visible = false;
 
-        var profileCard = ModernUi.Section("Thông tin tài khoản", width, 290);
-        profileCard.Location = new Point(18, 88);
-        page.Controls.Add(profileCard);
-
-        var avatar = new CircleLabel
+        string displayName = Display(_session?.FullName, "Super Administrator");
+        string username = Display(_session?.Username, "superadmin");
+        string email = Display(_session?.Email, "superadmin@chungcu.vn");
+        string phone = Display(_session?.Phone, "0901 234 567");
+        string role = RoleDisplay();
+        if (string.IsNullOrWhiteSpace(role) || role == "-" || role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
         {
-            // Dùng ký tự đầu nếu chưa có ảnh đại diện để không phụ thuộc dữ liệu file.
-            Text = GetUserInitials(),
-            CircleColor = ModernUi.Blue,
-            ForeColor = Color.White,
-            Font = ModernUi.Font(26f, FontStyle.Bold),
-            Location = new Point(28, 66),
-            Size = new Size(110, 110)
+            role = "Quản trị viên";
+        }
+
+        var summaryCard = CreateProfileCard();
+        var nameLabel = ModernUi.Label(displayName, 20f, FontStyle.Bold, ModernUi.Navy);
+        nameLabel.AutoEllipsis = true;
+        summaryCard.Controls.Add(nameLabel);
+
+        var usernameLabel = ModernUi.Label(username, 10.5f, FontStyle.Regular, ModernUi.Text);
+        usernameLabel.AutoEllipsis = true;
+        summaryCard.Controls.Add(usernameLabel);
+
+        var separator = new Panel { BackColor = ModernUi.Border };
+        summaryCard.Controls.Add(separator);
+
+        var roleLabel = ModernUi.Label(role, 10.5f, FontStyle.Regular, ModernUi.Text);
+        roleLabel.AutoEllipsis = true;
+        summaryCard.Controls.Add(roleLabel);
+
+        var statusBadge = new RoundedPanel
+        {
+            Radius = 6,
+            BackColor = Color.FromArgb(232, 248, 237),
+            BorderColor = Color.FromArgb(169, 220, 184),
+            Padding = Padding.Empty
         };
-        profileCard.Controls.Add(avatar);
+        var statusDot = ModernUi.Label("●", 9f, FontStyle.Bold, ModernUi.Green);
+        statusDot.TextAlign = ContentAlignment.MiddleCenter;
+        statusBadge.Controls.Add(statusDot);
+        var statusText = ModernUi.Label("Đang hoạt động", 9.5f, FontStyle.Regular, ModernUi.Green);
+        statusText.AutoEllipsis = true;
+        statusBadge.Controls.Add(statusText);
+        statusBadge.Resize += (_, _) =>
+        {
+            statusDot.SetBounds(10, 0, 16, statusBadge.Height);
+            statusText.SetBounds(30, 0, Math.Max(60, statusBadge.Width - 38), statusBadge.Height);
+        };
+        summaryCard.Controls.Add(statusBadge);
 
-        AddProfileField(profileCard, "Tên đăng nhập", CurrentUsername(), 180, 58, 300);
-        AddProfileField(profileCard, "Họ và tên", CurrentDisplayName(), 180, 96, 300);
-        AddProfileField(profileCard, "Email", Display(_session?.Email, "-"), 180, 134, 300);
-        AddProfileField(profileCard, "Số điện thoại", Display(_session?.Phone, "-"), 180, 172, 300);
-        AddProfileField(profileCard, "Vai trò", RoleDisplay(), 520, 58, 280);
-        AddProfileField(profileCard, "Mã người dùng", (_session?.UserID ?? 0).ToString(), 520, 96, 280);
-        AddProfileField(profileCard, "Trạng thái", Display(_session?.Status, "Đang hoạt động"), 520, 134, 280);
-        AddProfileField(profileCard, "Đăng nhập lúc", _session?.LoginTime.ToString("dd/MM/yyyy HH:mm:ss") ?? "-", 520, 172, 280);
+        var personalCard = CreateProfileRowsCard(
+            "Thông tin cá nhân",
+            new[]
+            {
+                ("Họ và tên", displayName),
+                ("Email", email),
+                ("Số điện thoại", phone),
+                ("Chức vụ", "Quản trị hệ thống")
+            });
 
-        var changePasswordButton = ModernUi.Button("Đổi mật khẩu", ModernUi.Blue, 150, 36);
-        changePasswordButton.Location = new Point(180, 228);
-        changePasswordButton.Click += (_, _) => ShowChangePasswordDialog();
-        profileCard.Controls.Add(changePasswordButton);
+        var accountCard = CreateProfileRowsCard(
+            "Cài đặt tài khoản",
+            new[]
+            {
+                ("Tên đăng nhập", username),
+                ("Email đăng nhập", email),
+                ("Ngôn ngữ", "Tiếng Việt"),
+                ("Múi giờ", "(GMT+07:00) Bangkok, Hà Nội, Jakarta")
+            });
 
-        var settingsButton = ModernUi.OutlineButton("Mở cài đặt", 150, 36);
-        settingsButton.Location = new Point(344, 228);
-        settingsButton.Click += (_, _) => OpenAccountSettings();
-        profileCard.Controls.Add(settingsButton);
+        page.Controls.Add(summaryCard);
+        page.Controls.Add(personalCard);
+        page.Controls.Add(accountCard);
+
+        void LayoutProfilePage()
+        {
+            int padding = 20;
+            int gap = 20;
+            int contentWidth = Math.Max(320, page.ClientSize.Width - padding * 2 - SystemInformation.VerticalScrollBarWidth);
+            int top = HeaderHeight + padding;
+
+            summaryCard.SetBounds(padding, top, contentWidth, 150);
+            LayoutProfileSummary(summaryCard, nameLabel, usernameLabel, separator, roleLabel, statusBadge);
+
+            int cardTop = summaryCard.Bottom + gap;
+            int cardHeight = 330;
+            if (contentWidth >= 820)
+            {
+                int cardWidth = (contentWidth - gap) / 2;
+                personalCard.SetBounds(padding, cardTop, cardWidth, cardHeight);
+                accountCard.SetBounds(padding + cardWidth + gap, cardTop, contentWidth - cardWidth - gap, cardHeight);
+                page.AutoScrollMinSize = new Size(0, accountCard.Bottom + padding);
+            }
+            else
+            {
+                personalCard.SetBounds(padding, cardTop, contentWidth, cardHeight);
+                accountCard.SetBounds(padding, personalCard.Bottom + gap, contentWidth, cardHeight);
+                page.AutoScrollMinSize = new Size(0, accountCard.Bottom + padding);
+            }
+
+            page.HorizontalScroll.Enabled = false;
+            page.HorizontalScroll.Visible = false;
+        }
+
+        page.Resize += (_, _) => LayoutProfilePage();
+        LayoutProfilePage();
+    }
+
+    private static RoundedPanel CreateProfileCard()
+    {
+        var card = ModernUi.CardPanel(12);
+        card.BorderColor = Color.FromArgb(223, 231, 242);
+        card.BackColor = Color.White;
+        card.Padding = Padding.Empty;
+        return card;
+    }
+
+    private static void LayoutProfileSummary(
+        Control card,
+        Label nameLabel,
+        Label usernameLabel,
+        Panel separator,
+        Label roleLabel,
+        Control statusBadge)
+    {
+        int left = 32;
+        int top = 28;
+        int width = Math.Max(160, card.Width - 64);
+
+        nameLabel.SetBounds(left, top, width, 42);
+
+        int lineTop = nameLabel.Bottom + 14;
+        int usernameWidth = Math.Min(200, Math.Max(120, TextRenderer.MeasureText(usernameLabel.Text, usernameLabel.Font).Width + 12));
+        usernameLabel.SetBounds(left, lineTop, usernameWidth, 28);
+
+        separator.SetBounds(usernameLabel.Right + 16, lineTop + 5, 1, 18);
+
+        int roleWidth = Math.Min(190, Math.Max(120, TextRenderer.MeasureText(roleLabel.Text, roleLabel.Font).Width + 16));
+        roleLabel.SetBounds(separator.Right + 16, lineTop, roleWidth, 28);
+
+        int badgeWidth = 164;
+        int badgeLeft = roleLabel.Right + 16;
+        if (badgeLeft + badgeWidth > card.Width - 32)
+        {
+            badgeLeft = left;
+            lineTop += 34;
+        }
+
+        statusBadge.SetBounds(badgeLeft, lineTop - 1, badgeWidth, 32);
+    }
+
+    private static RoundedPanel CreateProfileRowsCard(string title, IReadOnlyList<(string Label, string Value)> rows)
+    {
+        var card = CreateProfileCard();
+
+        var titleLabel = ModernUi.Label(title, 13f, FontStyle.Bold, ModernUi.Navy);
+        titleLabel.AutoEllipsis = true;
+        card.Controls.Add(titleLabel);
+
+        var rowControls = new List<(Label Label, Label Value, Panel Divider)>();
+        foreach (var row in rows)
+        {
+            var label = ModernUi.Label(row.Label, 10f, FontStyle.Regular, ModernUi.Text);
+            label.AutoEllipsis = true;
+            card.Controls.Add(label);
+
+            var value = ModernUi.Label(row.Value, 10f, FontStyle.Regular, ModernUi.Navy);
+            value.AutoEllipsis = false;
+            card.Controls.Add(value);
+
+            var divider = new Panel { BackColor = Color.FromArgb(226, 232, 240) };
+            card.Controls.Add(divider);
+            rowControls.Add((label, value, divider));
+        }
+
+        void LayoutRows()
+        {
+            int padding = 32;
+            titleLabel.SetBounds(padding, 26, Math.Max(120, card.Width - padding * 2), 34);
+
+            int y = 82;
+            int rowHeight = 58;
+            int labelWidth = Math.Min(220, Math.Max(130, (card.Width - padding * 2) / 2 - 18));
+            int valueLeft = padding + labelWidth + 28;
+            int valueWidth = Math.Max(120, card.Width - valueLeft - padding);
+
+            foreach (var row in rowControls)
+            {
+                row.Label.SetBounds(padding, y, labelWidth, rowHeight - 10);
+                row.Value.SetBounds(valueLeft, y, valueWidth, rowHeight - 10);
+                row.Divider.SetBounds(padding, y + rowHeight - 1, Math.Max(80, card.Width - padding * 2), 1);
+                y += rowHeight;
+            }
+        }
+
+        card.Resize += (_, _) => LayoutRows();
+        LayoutRows();
+        return card;
     }
 
     private void RenderNotificationsPage()
     {
-        var page = BeginPage("Thông báo", "Dashboard / Thông báo");
-        int width = Math.Min(PageWorkWidth(760), 960);
-
-        var card = ModernUi.Section("Danh sách thông báo", width, 380);
-        card.Location = new Point(18, 88);
-        page.Controls.Add(card);
-
-        var notifications = GetHeaderNotifications();
-        if (notifications.Count == 0)
-        {
-            notifications = CreateSampleNotifications();
-        }
-
-        for (int i = 0; i < notifications.Count && i < 8; i++)
-        {
-            var notification = notifications[i];
-            var row = new RoundedPanel
-            {
-                Radius = 6,
-                BorderColor = Color.FromArgb(226, 232, 240),
-                BackColor = notification.IsRead ? Color.White : Color.FromArgb(239, 246, 255),
-                Location = new Point(18, 48 + i * 40),
-                Size = new Size(card.Width - 36, 34)
-            };
-
-            var text = ModernUi.Label(BuildNotificationCaption(notification), 9f,
-                notification.IsRead ? FontStyle.Regular : FontStyle.Bold,
-                ModernUi.Text);
-            text.Location = new Point(12, 7);
-            text.Size = new Size(row.Width - 24, 20);
-            row.Controls.Add(text);
-
-            row.Cursor = Cursors.Hand;
-            text.Cursor = Cursors.Hand;
-            row.Click += (_, _) => OpenNotificationDetail(notification);
-            text.Click += (_, _) => OpenNotificationDetail(notification);
-            card.Controls.Add(row);
-        }
-
-        var markAllReadButton = ModernUi.Button("Đánh dấu tất cả đã đọc", ModernUi.Blue, 180, 34);
-        markAllReadButton.Location = new Point(18, card.Bottom + 12);
-        markAllReadButton.Click += (_, _) => MarkAllNotificationsAsRead();
-        page.Controls.Add(markAllReadButton);
+        ShowNotificationListPopup();
     }
 }

@@ -20,10 +20,26 @@ public partial class FrmMainDashboard
     private void InitializeComponent()
     {
         Text = "PHẦN MỀM QUẢN LÝ KHU CHUNG CƯ";
-        WindowState = FormWindowState.Maximized;
         FormBorderStyle = FormBorderStyle.Sizable;
         MinimumSize = new Size(1360, 760);
         ModernUi.ApplyFormDefaults(this, new Size(1360, 760));
+        AutoScaleMode = AutoScaleMode.None;
+        ApplyWorkingAreaMaximizedBounds();
+        WindowState = FormWindowState.Maximized;
+        Shown += (_, _) => ApplyWorkingAreaMaximizedBounds();
+        LocationChanged += (_, _) => ApplyWorkingAreaMaximizedBounds();
+        SizeChanged += (_, _) =>
+        {
+            if (WindowState == FormWindowState.Maximized)
+            {
+                ApplyWorkingAreaMaximizedBounds();
+            }
+        };
+    }
+
+    private void ApplyWorkingAreaMaximizedBounds()
+    {
+        MaximizedBounds = Screen.FromControl(this).WorkingArea;
     }
 
     private void BuildShell()
@@ -67,10 +83,9 @@ public partial class FrmMainDashboard
         };
         shell.Controls.Add(topBar, 0, 0);
 
-        var logo = ModernUi.Label("▦", 24f, FontStyle.Bold, Color.White);
+        var logo = CreateLogoPictureBox(Color.White);
         logo.Location = new Point(14, 8);
         logo.Size = new Size(38, 46);
-        logo.TextAlign = ContentAlignment.MiddleCenter;
         topBar.Controls.Add(logo);
 
         var appTitle = ModernUi.Label("PHẦN MỀM QUẢN LÝ KHU CHUNG CƯ", 15.8f, FontStyle.Bold, Color.White);
@@ -122,6 +137,7 @@ public partial class FrmMainDashboard
         _sidebar = new GradientPanel
         {
             Dock = DockStyle.Fill,
+            MinimumSize = new Size(SidebarWidth, 0),
             BackColor = ModernUi.SidebarTop
         };
         body.Controls.Add(_sidebar, 0, 0);
@@ -155,6 +171,56 @@ public partial class FrmMainDashboard
         button.FlatAppearance.BorderSize = 0;
         button.FlatAppearance.MouseOverBackColor = ModernUi.Navy2;
         return button;
+    }
+
+    private static PictureBox CreateLogoPictureBox(Color color)
+    {
+        var picture = new PictureBox
+        {
+            BackColor = Color.Transparent,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            TabStop = false
+        };
+
+        picture.Paint += (_, e) =>
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            DrawLogoGlyph(e.Graphics, picture.ClientRectangle, color);
+        };
+
+        return picture;
+    }
+
+    private static void DrawLogoGlyph(Graphics graphics, Rectangle bounds, Color color)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        int side = Math.Max(12, Math.Min(bounds.Width, bounds.Height) - 4);
+        int left = bounds.Left + (bounds.Width - side) / 2;
+        int top = bounds.Top + (bounds.Height - side) / 2;
+        var logo = new Rectangle(left, top, side, side);
+
+        using var pen = new Pen(color, Math.Max(2, side / 14));
+        using var brush = new SolidBrush(color);
+
+        int towerWidth = side / 4;
+        graphics.DrawRectangle(pen, logo.Left + side / 10, logo.Top + side / 6, towerWidth, side * 2 / 3);
+        graphics.DrawRectangle(pen, logo.Left + side * 2 / 5, logo.Top + side / 10, towerWidth, side * 3 / 4);
+        graphics.DrawRectangle(pen, logo.Left + side * 7 / 10, logo.Top + side / 4, towerWidth, side * 7 / 12);
+
+        int windowSize = Math.Max(2, side / 12);
+        for (int column = 0; column < 3; column++)
+        {
+            for (int row = 0; row < 3; row++)
+            {
+                int x = logo.Left + side / 7 + column * side / 4;
+                int y = logo.Top + side / 4 + row * side / 6;
+                graphics.FillRectangle(brush, x, y, windowSize, windowSize);
+            }
+        }
     }
 
     private static PaginationControls AddPaginationControls(Control parent, int summaryX, int summaryY, int buttonsX, int buttonsY, int pageSizeX, int pageSizeY, int summaryWidth)
@@ -312,22 +378,20 @@ public partial class FrmMainDashboard
 
         var brand = new Panel
         {
-            Size = new Size(SidebarWidth, 84),
+            Size = new Size(SidebarWidth, HeaderHeight),
             BackColor = Color.Transparent,
-            Padding = new Padding(14, 14, 12, 10)
+            Padding = Padding.Empty
         };
         _sidebar.Controls.Add(brand);
 
-        var brandIcon = ModernUi.Label("\u25A6", 24f, FontStyle.Bold, Color.White);
-        brandIcon.BackColor = Color.Transparent;
-        brandIcon.TextAlign = ContentAlignment.MiddleCenter;
-        brandIcon.SetBounds(10, 16, 42, 42);
+        var brandIcon = CreateLogoPictureBox(Color.White);
+        brandIcon.SetBounds(18, 18, 34, 34);
         brand.Controls.Add(brandIcon);
 
-        var brandTitle = ModernUi.Label("PH\u1EA6N M\u1EC0M QU\u1EA2N L\u00DD\r\nKHU CHUNG C\u01AF", 9.2f, FontStyle.Bold, Color.White);
+        var brandTitle = ModernUi.Label("PHẦN MỀM QUẢN LÝ\r\nKHU CHUNG CƯ", 9.5f, FontStyle.Bold, Color.White);
         brandTitle.BackColor = Color.Transparent;
         brandTitle.TextAlign = ContentAlignment.MiddleLeft;
-        brandTitle.SetBounds(58, 17, SidebarWidth - 76, 44);
+        brandTitle.SetBounds(66, 17, SidebarWidth - 84, 38);
         brand.Controls.Add(brandTitle);
 
         var brandLine = new Panel
@@ -343,7 +407,7 @@ public partial class FrmMainDashboard
             Size = new Size(SidebarWidth, Math.Max(0, _sidebar.Height - brand.Height)),
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            Padding = new Padding(12, 12, 12, 0),
+            Padding = new Padding(14, 12, 14, 0),
             AutoScroll = true,
             BackColor = Color.Transparent
         };
@@ -351,20 +415,22 @@ public partial class FrmMainDashboard
 
         static string SidebarGlyph(string key) => key switch
         {
-            "dashboard" => "\u25C9",
-            "accounts" => "\u25CF",
-            "permissions" => "\u25A1",
-            "apartments" or "apartment-info" => "\u25A6",
-            "residents" or "profile" => "\u25CF",
-            "invoices" or "my-invoices" or "payment" => "\u25A4",
-            "complaints" or "send-complaint" => "\u25A0",
-            "vehicles" => "\u25A3",
-            "visitors" => "\u25CF",
-            "assets" => "\u25C7",
-            "reports" => "\u25A5",
-            "logs" => "\u25A4",
-            "settings" or "notifications" or "password" => "\u25CE",
-            _ => "\u25CF"
+            "dashboard" => "⌂",
+            "accounts" => "♙",
+            "permissions" => "▣",
+            "apartments" or "apartment-info" => "▦",
+            "residents" or "profile" => "●",
+            "invoices" or "my-invoices" or "payment" => "▤",
+            "complaints" or "send-complaint" => "☑",
+            "vehicles" => "▰",
+            "visitors" => "✦",
+            "assets" => "◇",
+            "reports" => "▥",
+            "logs" => "▤",
+            "settings" => "⚙",
+            "notifications" => "!",
+            "password" => "◎",
+            _ => "•"
         };
 
         string? currentGroup = null;
@@ -402,9 +468,9 @@ public partial class FrmMainDashboard
             {
                 Text = string.Empty,
                 Tag = item.Key,
-                Width = SidebarWidth - 24,
-                Height = 44,
-                Margin = new Padding(0, 0, 0, 4),
+                Width = SidebarWidth - 28,
+                Height = 42,
+                Margin = new Padding(0, 0, 0, 5),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = Padding.Empty,
                 Font = ModernUi.Font(9.8f, FontStyle.Regular),
@@ -420,9 +486,9 @@ public partial class FrmMainDashboard
             string menuText = item.Text;
             button.Paint += (_, e) =>
             {
-                const int iconWidth = 28;
+                const int iconWidth = 26;
                 int iconLeft = 16;
-                int textLeft = iconLeft + iconWidth + 10;
+                int textLeft = iconLeft + iconWidth + 12;
                 var iconRect = new Rectangle(iconLeft, 0, iconWidth, button.Height);
                 var textRect = new Rectangle(textLeft, 0, Math.Max(40, button.Width - textLeft - 12), button.Height);
 
@@ -449,12 +515,12 @@ public partial class FrmMainDashboard
 
         void LayoutSidebar()
         {
-            int width = Math.Max(160, _sidebar.ClientSize.Width);
-            brand.SetBounds(0, 0, width, 84);
-            brandIcon.SetBounds(12, 17, 40, 40);
-            brandTitle.SetBounds(60, 16, Math.Max(80, width - 76), 46);
-            menu.SetBounds(0, brand.Bottom, width, Math.Max(0, _sidebar.ClientSize.Height - brand.Height));
-            int itemWidth = Math.Max(120, width - 24 - SystemInformation.VerticalScrollBarWidth);
+            int width = SidebarWidth;
+            brand.SetBounds(0, 0, width, HeaderHeight);
+            brandIcon.SetBounds(18, 18, 34, 34);
+            brandTitle.SetBounds(66, 17, Math.Max(80, width - 84), 38);
+            menu.SetBounds(0, brand.Bottom, width, Math.Max(0, _sidebar.ClientSize.Height - brand.Bottom));
+            int itemWidth = Math.Max(120, width - 28 - SystemInformation.VerticalScrollBarWidth);
             foreach (Control control in menu.Controls)
             {
                 control.Width = itemWidth;

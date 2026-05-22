@@ -2848,90 +2848,551 @@ public partial class FrmMainDashboard
     private void RenderSystemSettings()
     {
         var page = BeginPage("Cấu hình hệ thống", "Dashboard / Cấu hình hệ thống");
-        int w = PageWorkWidth();
-        int y = 72;
-        int gap = 12;
-        int colW = (w - gap) / 2;
         var systemConfigs = GetSystemConfigs();
-        var connectionBuilder = new SqlConnectionStringBuilder(DatabaseHelper.GetConnectionString());
-        int backupWarningDays = int.TryParse(ConfigValue(systemConfigs, "BackupWarningDays", "7"), out var parsedWarningDays) ? Math.Max(1, parsedWarningDays) : 7;
+
+        string systemName = ConfigValue(systemConfigs, "AppName", ConfigurationHelper.GetAppSetting("AppName"));
+        string systemAddress = ConfigValue(systemConfigs, "SystemAddress", "123 Đường ABC, Phường XYZ, Quận 1, TP. Hồ Chí Minh");
+        string supportEmail = ConfigValue(systemConfigs, "SupportEmail", "support@chungcu.com.vn");
+        string supportPhone = ConfigValue(systemConfigs, "SupportPhone", "(028) 1234 5678");
+        string systemDescription = ConfigValue(
+            systemConfigs,
+            "SystemDescription",
+            "Hệ thống quản lý toàn diện dành cho khu chung cư, hỗ trợ cư dân và ban quản lý trong công tác vận hành.");
         string lastBackupRaw = ConfigValue(systemConfigs, "LastBackupAt", "");
         DateTime? lastBackupAt = ParseDashboardDate(lastBackupRaw);
-        bool backupOverdue = IsBackupOverdue(lastBackupAt, backupWarningDays);
-        string backupStatusText = lastBackupAt.HasValue ? $"Đã backup: {DateTimeText(lastBackupAt.Value)}" : "Chưa có dữ liệu backup";
+        string lastBackupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : BackupDisplayText(lastBackupRaw);
+        string selectedLogoPath = ConfigValue(systemConfigs, "SystemLogoPath", "");
 
-        var general = ModernUi.Section("Cấu hình chung", colW, 284);
-        general.Location = new Point(18, y);
-        AddDetailField(general, "Tên hệ thống", ConfigValue(systemConfigs, "AppName", ConfigurationHelper.GetAppSetting("AppName")), 46);
-        AddDetailField(general, "Múi giờ", ConfigValue(systemConfigs, "TimeZone", TimeZoneInfo.Local.Id), 86);
-        AddDetailField(general, "Ngôn ngữ", ConfigValue(systemConfigs, "Language", "Tiếng Việt"), 126);
-        AddDetailField(general, "Định dạng ngày", ConfigValue(systemConfigs, "DateTimeFormat", "dd/MM/yyyy HH:mm"), 166);
-        AddDetailField(general, "Phiên bản", ConfigValue(systemConfigs, "AppVersion", ConfigurationHelper.GetAppSetting("AppVersion")), 206);
-        AddResponsiveFormActions(general, 244);
-        page.Controls.Add(general);
+        var featureSpecs = new[]
+        {
+            ("⚙", "Thông tin chung", "Cấu hình thông tin chung của hệ thống như tên, logo, địa chỉ...", ModernUi.Purple),
+            ("👥", "Quản lý người dùng", "Cấu hình chính sách người dùng, mật khẩu, đăng nhập...", ModernUi.Blue),
+            ("▣", "Phân quyền hệ thống", "Quản lý vai trò, quyền hạn và phân quyền chức năng...", ModernUi.Green),
+            ("▥", "Cấu hình tòa nhà", "Cấu hình thông tin tòa nhà, block, tầng, căn hộ...", ModernUi.Orange),
+            ("$", "Cấu hình phí", "Cấu hình các loại phí, đơn giá, chu kỳ thu, chính sách phí...", ModernUi.Red),
+            ("●", "Cấu hình thông báo", "Cấu hình gửi email, SMS, thông báo ứng dụng...", Color.FromArgb(241, 166, 0)),
+            ("☁", "Sao lưu & phục hồi", "Quản lý sao lưu dữ liệu và phục hồi hệ thống...", ModernUi.Teal),
+            ("▤", "Nhật ký cấu hình", "Xem lịch sử thay đổi cấu hình hệ thống...", ModernUi.Purple)
+        };
+        var featureCards = featureSpecs
+            .Select(spec => CreateSettingsFeatureCard(spec.Item1, spec.Item2, spec.Item3, spec.Item4))
+            .ToList();
+        foreach (var card in featureCards)
+        {
+            page.Controls.Add(card.Card);
+        }
 
-        var security = ModernUi.Section("Bảo mật đăng nhập", colW, 284);
-        security.Location = new Point(general.Right + gap, y);
-        AddDetailField(security, "Mật khẩu mạnh", ConfigValue(systemConfigs, "RequireStrongPassword", "Bắt buộc"), 46);
-        AddDetailField(security, "Sai tối đa", $"{ConfigValue(systemConfigs, "MaxLoginAttempts", ConfigurationHelper.GetAppSetting("MaxLoginAttempts"))} lần", 86);
-        AddDetailField(security, "Khóa tài khoản", $"{ConfigValue(systemConfigs, "LockDurationMinutes", ConfigurationHelper.GetAppSetting("LockDurationMinutes"))} phút", 126);
-        AddDetailField(security, "Hết hạn mật khẩu", $"{ConfigurationHelper.GetAppSetting("PasswordExpirationDays")} ngày", 166);
-        AddDetailField(security, "Phiên làm việc", $"{ConfigurationHelper.GetAppSetting("SessionTimeoutMinutes")} phút", 206);
-        var saveSecurity = ModernUi.Button("▣  Lưu bảo mật", ModernUi.Blue, 138, 32);
-        saveSecurity.Location = new Point(18, 244);
-        security.Controls.Add(saveSecurity);
-        page.Controls.Add(security);
+        var systemInfoCard = ModernUi.Section("Thông tin hệ thống", 620, 456);
+        page.Controls.Add(systemInfoCard);
+        var systemDivider = new Panel { BackColor = ModernUi.Border };
+        systemInfoCard.Controls.Add(systemDivider);
 
-        y += 300;
-        var database = ModernUi.Section("Kết nối & dữ liệu", colW, 300);
-        database.Location = new Point(18, y);
-        AddDetailField(database, "SQL Server", connectionBuilder.DataSource, 46);
-        AddDetailField(database, "Database", connectionBuilder.InitialCatalog, 86);
-        AddDetailField(database, "Xác thực", connectionBuilder.IntegratedSecurity ? "Windows" : "SQL Login", 126);
-        AddDetailField(database, "Backup gần nhất", BackupDisplayText(lastBackupRaw), 166);
-        AddDetailField(database, "Thư mục backup", ConfigValue(systemConfigs, "BackupPath", ".\\backups"), 206);
-        var test = ModernUi.Button("✓  Test kết nối", ModernUi.Green, 138, 32);
-        test.Location = new Point(18, 252);
-        database.Controls.Add(test);
-        var save = ModernUi.Button("▣  Lưu cấu hình", ModernUi.Blue, 138, 32);
-        save.Location = new Point(168, 252);
-        database.Controls.Add(save);
-        page.Controls.Add(database);
+        var logoTitle = ModernUi.Label("Logo hệ thống", 8.8f, FontStyle.Bold, ModernUi.Text);
+        systemInfoCard.Controls.Add(logoTitle);
+        var logoFrame = ModernUi.CardPanel(8);
+        logoFrame.Padding = Padding.Empty;
+        logoFrame.BackColor = Color.White;
+        logoFrame.BorderColor = Color.FromArgb(207, 216, 228);
+        systemInfoCard.Controls.Add(logoFrame);
+        var logoMark = ModernUi.Label("▥", 42f, FontStyle.Bold, Color.FromArgb(224, 169, 52));
+        logoMark.TextAlign = ContentAlignment.MiddleCenter;
+        logoFrame.Controls.Add(logoMark);
+        var logoName = ModernUi.Label("CHUNG CƯ\r\nSMART HOME", 15f, FontStyle.Bold, ModernUi.Blue);
+        logoName.TextAlign = ContentAlignment.MiddleCenter;
+        logoFrame.Controls.Add(logoName);
+        var logoPreview = new PictureBox
+        {
+            BackColor = Color.White,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Visible = false
+        };
+        logoFrame.Controls.Add(logoPreview);
+        var chooseLogo = ModernUi.OutlineButton("▣  Chọn ảnh", 116, 34);
+        systemInfoCard.Controls.Add(chooseLogo);
+        var logoNote = ModernUi.Label("Định dạng: PNG, JPG (Tối đa 2MB)", 8.4f, FontStyle.Regular, ModernUi.Muted);
+        logoNote.AutoEllipsis = true;
+        systemInfoCard.Controls.Add(logoNote);
 
-        var backup = ModernUi.Section("Backup / Restore", colW, 300);
-        backup.Location = new Point(database.Right + gap, y);
-        var backupNow = ModernUi.Button("▤  Backup ngay", ModernUi.Orange, Math.Max(150, (backup.Width - 48) / 2), 48);
-        backupNow.Location = new Point(18, 56);
-        backupNow.Click += (_, _) => RunDatabaseBackup();
-        backup.Controls.Add(backupNow);
-        var restore = ModernUi.Button("↥  Restore từ file", ModernUi.Blue, Math.Max(150, (backup.Width - 48) / 2), 48);
-        restore.Location = new Point(backupNow.Right + 12, 56);
-        backup.Controls.Add(restore);
-        var autoBackup = ModernUi.Label(
-            $"Tự động backup: {ConfigValue(systemConfigs, "AutoBackupTime", "02:00")} hằng ngày\r\n" +
-            $"Giữ bản sao lưu: {ConfigValue(systemConfigs, "BackupRetentionDays", "30")} ngày\r\n" +
-            $"Kiểm tra toàn vẹn dữ liệu: {ConfigValue(systemConfigs, "VerifyBackup", "Đã bật")}\r\n" +
-            $"Cảnh báo backup quá hạn: {ConfigValue(systemConfigs, "BackupWarningDays", "7")} ngày",
-            9.5f, FontStyle.Regular, ModernUi.Text);
-        autoBackup.Location = new Point(22, 126);
-        autoBackup.Size = new Size(backup.Width - 44, 112);
-        backup.Controls.Add(autoBackup);
-        string backupState = backupOverdue ? $"Cần backup (quá {backupWarningDays} ngày)" : backupStatusText;
-        var backupStatus = ModernUi.Badge($"Trạng thái: {backupState}", backupOverdue ? ModernUi.Orange : ModernUi.Green);
-        backupStatus.Location = new Point(22, 244);
-        backupStatus.Size = new Size(backup.Width - 44, 32);
-        backup.Controls.Add(backupStatus);
-        page.Controls.Add(backup);
+        var systemFields = new List<(Label Label, RoundedPanel Host, TextBox Input, int Height)>();
+        var systemNameInput = AddSettingsTextField(systemInfoCard, systemFields, "Tên hệ thống *", systemName);
+        var systemAddressInput = AddSettingsTextField(systemInfoCard, systemFields, "Địa chỉ", systemAddress);
+        var supportEmailInput = AddSettingsTextField(systemInfoCard, systemFields, "Email liên hệ", supportEmail);
+        var supportPhoneInput = AddSettingsTextField(systemInfoCard, systemFields, "Số điện thoại", supportPhone);
+        var systemDescriptionInput = AddSettingsTextField(systemInfoCard, systemFields, "Mô tả hệ thống", systemDescription, true);
+        var saveSystemButton = ModernUi.Button("▣  Lưu thay đổi", ModernUi.Blue, 142, 36);
+        systemInfoCard.Controls.Add(saveSystemButton);
 
-        y += 316;
-        var configs = ModernUi.Section("Bảng cấu hình hệ thống", w, 226);
-        configs.Location = new Point(18, y);
-        var grid = CreateGrid(
-            new[] { "ConfigKey", "ConfigValue", "Mô tả", "Cập nhật lúc", "Cập nhật bởi" },
-            RowsOrEmpty(systemConfigs, 5, (c, _) => new object[] { c.ConfigKey, c.ConfigValue, Display(c.Description), DateTimeText(c.UpdatedAt), Display(c.UpdatedBy) }));
-        grid.Location = new Point(12, 44);
-        grid.Size = new Size(configs.Width - 24, 146);
-        configs.Controls.Add(grid);
-        page.Controls.Add(configs);
+        var generalCard = ModernUi.Section("Cấu hình chung", 620, 456);
+        page.Controls.Add(generalCard);
+        var generalDivider = new Panel { BackColor = ModernUi.Border };
+        generalCard.Controls.Add(generalDivider);
+
+        var generalFields = new List<(Label Label, Control Input, int Height)>();
+        var languageCombo = AddSettingsComboField(generalCard, generalFields, "Ngôn ngữ hệ thống", new[] { ConfigValue(systemConfigs, "Language", "Tiếng Việt"), "Tiếng Việt", "English" });
+        var timeZoneCombo = AddSettingsComboField(generalCard, generalFields, "Múi giờ", new[] { ConfigValue(systemConfigs, "TimeZone", "(UTC+07:00) Bangkok, Hanoi, Jakarta"), "(UTC+07:00) Bangkok, Hanoi, Jakarta", TimeZoneInfo.Local.Id });
+        var dateFormatCombo = AddSettingsComboField(generalCard, generalFields, "Định dạng ngày", new[] { ConfigValue(systemConfigs, "DateTimeFormat", "dd/MM/yyyy (22/05/2025)"), "dd/MM/yyyy", "dd/MM/yyyy HH:mm" });
+        var numberFormatCombo = AddSettingsComboField(generalCard, generalFields, "Định dạng số", new[] { ConfigValue(systemConfigs, "NumberFormat", "1.234.567,89"), "1.234.567,89", "1,234,567.89" });
+        var maxRowsInput = AddSettingsSmallTextField(generalCard, generalFields, "Số dòng hiển thị tối đa trên bảng", ConfigValue(systemConfigs, "MaxTableRows", "100"));
+        var autoLogoutInput = AddSettingsSmallTextField(generalCard, generalFields, "Tự động đăng xuất sau (phút)", ConfigValue(systemConfigs, "SessionTimeoutMinutes", ConfigurationHelper.GetAppSetting("SessionTimeoutMinutes")));
+
+        var toggleRows = new List<(Label Label, CheckBox Toggle)>();
+        var multiDeviceToggle = AddSettingsToggle(generalCard, toggleRows, "Cho phép đăng nhập đồng thời nhiều thiết bị", ConfigValue(systemConfigs, "AllowMultiDeviceLogin", "true"));
+        var browserNotificationToggle = AddSettingsToggle(generalCard, toggleRows, "Hiển thị thông báo trên trình duyệt", ConfigValue(systemConfigs, "BrowserNotifications", "true"));
+        var emailComplaintToggle = AddSettingsToggle(generalCard, toggleRows, "Gửi email khi có phản ánh mới", ConfigValue(systemConfigs, "EmailNewComplaint", "true"));
+        var maintenanceModeToggle = AddSettingsToggle(generalCard, toggleRows, "Bật chế độ bảo trì hệ thống", ConfigValue(systemConfigs, "MaintenanceMode", "false"));
+
+        var saveGeneralButton = ModernUi.Button("▣  Lưu thay đổi", ModernUi.Blue, 142, 36);
+        generalCard.Controls.Add(saveGeneralButton);
+
+        var backupCard = ModernUi.Section("Cấu hình sao lưu tự động", 620, 136);
+        page.Controls.Add(backupCard);
+        var backupDivider = new Panel { BackColor = ModernUi.Border };
+        backupCard.Controls.Add(backupDivider);
+        var backupFields = new List<(Label Label, Control Input, int Height)>();
+        var backupFrequencyCombo = AddSettingsComboField(backupCard, backupFields, "Tần suất sao lưu", new[] { ConfigValue(systemConfigs, "AutoBackupFrequency", "Hằng ngày"), "Hằng ngày", "Hằng tuần", "Hằng tháng" });
+        var backupTimeInput = AddSettingsSmallTextField(backupCard, backupFields, "Thời gian sao lưu", ConfigValue(systemConfigs, "AutoBackupTime", "02:00"));
+        var backupRetentionInput = AddSettingsSmallTextField(backupCard, backupFields, "Lưu trữ tối đa (bản)", ConfigValue(systemConfigs, "BackupRetentionCount", "30"));
+        var backupStatusCard = ModernUi.CardPanel(8);
+        backupStatusCard.BackColor = Color.FromArgb(235, 250, 240);
+        backupStatusCard.BorderColor = Color.FromArgb(151, 220, 172);
+        backupCard.Controls.Add(backupStatusCard);
+        var backupStatusIcon = new CircleLabel
+        {
+            Text = "✓",
+            CircleColor = ModernUi.Green,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(12f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        backupStatusCard.Controls.Add(backupStatusIcon);
+        var backupStatusTitle = ModernUi.Label("Thành công", 9.2f, FontStyle.Bold, ModernUi.Green);
+        backupStatusCard.Controls.Add(backupStatusTitle);
+        var backupStatusDetail = ModernUi.Label(lastBackupAt.HasValue ? lastBackupText : "Chưa có bản sao lưu", 8.7f, FontStyle.Regular, ModernUi.Text);
+        backupStatusDetail.AutoEllipsis = true;
+        backupStatusCard.Controls.Add(backupStatusDetail);
+        var configureBackupButton = ModernUi.OutlineButton("⚙  Cấu hình", 138, 36);
+        backupCard.Controls.Add(configureBackupButton);
+
+        LoadLogoPreview(selectedLogoPath, false);
+
+        chooseLogo.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Title = "Chọn logo hệ thống",
+                Filter = "Ảnh PNG/JPG|*.png;*.jpg;*.jpeg|Tất cả file|*.*",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var fileInfo = new FileInfo(dialog.FileName);
+            if (fileInfo.Length > 2 * 1024 * 1024)
+            {
+                MessageBox.Show(this, "Ảnh logo tối đa 2MB.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            selectedLogoPath = dialog.FileName;
+            LoadLogoPreview(selectedLogoPath, true);
+        };
+
+        saveSystemButton.Click += (_, _) =>
+        {
+            UpsertSystemConfig("AppName", systemNameInput.Text.Trim(), "Tên hệ thống");
+            UpsertSystemConfig("SystemAddress", systemAddressInput.Text.Trim(), "Địa chỉ hệ thống");
+            UpsertSystemConfig("SupportEmail", supportEmailInput.Text.Trim(), "Email liên hệ");
+            UpsertSystemConfig("SupportPhone", supportPhoneInput.Text.Trim(), "Số điện thoại liên hệ");
+            UpsertSystemConfig("SystemDescription", systemDescriptionInput.Text.Trim(), "Mô tả hệ thống");
+            if (!string.IsNullOrWhiteSpace(selectedLogoPath))
+            {
+                UpsertSystemConfig("SystemLogoPath", selectedLogoPath, "Đường dẫn logo hệ thống");
+            }
+
+            MessageBox.Show(this, "Đã lưu thông tin hệ thống.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+
+        saveGeneralButton.Click += (_, _) =>
+        {
+            UpsertSystemConfig("Language", Display(languageCombo.SelectedItem?.ToString()), "Ngôn ngữ hệ thống");
+            UpsertSystemConfig("TimeZone", Display(timeZoneCombo.SelectedItem?.ToString()), "Múi giờ hệ thống");
+            UpsertSystemConfig("DateTimeFormat", Display(dateFormatCombo.SelectedItem?.ToString()), "Định dạng ngày");
+            UpsertSystemConfig("NumberFormat", Display(numberFormatCombo.SelectedItem?.ToString()), "Định dạng số");
+            UpsertSystemConfig("MaxTableRows", maxRowsInput.Text.Trim(), "Số dòng hiển thị tối đa trên bảng");
+            UpsertSystemConfig("SessionTimeoutMinutes", autoLogoutInput.Text.Trim(), "Tự động đăng xuất sau");
+            UpsertSystemConfig("AllowMultiDeviceLogin", multiDeviceToggle.Checked ? "true" : "false", "Cho phép đăng nhập đồng thời nhiều thiết bị");
+            UpsertSystemConfig("BrowserNotifications", browserNotificationToggle.Checked ? "true" : "false", "Hiển thị thông báo trên trình duyệt");
+            UpsertSystemConfig("EmailNewComplaint", emailComplaintToggle.Checked ? "true" : "false", "Gửi email khi có phản ánh mới");
+            UpsertSystemConfig("MaintenanceMode", maintenanceModeToggle.Checked ? "true" : "false", "Bật chế độ bảo trì hệ thống");
+
+            MessageBox.Show(this, "Đã lưu cấu hình chung.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+
+        configureBackupButton.Click += (_, _) =>
+        {
+            UpsertSystemConfig("AutoBackupFrequency", Display(backupFrequencyCombo.SelectedItem?.ToString()), "Tần suất sao lưu tự động");
+            UpsertSystemConfig("AutoBackupTime", backupTimeInput.Text.Trim(), "Thời gian sao lưu tự động");
+            UpsertSystemConfig("BackupRetentionCount", backupRetentionInput.Text.Trim(), "Số bản sao lưu lưu trữ tối đa");
+
+            MessageBox.Show(this, "Đã lưu cấu hình sao lưu tự động.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+
+        void LoadLogoPreview(string path, bool showWarning)
+        {
+            if (logoPreview.Image != null)
+            {
+                logoPreview.Image.Dispose();
+                logoPreview.Image = null;
+            }
+
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                logoPreview.Visible = false;
+                logoMark.Visible = true;
+                logoName.Visible = true;
+                return;
+            }
+
+            try
+            {
+                using var image = Image.FromFile(path);
+                logoPreview.Image = new Bitmap(image);
+                logoPreview.Visible = true;
+                logoMark.Visible = false;
+                logoName.Visible = false;
+            }
+            catch (Exception ex)
+            {
+                logoPreview.Visible = false;
+                logoMark.Visible = true;
+                logoName.Visible = true;
+                if (showWarning)
+                {
+                    MessageBox.Show(this, $"Không thể tải ảnh logo:\n{ex.Message}", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        void LayoutSettingsPage()
+        {
+            int width = PageWorkWidth();
+            int left = 20;
+            int gap = 16;
+            int y = 84;
+
+            int featureColumns = 4;
+            int featureHeight = 98;
+            int featureWidth = Math.Max(220, (width - gap * (featureColumns - 1)) / featureColumns);
+            for (int i = 0; i < featureCards.Count; i++)
+            {
+                int row = i / featureColumns;
+                int column = i % featureColumns;
+                featureCards[i].Card.SetBounds(left + column * (featureWidth + gap), y + row * (featureHeight + 14), featureWidth, featureHeight);
+            }
+
+            y += ((featureCards.Count + featureColumns - 1) / featureColumns) * (featureHeight + 14) - 14 + 16;
+
+            bool twoColumns = width >= 980;
+            int largeHeight = 456;
+            int largeWidth = twoColumns ? (width - gap) / 2 : width;
+            systemInfoCard.SetBounds(left, y, largeWidth, largeHeight);
+            generalCard.SetBounds(twoColumns ? systemInfoCard.Right + gap : left, twoColumns ? y : y + largeHeight + gap, largeWidth, largeHeight);
+
+            LayoutSystemInfoCard(systemInfoCard.Width, systemInfoCard.Height);
+            LayoutGeneralCard(generalCard.Width, generalCard.Height);
+
+            y = twoColumns ? y + largeHeight + gap : generalCard.Bottom + gap;
+            int backupHeight = width >= 1180 ? 136 : 218;
+            backupCard.SetBounds(left, y, width, backupHeight);
+            LayoutBackupCard(backupCard.Width, backupCard.Height);
+
+            page.AutoScrollMinSize = new Size(0, backupCard.Bottom + 34);
+        }
+
+        void LayoutSystemInfoCard(int cardWidth, int cardHeight)
+        {
+            systemDivider.SetBounds(18, 42, Math.Max(80, cardWidth - 36), 1);
+            int pad = 18;
+            int top = 54;
+            int logoWidth = Math.Min(194, Math.Max(160, cardWidth / 3 - 18));
+            logoTitle.SetBounds(pad, top, logoWidth, 20);
+            logoFrame.SetBounds(pad, top + 28, logoWidth, 158);
+            logoPreview.SetBounds(12, 12, Math.Max(48, logoFrame.Width - 24), Math.Max(48, logoFrame.Height - 24));
+            logoMark.SetBounds(18, 18, logoWidth - 36, 50);
+            logoName.SetBounds(12, 78, logoWidth - 24, 56);
+            chooseLogo.SetBounds(pad, logoFrame.Bottom + 12, 118, 34);
+            logoNote.SetBounds(pad, chooseLogo.Bottom + 8, Math.Max(180, logoWidth + 52), 22);
+
+            int fieldX = pad + logoWidth + 26;
+            int fieldWidth = Math.Max(230, cardWidth - fieldX - pad);
+            int fieldY = top;
+            foreach (var field in systemFields)
+            {
+                field.Label.SetBounds(fieldX, fieldY, fieldWidth, 20);
+                field.Host.SetBounds(fieldX, fieldY + 24, fieldWidth, field.Height);
+                LayoutSettingsTextHost(field.Host, field.Input, field.Height);
+                fieldY += field.Height + 22;
+            }
+
+            saveSystemButton.SetBounds(cardWidth - pad - saveSystemButton.Width, cardHeight - 54, saveSystemButton.Width, 36);
+        }
+
+        void LayoutGeneralCard(int cardWidth, int cardHeight)
+        {
+            generalDivider.SetBounds(18, 42, Math.Max(80, cardWidth - 36), 1);
+            int pad = 18;
+            int labelWidth = Math.Min(250, Math.Max(176, cardWidth / 3));
+            int inputX = pad + labelWidth + 18;
+            int inputWidth = Math.Max(220, cardWidth - inputX - pad);
+            int rowY = 56;
+            foreach (var field in generalFields)
+            {
+                field.Label.SetBounds(pad, rowY + 6, labelWidth, 24);
+                field.Input.SetBounds(inputX, rowY, inputWidth, field.Height);
+                if (field.Input is RoundedPanel host && host.Controls.Count > 0)
+                {
+                    LayoutSettingsHostInput(host, host.Controls[0], field.Height);
+                }
+                rowY += 36;
+            }
+
+            rowY += 10;
+            foreach (var toggle in toggleRows)
+            {
+                toggle.Label.SetBounds(pad, rowY + 3, Math.Max(200, cardWidth - pad * 2 - 96), 24);
+                toggle.Toggle.SetBounds(cardWidth - pad - 66, rowY, 52, 26);
+                rowY += 30;
+            }
+
+            saveGeneralButton.SetBounds(cardWidth - pad - saveGeneralButton.Width, cardHeight - 54, saveGeneralButton.Width, 36);
+        }
+
+        void LayoutBackupCard(int cardWidth, int cardHeight)
+        {
+            backupDivider.SetBounds(18, 42, Math.Max(80, cardWidth - 36), 1);
+            int pad = 18;
+            int top = 58;
+            int fieldWidth = cardWidth >= 1180 ? Math.Max(210, (cardWidth - 520 - pad * 2 - 32) / 3) : Math.Max(220, (cardWidth - pad * 2 - 16) / 2);
+            int x = pad;
+            int y = top;
+            for (int i = 0; i < backupFields.Count; i++)
+            {
+                var field = backupFields[i];
+                field.Label.SetBounds(x, y, fieldWidth, 20);
+                field.Input.SetBounds(x, y + 24, fieldWidth, field.Height);
+                if (field.Input is RoundedPanel host && host.Controls.Count > 0)
+                {
+                    LayoutSettingsHostInput(host, host.Controls[0], field.Height);
+                }
+
+                x += fieldWidth + 16;
+                if (cardWidth < 1180 && i == 1)
+                {
+                    x = pad;
+                    y += 74;
+                }
+            }
+
+            int statusWidth = cardWidth >= 1180 ? 272 : Math.Max(290, cardWidth - pad * 2 - 156);
+            int statusX = cardWidth >= 1180 ? Math.Max(x + 10, cardWidth - pad - statusWidth - 156) : pad;
+            int statusY = cardWidth >= 1180 ? top + 3 : y + 74;
+            backupStatusCard.SetBounds(statusX, statusY, statusWidth, 64);
+            backupStatusIcon.SetBounds(16, 18, 28, 28);
+            backupStatusTitle.SetBounds(58, 12, statusWidth - 74, 22);
+            backupStatusDetail.SetBounds(58, 34, statusWidth - 74, 20);
+            configureBackupButton.SetBounds(cardWidth - pad - configureBackupButton.Width, statusY + 14, configureBackupButton.Width, 36);
+        }
+
+        page.Resize += (_, _) => LayoutSettingsPage();
+        LayoutSettingsPage();
+
+        static (RoundedPanel Card, CircleLabel Icon, Label Title, Label Description) CreateSettingsFeatureCard(string iconText, string title, string description, Color accent)
+        {
+            var card = ModernUi.CardPanel(12);
+            card.Cursor = Cursors.Hand;
+            card.Padding = Padding.Empty;
+
+            var icon = new CircleLabel
+            {
+                Text = iconText,
+                CircleColor = Color.FromArgb(235, 244, 255),
+                ForeColor = accent,
+                Font = ModernUi.Font(18f, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
+            };
+            card.Controls.Add(icon);
+
+            var titleLabel = ModernUi.Label(title, 10f, FontStyle.Bold, ModernUi.Text);
+            titleLabel.AutoEllipsis = true;
+            titleLabel.Cursor = Cursors.Hand;
+            card.Controls.Add(titleLabel);
+
+            var descLabel = ModernUi.Label(description, 8.6f, FontStyle.Regular, ModernUi.Muted);
+            descLabel.AutoEllipsis = true;
+            descLabel.Cursor = Cursors.Hand;
+            card.Controls.Add(descLabel);
+
+            void LayoutCard()
+            {
+                int iconSize = card.Width < 250 ? 48 : 56;
+                int iconTop = Math.Max(18, (card.Height - iconSize) / 2);
+                int textLeft = 20 + iconSize + 18;
+                icon.SetBounds(20, iconTop, iconSize, iconSize);
+                titleLabel.SetBounds(textLeft, 21, Math.Max(110, card.Width - textLeft - 18), 24);
+                descLabel.SetBounds(textLeft, 49, Math.Max(110, card.Width - textLeft - 18), 38);
+            }
+
+            Color normal = card.BackColor;
+            card.MouseEnter += (_, _) => card.BackColor = Color.FromArgb(252, 254, 255);
+            card.MouseLeave += (_, _) => card.BackColor = normal;
+            foreach (Control child in card.Controls)
+            {
+                child.MouseEnter += (_, _) => card.BackColor = Color.FromArgb(252, 254, 255);
+                child.MouseLeave += (_, _) => card.BackColor = normal;
+            }
+
+            card.Resize += (_, _) => LayoutCard();
+            LayoutCard();
+            return (card, icon, titleLabel, descLabel);
+        }
+
+        static TextBox AddSettingsTextField(Control parent, List<(Label Label, RoundedPanel Host, TextBox Input, int Height)> fields, string label, string value, bool multiline = false)
+        {
+            var labelControl = ModernUi.Label(label, 8.8f, FontStyle.Regular, ModernUi.Text);
+            parent.Controls.Add(labelControl);
+
+            var textBox = new TextBox
+            {
+                Text = value,
+                BorderStyle = BorderStyle.None,
+                Font = ModernUi.Font(9.2f),
+                ForeColor = ModernUi.Text,
+                BackColor = Color.White,
+                Multiline = multiline,
+                ScrollBars = multiline ? ScrollBars.Vertical : ScrollBars.None,
+                WordWrap = multiline
+            };
+
+            var host = CreateSettingsInputHost(textBox, multiline ? 66 : 34);
+            parent.Controls.Add(host);
+            fields.Add((labelControl, host, textBox, multiline ? 66 : 34));
+            return textBox;
+        }
+
+        static TextBox AddSettingsSmallTextField(Control parent, List<(Label Label, Control Input, int Height)> fields, string label, string value)
+        {
+            var labelControl = ModernUi.Label(label, 8.8f, FontStyle.Regular, ModernUi.Text);
+            parent.Controls.Add(labelControl);
+
+            var textBox = new TextBox
+            {
+                Text = value,
+                BorderStyle = BorderStyle.None,
+                Font = ModernUi.Font(9.2f),
+                ForeColor = ModernUi.Text,
+                BackColor = Color.White
+            };
+            var host = CreateSettingsInputHost(textBox, 34);
+            parent.Controls.Add(host);
+            fields.Add((labelControl, host, 34));
+            return textBox;
+        }
+
+        static ComboBox AddSettingsComboField(Control parent, List<(Label Label, Control Input, int Height)> fields, string label, IEnumerable<string> values)
+        {
+            var labelControl = ModernUi.Label(label, 8.8f, FontStyle.Regular, ModernUi.Text);
+            parent.Controls.Add(labelControl);
+            var uniqueValues = values.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().ToArray();
+            var combo = ModernUi.ComboBox(uniqueValues.Length == 0 ? new[] { "-" } : uniqueValues, 220);
+            combo.Height = 34;
+            combo.FlatStyle = FlatStyle.Flat;
+            combo.BackColor = Color.White;
+            var host = CreateSettingsInputHost(combo, 34);
+            parent.Controls.Add(host);
+            fields.Add((labelControl, host, 34));
+            return combo;
+        }
+
+        static CheckBox AddSettingsToggle(Control parent, List<(Label Label, CheckBox Toggle)> toggles, string label, string value)
+        {
+            var labelControl = ModernUi.Label(label, 8.8f, FontStyle.Regular, ModernUi.Text);
+            parent.Controls.Add(labelControl);
+
+            bool enabled = value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("Đã bật", StringComparison.OrdinalIgnoreCase);
+            var toggle = new CheckBox
+            {
+                Appearance = Appearance.Button,
+                AutoSize = false,
+                Checked = enabled,
+                FlatStyle = FlatStyle.Flat,
+                Font = ModernUi.Font(11f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Size = new Size(52, 26),
+                Text = "●",
+                Cursor = Cursors.Hand,
+                TextAlign = enabled ? ContentAlignment.MiddleRight : ContentAlignment.MiddleLeft,
+                Padding = new Padding(5, 0, 5, 1),
+                UseVisualStyleBackColor = false
+            };
+            toggle.FlatAppearance.BorderSize = 0;
+
+            void ApplyToggleStyle()
+            {
+                toggle.BackColor = toggle.Checked ? Color.FromArgb(82, 196, 123) : Color.FromArgb(203, 213, 225);
+                toggle.FlatAppearance.MouseOverBackColor = toggle.Checked ? Color.FromArgb(69, 179, 109) : Color.FromArgb(190, 201, 215);
+                toggle.TextAlign = toggle.Checked ? ContentAlignment.MiddleRight : ContentAlignment.MiddleLeft;
+            }
+
+            toggle.CheckedChanged += (_, _) => ApplyToggleStyle();
+            ApplyToggleStyle();
+            parent.Controls.Add(toggle);
+            toggles.Add((labelControl, toggle));
+            return toggle;
+        }
+
+        static RoundedPanel CreateSettingsInputHost(Control input, int height)
+        {
+            var host = ModernUi.CardPanel(6);
+            host.Padding = Padding.Empty;
+            host.BackColor = Color.White;
+            host.BorderColor = Color.FromArgb(207, 216, 228);
+            host.Height = height;
+            host.Controls.Add(input);
+            host.Resize += (_, _) => LayoutSettingsHostInput(host, input, height);
+            LayoutSettingsHostInput(host, input, height);
+            return host;
+        }
+
+        static void LayoutSettingsHostInput(Control host, Control input, int height)
+        {
+            if (input is TextBox textBox)
+            {
+                LayoutSettingsTextHost(host, textBox, height);
+                return;
+            }
+
+            if (input is ComboBox comboBox)
+            {
+                comboBox.SetBounds(8, Math.Max(3, (host.Height - 28) / 2), Math.Max(40, host.Width - 16), 28);
+            }
+        }
+
+        static void LayoutSettingsTextHost(Control host, TextBox input, int height)
+        {
+            if (input.Multiline)
+            {
+                input.SetBounds(10, 8, Math.Max(40, host.Width - 20), Math.Max(24, host.Height - 16));
+                return;
+            }
+
+            input.SetBounds(10, Math.Max(7, (host.Height - input.PreferredHeight) / 2), Math.Max(40, host.Width - 20), input.PreferredHeight);
+        }
     }
 }

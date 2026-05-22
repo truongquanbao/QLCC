@@ -147,7 +147,7 @@ public partial class FrmMainDashboard
 
         var viewAllItem = new ToolStripMenuItem("Xem tất cả thông báo");
         viewAllItem.Text = "Xem tất cả thông báo";
-        viewAllItem.Click += (_, _) => Navigate("notifications");
+        viewAllItem.Click += (_, _) => ShowNotificationListPopup();
         menu.Items.Add(viewAllItem);
 
         var markAllReadItem = new ToolStripMenuItem("Đánh dấu đã đọc");
@@ -180,6 +180,119 @@ public partial class FrmMainDashboard
         };
 
         menu.Show(anchor, new Point(0, anchor.Height));
+    }
+
+    private void ShowNotificationListPopup()
+    {
+        var notifications = GetHeaderNotifications();
+        using var dialog = new Form
+        {
+            Text = "Thông báo",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            ClientSize = new Size(560, 430),
+            BackColor = ModernUi.Surface,
+            Font = ModernUi.Font(9.5f)
+        };
+
+        var root = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Padding = new Padding(14),
+            BackColor = ModernUi.Surface
+        };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        dialog.Controls.Add(root);
+
+        var title = ModernUi.Label($"Thông báo ({notifications.Count})", 12f, FontStyle.Bold, ModernUi.Blue);
+        title.Dock = DockStyle.Fill;
+        root.Controls.Add(title, 0, 0);
+
+        var list = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = true,
+            BackColor = Color.White,
+            Padding = new Padding(10)
+        };
+        list.HorizontalScroll.Enabled = false;
+        list.HorizontalScroll.Visible = false;
+        root.Controls.Add(list, 0, 1);
+
+        if (notifications.Count == 0)
+        {
+            var empty = ModernUi.Label("Không có thông báo.", 10f, FontStyle.Regular, ModernUi.Muted);
+            empty.TextAlign = ContentAlignment.MiddleCenter;
+            empty.Size = new Size(510, 80);
+            list.Controls.Add(empty);
+        }
+        else
+        {
+            foreach (var notification in notifications.Take(50))
+            {
+                var row = new RoundedPanel
+                {
+                    Radius = 8,
+                    BorderColor = Color.FromArgb(226, 232, 240),
+                    BackColor = notification.IsRead ? Color.White : Color.FromArgb(239, 246, 255),
+                    Size = new Size(506, 58),
+                    Margin = new Padding(0, 0, 0, 8),
+                    Cursor = Cursors.Hand
+                };
+
+                var label = ModernUi.Label(BuildNotificationCaption(notification), 9f,
+                    notification.IsRead ? FontStyle.Regular : FontStyle.Bold,
+                    ModernUi.Text);
+                label.SetBounds(12, 8, 480, 40);
+                label.AutoEllipsis = true;
+                label.Cursor = Cursors.Hand;
+                row.Controls.Add(label);
+
+                void Open()
+                {
+                    OpenNotificationDetail(notification);
+                    dialog.Close();
+                }
+
+                row.Click += (_, _) => Open();
+                label.Click += (_, _) => Open();
+                list.Controls.Add(row);
+            }
+        }
+
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            BackColor = ModernUi.Surface,
+            Padding = new Padding(0, 10, 0, 0)
+        };
+        root.Controls.Add(actions, 0, 2);
+
+        var closeButton = ModernUi.OutlineButton("Đóng", 90, 32);
+        closeButton.Click += (_, _) => dialog.Close();
+        actions.Controls.Add(closeButton);
+
+        var markAllButton = ModernUi.Button("Đánh dấu đã đọc", ModernUi.Blue, 150, 32);
+        markAllButton.Margin = new Padding(0, 0, 10, 0);
+        markAllButton.Click += (_, _) =>
+        {
+            MarkAllNotificationsAsRead();
+            dialog.Close();
+        };
+        actions.Controls.Add(markAllButton);
+
+        dialog.ShowDialog(this);
     }
 
     private void ShowQuickActionMenu(Control anchor, params (string Text, Action Handler)[] items)
@@ -489,73 +602,47 @@ END";
     {
         try
         {
-            List<NotificationDTO> notifications;
             if (_session?.UserID > 0)
             {
-                notifications = NotificationDAL.GetUserNotifications(_session.UserID);
-                if (notifications.Count > 0)
+                var userNotifications = NotificationDAL.GetUserNotifications(_session.UserID);
+                if (userNotifications.Count > 0)
                 {
-                    return notifications;
+                    return userNotifications;
                 }
             }
 
-            notifications = NotificationDAL.GetAllNotifications();
-            if (notifications.Count > 0)
+            if (!IsResident)
             {
-                return notifications;
+                return NotificationDAL.GetAllNotifications();
             }
         }
         catch
         {
-            // Fallback về dữ liệu mẫu nếu database chưa sẵn sàng.
+            // Keep the notification popup lightweight and safe if the database is unavailable.
         }
 
-        return CreateSampleNotifications();
-    }
-
-    private List<NotificationDTO> CreateSampleNotifications()
-    {
-        return new List<NotificationDTO>
-        {
-            new NotificationDTO
-            {
-                NotificationID = 0,
-                Title = "Hệ thống",
-                Message = "Đã tải dashboard thành công.",
-                CreatedAt = DateTime.Now.AddMinutes(-10),
-                IsRead = false
-            },
-            new NotificationDTO
-            {
-                NotificationID = 0,
-                Title = "Nhắc việc",
-                Message = "Có hóa đơn cần kiểm tra trạng thái thanh toán.",
-                CreatedAt = DateTime.Now.AddHours(-2),
-                IsRead = false
-            },
-            new NotificationDTO
-            {
-                NotificationID = 0,
-                Title = "Thông báo chung",
-                Message = "Chức năng thông báo đang dùng dữ liệu mẫu.",
-                CreatedAt = DateTime.Now.AddDays(-1),
-                IsRead = true
-            }
-        };
+        return new List<NotificationDTO>();
     }
 
     private string BuildNotificationCaption(NotificationDTO notification)
     {
         string title = Display(notification.Title, Display(notification.Subject, "Thông báo"));
         string body = Display(notification.Message, Display(notification.Body, ""));
-        string time = notification.CreatedAt == DateTime.MinValue ? "Mới" : notification.CreatedAt.ToString("dd/MM HH:mm");
+        if (body.Length > 72)
+        {
+            body = body[..69] + "...";
+        }
+
+        string time = notification.CreatedAt == DateTime.MinValue
+            ? "Mới"
+            : notification.CreatedAt.ToString("dd/MM HH:mm");
         string prefix = notification.IsRead ? "" : "[Mới] ";
         return $"{prefix}{title} - {body} ({time})";
     }
 
     private string BuildNotificationTooltip(NotificationDTO notification)
     {
-        return $"{Display(notification.Title, "Thông báo")}\n{Display(notification.Message, Display(notification.Body, ""))}";
+        return $"{Display(notification.Title, Display(notification.Subject, "Thông báo"))}\n{Display(notification.Message, Display(notification.Body, ""))}";
     }
 
     private void OpenNotificationDetail(NotificationDTO notification)
@@ -563,6 +650,7 @@ END";
         if (notification.NotificationID > 0 && !notification.IsRead)
         {
             NotificationDAL.MarkAsRead(notification.NotificationID);
+            notification.IsRead = true;
         }
 
         MessageBox.Show(this,
@@ -571,7 +659,7 @@ END";
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
 
-        ReloadCurrentPage();
+        UpdateHeaderNotificationBadge();
     }
 
     private void MarkAllNotificationsAsRead()
@@ -580,8 +668,28 @@ END";
         {
             NotificationDAL.MarkAllAsRead(_session.UserID);
         }
+        else
+        {
+            foreach (var notification in GetHeaderNotifications().Where(n => n.NotificationID > 0))
+            {
+                NotificationDAL.MarkAsRead(notification.NotificationID);
+            }
+        }
 
-        ReloadCurrentPage();
+        UpdateHeaderNotificationBadge();
+    }
+
+    private void UpdateHeaderNotificationBadge()
+    {
+        if (_headerNotificationBadge == null || _headerNotificationBadge.IsDisposed)
+        {
+            return;
+        }
+
+        int count = NotificationCount();
+        _headerNotificationBadge.Text = count.ToString(CultureInfo.InvariantCulture);
+        _headerNotificationBadge.Visible = count > 0;
+        _headerNotificationBadge.Invalidate();
     }
 
     private void OpenAccountSettings()
@@ -892,35 +1000,7 @@ END";
     private string RoleFooterLabel() => "Tên người dùng";
     private int NotificationCount()
     {
-        try
-        {
-            if (_session?.UserID > 0)
-            {
-                int unread = NotificationDAL.GetUnreadNotificationCount(_session.UserID);
-                if (unread > 0)
-                {
-                    return unread;
-                }
-
-                int total = NotificationDAL.GetUserNotifications(_session.UserID).Count;
-                if (total > 0)
-                {
-                    return total;
-                }
-            }
-
-            int fallbackTotal = NotificationDAL.GetAllNotifications().Count;
-            if (fallbackTotal > 0)
-            {
-                return fallbackTotal;
-            }
-        }
-        catch
-        {
-            // Giữ fallback an toàn nếu DB chưa sẵn sàng.
-        }
-
-        return CreateSampleNotifications().Count;
+        return GetHeaderNotifications().Count(notification => !notification.IsRead);
     }
 
 }
