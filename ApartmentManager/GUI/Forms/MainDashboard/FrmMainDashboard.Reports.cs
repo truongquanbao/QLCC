@@ -316,8 +316,14 @@ public partial class FrmMainDashboard
             advancedButton.Click += (_, _) =>
             {
                 MessageBox.Show(this,
-                    "Bộ lọc nâng cao đang dùng các điều kiện: kỳ báo cáo, từ ngày, đến ngày, tòa nhà, block và loại báo cáo.",
-                    "Bộ lọc báo cáo",
+                    "Bộ lọc nâng cao đang dùng các điều kiện:\n\n" +
+                    "• Kỳ báo cáo\n" +
+                    "• Từ ngày\n" +
+                    "• Đến ngày\n" +
+                    "• Tòa nhà\n" +
+                    "• Block\n" +
+                    "• Loại báo cáo",
+                    "Bộ lọc nâng cao",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             };
@@ -1985,10 +1991,17 @@ internal sealed class ReportDonutChart : Control, IReportChartState
         }
 
         decimal total = _items.Sum(i => i.Value);
-        bool sideLegend = Width >= (CompactLegend ? 220 : 360);
-        int legendWidth = sideLegend ? Math.Min(CompactLegend ? 150 : 210, Math.Max(112, Width / 2)) : Width - 24;
-        int donutWidth = sideLegend ? Width - legendWidth - 24 : Width - 24;
-        int size = Math.Max(82, Math.Min(Math.Min(donutWidth, Height - (sideLegend ? 32 : 82)), 138));
+        bool sideLegend = Width >= (CompactLegend ? 280 : 360);
+        int legendWidth = sideLegend
+            ? Math.Min(CompactLegend ? 168 : 220, Math.Max(124, Width / 2))
+            : Width - 24;
+
+        int donutWidth = sideLegend ? Width - legendWidth - 28 : Width - 24;
+        int legendRows = LegendRowsForHeight(Height - 24);
+        int rowHeight = CompactLegend ? 22 : 24;
+        int maxDonutSize = CompactLegend ? 132 : 148;
+        int bottomLegendReserve = sideLegend ? 36 : Math.Min(96, legendRows * rowHeight + 16);
+        int size = Math.Max(82, Math.Min(Math.Min(donutWidth, Height - bottomLegendReserve), maxDonutSize));
         int donutX = sideLegend ? 18 : (Width - size) / 2;
         int donutY = sideLegend ? Math.Max(18, (Height - size) / 2) : 18;
         var rect = new Rectangle(donutX, donutY, size, size);
@@ -2008,40 +2021,73 @@ internal sealed class ReportDonutChart : Control, IReportChartState
 
         using var centerBrush = new SolidBrush(ModernUi.Navy);
         using var mutedBrush = new SolidBrush(ModernUi.Muted);
-        var centerRect = new Rectangle(rect.Left + stroke, rect.Top + rect.Height / 2 - 22, rect.Width - stroke * 2, 26);
-        e.Graphics.DrawString(CenterText, ModernUi.Font(CenterText.Length > 8 ? 12.5f : 15.5f, FontStyle.Bold), centerBrush, centerRect, CenterFormat());
-        var subRect = new Rectangle(rect.Left + stroke, centerRect.Bottom - 2, rect.Width - stroke * 2, 24);
-        e.Graphics.DrawString(CenterSubText, ModernUi.Font(7.4f), mutedBrush, subRect, CenterFormat());
+        var centerRect = new Rectangle(rect.Left + stroke - 4, rect.Top + rect.Height / 2 - 23, rect.Width - stroke * 2 + 8, 28);
+        float centerFontSize = FitDonutCenterFont(e.Graphics, CenterText, centerRect.Width, CenterText.Length > 8 ? 12.5f : 15.5f);
+        using var centerFont = ModernUi.Font(centerFontSize, FontStyle.Bold);
+        e.Graphics.DrawString(CenterText, centerFont, centerBrush, centerRect, CenterFormat());
+
+        var subRect = new Rectangle(rect.Left + stroke - 4, centerRect.Bottom - 2, rect.Width - stroke * 2 + 8, 24);
+        e.Graphics.DrawString(CenterSubText, ModernUi.Font(7.2f), mutedBrush, subRect, CenterFormat());
 
         if (sideLegend)
         {
             int legendX = rect.Right + 16;
-            int legendY = Math.Max(28, (Height - Math.Min(_items.Count, 6) * 24) / 2);
-            DrawLegend(e.Graphics, legendX, legendY, Math.Max(100, Width - legendX - 12), total);
+            int sideLegendHeight = Math.Max(rowHeight, legendRows * rowHeight);
+            int legendY = Math.Max(24, (Height - sideLegendHeight) / 2);
+            DrawLegend(e.Graphics, legendX, legendY, Math.Max(112, Width - legendX - 12), total, legendRows, rowHeight);
             return;
         }
 
-        int rowCount = Math.Min(_items.Count, CompactLegend ? 4 : 6);
-        int legendHeight = Math.Max(24, rowCount * 24);
+        int rowCount = Math.Min(legendRows, Math.Max(1, (Height - rect.Bottom - 8) / rowHeight));
+        int legendHeight = Math.Max(rowHeight, rowCount * rowHeight);
         int bottomLegendY = Math.Min(Math.Max(rect.Bottom + 8, Height - legendHeight - 4), Math.Max(0, Height - legendHeight));
-        DrawLegend(e.Graphics, 14, bottomLegendY, Width - 28, total);
+        DrawLegend(e.Graphics, 14, bottomLegendY, Width - 28, total, rowCount, rowHeight);
     }
 
-    private void DrawLegend(Graphics graphics, int x, int y, int width, decimal total)
+    private int LegendRowsForHeight(int availableHeight)
+    {
+        int rowHeight = CompactLegend ? 22 : 24;
+        int maxRows = CompactLegend ? 6 : 7;
+        return Math.Min(_items.Count, Math.Max(1, Math.Min(maxRows, availableHeight / rowHeight)));
+    }
+
+    private void DrawLegend(Graphics graphics, int x, int y, int width, decimal total, int maxRows, int rowHeight)
     {
         using var labelBrush = new SolidBrush(ModernUi.Text);
         using var valueBrush = new SolidBrush(ModernUi.Muted);
-        for (int i = 0; i < Math.Min(_items.Count, CompactLegend ? 4 : 6); i++)
+
+        maxRows = Math.Min(_items.Count, Math.Max(1, maxRows));
+        int valueWidth = CompactLegend ? 76 : 96;
+        int labelWidth = Math.Max(42, width - valueWidth - 24);
+
+        for (int i = 0; i < maxRows; i++)
         {
             var item = _items[i];
-            int rowY = y + i * 24;
+            int rowY = y + i * rowHeight;
+
             using var brush = new SolidBrush(item.Color);
-            graphics.FillEllipse(brush, x, rowY + 5, 10, 10);
+            graphics.FillEllipse(brush, x, rowY + Math.Max(5, (rowHeight - 9) / 2), 9, 9);
+
             decimal percent = total <= 0 ? 0 : item.Value * 100m / total;
             string label = item.Label;
             string value = $"{ReportLineChartValue(item.Value)} ({percent:0.#}%)";
-            graphics.DrawString(label, ModernUi.Font(7.8f, FontStyle.Bold), labelBrush, new Rectangle(x + 18, rowY, Math.Max(40, width - 104), 20), LeftFormat());
-            graphics.DrawString(value, ModernUi.Font(7.5f), valueBrush, new Rectangle(x + width - 92, rowY, 92, 20), RightFormat());
+
+            using var labelFont = ModernUi.Font(CompactLegend ? 7.2f : 7.8f, FontStyle.Bold);
+            using var valueFont = ModernUi.Font(CompactLegend ? 6.9f : 7.5f);
+
+            graphics.DrawString(
+                label,
+                labelFont,
+                labelBrush,
+                new Rectangle(x + 17, rowY, labelWidth, rowHeight),
+                LeftFormat());
+
+            graphics.DrawString(
+                value,
+                valueFont,
+                valueBrush,
+                new Rectangle(x + 17 + labelWidth + 4, rowY, valueWidth, rowHeight),
+                RightFormat());
         }
     }
 
@@ -2057,22 +2103,39 @@ internal sealed class ReportDonutChart : Control, IReportChartState
     {
         Alignment = StringAlignment.Center,
         LineAlignment = StringAlignment.Center,
-        Trimming = StringTrimming.EllipsisCharacter
+        Trimming = StringTrimming.EllipsisCharacter,
+        FormatFlags = StringFormatFlags.NoWrap
     };
 
     private static StringFormat LeftFormat() => new()
     {
         Alignment = StringAlignment.Near,
         LineAlignment = StringAlignment.Center,
-        Trimming = StringTrimming.EllipsisCharacter
+        Trimming = StringTrimming.EllipsisCharacter,
+        FormatFlags = StringFormatFlags.NoWrap
     };
 
     private static StringFormat RightFormat() => new()
     {
         Alignment = StringAlignment.Far,
         LineAlignment = StringAlignment.Center,
-        Trimming = StringTrimming.EllipsisCharacter
+        Trimming = StringTrimming.EllipsisCharacter,
+        FormatFlags = StringFormatFlags.NoWrap
     };
+
+    private static float FitDonutCenterFont(Graphics graphics, string text, int width, float preferred)
+    {
+        for (float size = preferred; size >= 9f; size -= 0.5f)
+        {
+            using var font = ModernUi.Font(size, FontStyle.Bold);
+            if (graphics.MeasureString(text, font).Width <= width)
+            {
+                return size;
+            }
+        }
+
+        return 9f;
+    }
 }
 
 internal static class ReportChartPaint

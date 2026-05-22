@@ -568,6 +568,7 @@ public partial class FrmMainDashboard
 
         addButton.Click += (_, _) => AddVehicle();
         cardButton.Click += (_, _) => IssueCard();
+        ApplyActionPermission(exportButton, PermissionExportData);
         exportButton.Click += (_, _) => ExportVehicleCsv(vehicles);
 
         ApplyFilters();
@@ -1196,8 +1197,13 @@ public partial class FrmMainDashboard
         graphics.FillPath(brush, path);
     }
 
-    private static void ExportVehicleCsv(IEnumerable<VehicleViewModel> vehicles)
+    private void ExportVehicleCsv(IEnumerable<VehicleViewModel> vehicles)
     {
+        if (!RequirePermission(PermissionExportData, "xuất phương tiện"))
+        {
+            return;
+        }
+
         using var dialog = new SaveFileDialog
         {
             Title = "Xuất báo cáo phương tiện",

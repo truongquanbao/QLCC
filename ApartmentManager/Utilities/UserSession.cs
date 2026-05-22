@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using ApartmentManager.DTO;
 
 namespace ApartmentManager.Utilities;
@@ -28,7 +29,7 @@ public class UserSession
     /// </summary>
     public bool HasPermission(string permissionName)
     {
-        return Permissions.Contains(permissionName);
+        return Permissions.Any(p => string.Equals(p, permissionName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

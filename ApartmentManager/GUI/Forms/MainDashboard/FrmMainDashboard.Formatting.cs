@@ -163,7 +163,6 @@ public partial class FrmMainDashboard
     {
         return (roleName ?? string.Empty).Trim() switch
         {
-            "Manager" => "Quản lý",
             "Resident" => "Cư dân",
             "" => "-",
             var other => other
@@ -233,7 +232,10 @@ public partial class FrmMainDashboard
     {
         string value = action ?? string.Empty;
         if (value.Contains("Failed", StringComparison.OrdinalIgnoreCase) ||
-            value.Contains("Lỗi", StringComparison.OrdinalIgnoreCase))
+            value.Contains("Fail", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Lỗi", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Thất bại", StringComparison.OrdinalIgnoreCase))
         {
             return "Lỗi";
         }
@@ -241,9 +243,26 @@ public partial class FrmMainDashboard
         if (value.Contains("Delete", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("Reset", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("Reject", StringComparison.OrdinalIgnoreCase) ||
-            value.Contains("Xóa", StringComparison.OrdinalIgnoreCase))
+            value.Contains("Xóa", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Từ chối", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Cảnh báo", StringComparison.OrdinalIgnoreCase))
         {
             return "Cảnh báo";
+        }
+
+        if (value.Contains("Success", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Create", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Update", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Insert", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Add", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Tạo", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Cập nhật", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Thêm", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Xử lý", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Hoàn thành", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Thành công", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Thành công";
         }
 
         return "Thông tin";

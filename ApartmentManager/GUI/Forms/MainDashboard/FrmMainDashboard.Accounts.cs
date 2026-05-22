@@ -19,6 +19,28 @@ public partial class FrmMainDashboard
 {
     private void RenderAccounts()
     {
+        if (!RequireAnyPermission("quản lý tài khoản", PermissionUserManagement, PermissionManageRoles))
+        {
+            Navigate("dashboard");
+            return;
+        }
+
+        RolePermissionDAL.EnsureRbacDefaults();
+        var roles = RolePermissionDAL.GetAllRoles();
+        var permissions = RolePermissionDAL.GetAllPermissions();
+        string[] roleFilterItems = new[] { "Tất cả" }
+            .Concat(roles.Select(r => UserRoleLabel(r.RoleName)).Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.CurrentCultureIgnoreCase))
+            .ToArray();
+        string[] roleInputItems = roles
+            .Select(r => UserRoleLabel(r.RoleName))
+            .Where(v => !string.IsNullOrWhiteSpace(v) && v != "-")
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+        if (roleInputItems.Length == 0)
+        {
+            roleInputItems = new[] { "Super Admin", "Admin", "Manager", "Kế toán", "Lễ tân", "Kỹ thuật", "Bảo vệ", "Cư dân" };
+        }
+
         var page = BeginPage("Quản lý tài khoản & phân quyền", "Hệ thống / Tài khoản & phân quyền");
 
         int margin = 18;
@@ -47,7 +69,7 @@ public partial class FrmMainDashboard
         roleLabel.Location = new Point(search.Right + filterGap, filterY + 6);
         roleLabel.Size = new Size(58, 26);
         toolbar.Controls.Add(roleLabel);
-        var role = ModernUi.ComboBox(new[] { "Tất cả", "Super Admin", "Quản lý", "Cư dân" }, 168);
+        var role = ModernUi.ComboBox(roleFilterItems, 168);
         role.Location = new Point(roleLabel.Right + 6, filterY + 2);
         toolbar.Controls.Add(role);
 
@@ -61,13 +83,20 @@ public partial class FrmMainDashboard
 
         toolbar.Height = 90;
 
-        int toolbarButtonsWidth = 574;
+        int toolbarButtonsWidth = 704;
         int buttonX = Math.Max(toolbarPadding, w - toolbarButtonsWidth);
         var addButton = AddToolbarButton(toolbar, "+  Thêm", ModernUi.Blue, buttonX, buttonY, 88);
         var editButton = AddToolbarButton(toolbar, "✎  Sửa", Color.FromArgb(241, 166, 0), buttonX + 102, buttonY, 86);
         var deleteButton = AddToolbarButton(toolbar, "×  Xóa", ModernUi.Red, buttonX + 202, buttonY, 86);
         var lockButton = AddToolbarButton(toolbar, "▣  Khóa/Mở khóa", ModernUi.Blue, buttonX + 302, buttonY, 130);
         var resetPasswordButton = AddToolbarButton(toolbar, "⚿  Reset MK", ModernUi.Purple, buttonX + 446, buttonY, 128);
+        var viewPermissionsButton = AddToolbarButton(toolbar, "☑  Xem quyền", ModernUi.Teal, buttonX + 588, buttonY, 116);
+        ApplyActionPermission(addButton, PermissionUserManagement);
+        ApplyActionPermission(editButton, PermissionUserManagement);
+        ApplyActionPermission(deleteButton, PermissionDeleteUsers);
+        ApplyActionPermission(lockButton, PermissionLockUsers);
+        ApplyActionPermission(resetPasswordButton, PermissionResetPassword);
+        ApplyActionPermission(viewPermissionsButton, PermissionUserManagement);
 
         int topY = toolbar.Bottom + 12;
         int listW = w;
@@ -129,7 +158,7 @@ public partial class FrmMainDashboard
         var fullNameInput = AddAccountInput(account, "Họ tên *", "Nguyễn Văn An", col2X, 42, colW);
         var emailInput = AddAccountInput(account, "Email *", "superadmin@chungcu.vn", fx, 84, colW);
         var phoneInput = AddAccountInput(account, "SĐT", "0909123456", col2X, 84, colW);
-        var roleInput = AddAccountCombo(account, "Vai trò *", new[] { "Super Admin", "Quản lý", "Cư dân" }, fx, 126, colW);
+        var roleInput = AddAccountCombo(account, "Vai trò *", roleInputItems, fx, 126, colW);
         var statusInput = AddAccountCombo(account, "Trạng thái *", new[] { "Hoạt động", "Tạm khóa", "Chờ duyệt", "Từ chối" }, col2X, 126, colW);
 
         var approved = new CheckBox
@@ -156,6 +185,7 @@ public partial class FrmMainDashboard
         var save = ModernUi.Button("▣  Lưu", ModernUi.Blue, actionW, 34);
         save.Location = new Point(col2X, 190);
         account.Controls.Add(save);
+        ApplyActionPermission(save, PermissionUserManagement);
         var cancel = ModernUi.OutlineButton("⊘  Hủy", actionW, 34);
         cancel.Location = new Point(save.Right + 10, 190);
         account.Controls.Add(cancel);
@@ -202,6 +232,7 @@ public partial class FrmMainDashboard
         savePermissionsButton.Location = new Point(bottom.Width - 156, 6);
         savePermissionsButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         savePermissionsButton.Enabled = false;
+        savePermissionsButton.Visible = HasPermission(PermissionManageRoles);
         bottom.Controls.Add(savePermissionsButton);
 
         var tabContent = new Panel
@@ -213,8 +244,6 @@ public partial class FrmMainDashboard
         };
         bottom.Controls.Add(tabContent);
 
-        var roles = RolePermissionDAL.GetAllRoles();
-        var permissions = RolePermissionDAL.GetAllPermissions();
         var matrix = CreatePermissionMatrixGrid(roles, permissions);
         matrix.Dock = DockStyle.Fill;
         tabContent.Controls.Add(matrix);
@@ -232,7 +261,8 @@ public partial class FrmMainDashboard
         var accountPagination = new PaginationState();
 
         bool IsResidentRole(string? roleName)
-            => string.Equals(roleName, "Resident", StringComparison.OrdinalIgnoreCase);
+            => string.Equals(roleName, "Resident", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(roleName, "Cư dân", StringComparison.OrdinalIgnoreCase);
 
         RoleDTO? FindRoleByLabel(string? label)
             => roles.FirstOrDefault(r =>
@@ -401,6 +431,11 @@ public partial class FrmMainDashboard
 
         void SavePermissionChanges()
         {
+            if (!RequirePermission(PermissionManageRoles, "lưu phân quyền"))
+            {
+                return;
+            }
+
             if (matrix.IsCurrentCellDirty)
             {
                 matrix.CommitEdit(DataGridViewDataErrorContexts.Commit);
@@ -446,6 +481,9 @@ public partial class FrmMainDashboard
 
             AuditLogDAL.LogAction(_session?.UserID, "Update_RolePermissions", "RolePermission", description: "Cập nhật phân quyền vai trò");
             ReloadPermissionMatrix();
+            RefreshCurrentSessionFromDatabase();
+            BuildShell();
+            Navigate(CanAccessPage(_activePage) ? _activePage : "dashboard");
             MessageBox.Show(this,
                 "Đã lưu thay đổi phân quyền.",
                 "Phân quyền",
@@ -466,7 +504,7 @@ public partial class FrmMainDashboard
             activeLine.Location = showPermissions ? new Point(12, 42) : new Point(activityTab.Left + 12, 42);
             activeLine.Width = showPermissions ? permissionTab.Width - 24 : activityTab.Width - 24;
 
-            savePermissionsButton.Visible = showPermissions;
+            savePermissionsButton.Visible = showPermissions && HasPermission(PermissionManageRoles);
             matrix.Visible = showPermissions;
             logGrid.Visible = !showPermissions;
             if (showPermissions)
@@ -595,6 +633,11 @@ public partial class FrmMainDashboard
 
         void SaveAccountChanges()
         {
+            if (!RequirePermission(PermissionUserManagement, selectedUser == null ? "thêm tài khoản" : "sửa tài khoản"))
+            {
+                return;
+            }
+
             if (!ValidateAccountForm(out var selectedRole, out var dbStatus) || selectedRole == null)
             {
                 return;
@@ -605,6 +648,16 @@ public partial class FrmMainDashboard
             string email = emailInput.Text.Trim();
             string phone = phoneInput.Text.Trim();
             bool isApproved = approved.Checked || !IsResidentRole(selectedRole.RoleName);
+            string oldRoleName = Display(selectedUser?.RoleName, "");
+            string newRoleName = Display(selectedRole.RoleName, "");
+            bool roleChanged = selectedUser != null &&
+                !string.Equals(oldRoleName, newRoleName, StringComparison.OrdinalIgnoreCase);
+
+            if ((selectedUser == null || roleChanged) &&
+                !RequirePermission(PermissionChangeUserRole, selectedUser == null ? "gán vai trò tài khoản" : "đổi vai trò tài khoản"))
+            {
+                return;
+            }
 
             if (selectedUser == null)
             {
@@ -710,6 +763,24 @@ public partial class FrmMainDashboard
                 AuditLogDAL.LogAction(_session?.UserID, "Update_User", "User", selectedUser.UserID, $"Cập nhật tài khoản: {username}");
             }
 
+            if (roleChanged)
+            {
+                AuditLogDAL.LogAction(
+                    _session?.UserID,
+                    "Change_UserRole",
+                    "User",
+                    selectedUser.UserID,
+                    $"Đổi quyền user {selectedUser.Username}: {oldRoleName} -> {newRoleName}");
+
+                if (selectedUser.UserID == _session?.UserID)
+                {
+                    RefreshCurrentSessionFromDatabase();
+                    BuildShell();
+                    Navigate(CanAccessPage(_activePage) ? _activePage : "dashboard");
+                    return;
+                }
+            }
+
             MessageBox.Show(this, "Đã lưu thay đổi tài khoản.",
                 "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Information);
             RefreshUsersWithPaging(selectedUser.UserID);
@@ -717,6 +788,11 @@ public partial class FrmMainDashboard
 
         void DeleteSelectedUser()
         {
+            if (!RequirePermission(PermissionDeleteUsers, "xóa tài khoản"))
+            {
+                return;
+            }
+
             if (selectedUser == null)
             {
                 MessageBox.Show(this, "Bạn chưa chọn tài khoản để xóa.",
@@ -756,6 +832,11 @@ public partial class FrmMainDashboard
 
         void ToggleSelectedUserLock()
         {
+            if (!RequirePermission(PermissionLockUsers, "khóa/mở khóa tài khoản"))
+            {
+                return;
+            }
+
             if (selectedUser == null)
             {
                 MessageBox.Show(this, "Bạn chưa chọn tài khoản.",
@@ -787,6 +868,11 @@ public partial class FrmMainDashboard
 
         void ResetSelectedUserPassword()
         {
+            if (!RequirePermission(PermissionResetPassword, "reset mật khẩu"))
+            {
+                return;
+            }
+
             if (selectedUser == null)
             {
                 MessageBox.Show(this, "Bạn chưa chọn tài khoản.",
@@ -810,6 +896,30 @@ public partial class FrmMainDashboard
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
             RefreshAuditLog();
+        }
+
+        void ShowSelectedUserPermissions()
+        {
+            var user = GetSelectedUserFromGrid() ?? selectedUser;
+            if (user == null)
+            {
+                MessageBox.Show(this, "Bạn chưa chọn tài khoản để xem quyền.",
+                    "Quản lý tài khoản", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var granted = RolePermissionDAL.GetPermissionNamesForRole(user.RoleID)
+                .OrderBy(p => p, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            string permissionsText = granted.Count == 0
+                ? "Chưa có quyền nào được gán."
+                : string.Join(Environment.NewLine, granted.Select(p => $"• {p}"));
+
+            MessageBox.Show(this,
+                $"User: {Display(user.Username)}\nVai trò: {UserRoleLabel(user.RoleName)}\n\nQuyền hiện tại:\n{permissionsText}",
+                "Quyền hiện tại",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         accountPager.FirstButton.Click += (_, _) =>
@@ -867,7 +977,7 @@ public partial class FrmMainDashboard
                 return;
             }
 
-            savePermissionsButton.Enabled = true;
+            savePermissionsButton.Enabled = HasPermission(PermissionManageRoles);
         };
 
         permissionTab.Click += (_, _) => SetBottomTab(true);
@@ -903,6 +1013,7 @@ public partial class FrmMainDashboard
         deleteButton.Click += (_, _) => DeleteSelectedUser();
         lockButton.Click += (_, _) => ToggleSelectedUserLock();
         resetPasswordButton.Click += (_, _) => ResetSelectedUserPassword();
+        viewPermissionsButton.Click += (_, _) => ShowSelectedUserPermissions();
         save.Click += (_, _) => SaveAccountChanges();
         cancel.Click += (_, _) =>
         {
@@ -1024,10 +1135,10 @@ public partial class FrmMainDashboard
         var grid = ModernUi.Grid();
         grid.ReadOnly = false;
         grid.AllowUserToAddRows = false;
-        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         grid.ColumnHeadersHeight = 34;
         grid.RowTemplate.Height = 30;
-        grid.ScrollBars = ScrollBars.None;
+        grid.ScrollBars = ScrollBars.Both;
         PopulatePermissionMatrixGrid(grid, roles, permissions);
         return grid;
     }
@@ -1039,16 +1150,16 @@ public partial class FrmMainDashboard
         grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "Module / Chức năng",
-            FillWeight = 1.9f,
+            Width = 280,
             ReadOnly = true
         });
 
-        foreach (var role in roles.Take(7))
+        foreach (var role in roles)
         {
             var column = new DataGridViewCheckBoxColumn
             {
                 HeaderText = Display(role.RoleName),
-                FillWeight = (role.RoleName ?? "").Length > 14 ? 1.35f : 1f,
+                Width = Math.Max(108, Math.Min(160, TextRenderer.MeasureText(Display(role.RoleName), ModernUi.Font(8.2f, FontStyle.Bold)).Width + 28)),
                 FlatStyle = FlatStyle.Standard
             };
             column.Tag = role;
@@ -1061,12 +1172,12 @@ public partial class FrmMainDashboard
             return;
         }
 
-        foreach (var permission in permissions.Take(12))
+        foreach (var permission in permissions)
         {
-            object[] row = new object[roles.Take(7).Count() + 1];
+            object[] row = new object[roles.Count + 1];
             row[0] = $"  ▣  {Display(permission.Description, Display(permission.PermissionName))}";
             int index = 1;
-            foreach (var role in roles.Take(7))
+            foreach (var role in roles)
             {
                 row[index++] = role.PermissionIDs.Contains(permission.PermissionID);
             }

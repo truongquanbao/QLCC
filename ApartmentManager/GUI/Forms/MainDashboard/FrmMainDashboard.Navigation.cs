@@ -19,6 +19,16 @@ public partial class FrmMainDashboard
 {
     private void Navigate(string page)
     {
+        if (!CanAccessPage(page))
+        {
+            MessageBox.Show(this,
+                "Bạn không có quyền thực hiện chức năng này.",
+                "Phân quyền",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            page = "dashboard";
+        }
+
         _activePage = page;
         foreach (var pair in _navButtons)
         {
@@ -35,6 +45,10 @@ public partial class FrmMainDashboard
                 RenderResidentDashboard();
             }
             else if (IsManager)
+            {
+                RenderManagerDashboard();
+            }
+            else if (!HasAnyPermission(PermissionUserManagement, PermissionSystemConfiguration, "ManageApartments", "ManageResidents"))
             {
                 RenderManagerDashboard();
             }
@@ -388,17 +402,7 @@ public partial class FrmMainDashboard
 
     private string HeaderRoleText()
     {
-        if (IsResident)
-        {
-            return "Cư dân";
-        }
-
-        if (IsManager)
-        {
-            return "Quản lý";
-        }
-
-        return "Quản trị viên";
+        return RoleDisplay();
     }
 
     private int PageWorkWidth(int minWidth = 980)

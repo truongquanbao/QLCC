@@ -252,6 +252,11 @@ public partial class FrmMainDashboard
 
     private void SaveDashboardSnapshot()
     {
+        if (!RequirePermission(PermissionExportData, "lưu dữ liệu dashboard"))
+        {
+            return;
+        }
+
         var users = UserDAL.GetAllUsers();
         var residents = ResidentDAL.GetAllResidents();
         var apartments = ApartmentDAL.GetAllApartments();
@@ -300,6 +305,11 @@ public partial class FrmMainDashboard
 
     private bool SaveGeneratedFile((bool Success, string Message, byte[] FileContent, string FileName) result, string filter, string auditAction)
     {
+        if (!RequirePermission(PermissionExportData, "xuất Excel/PDF"))
+        {
+            return false;
+        }
+
         if (!result.Success || result.FileContent == null || result.FileContent.Length == 0 || string.IsNullOrWhiteSpace(result.FileName))
         {
             MessageBox.Show(this,
@@ -338,6 +348,11 @@ public partial class FrmMainDashboard
 
     private void RunDatabaseBackup()
     {
+        if (!RequirePermission(PermissionSystemConfiguration, "backup dữ liệu"))
+        {
+            return;
+        }
+
         if (!ConfigurationHelper.GetAppSettingAsBool("EnableBackupRestore", true))
         {
             MessageBox.Show(this,
@@ -736,15 +751,145 @@ END";
         return isSuccess;
     }
 
+    private const string PermissionUserManagement = "UserManagement";
+    private const string PermissionManageRoles = "ManageRoles";
+    private const string PermissionChangeUserRole = "ChangeUserRole";
+    private const string PermissionLockUsers = "LockUsers";
+    private const string PermissionResetPassword = "ResetPassword";
+    private const string PermissionDeleteUsers = "DeleteUsers";
+    private const string PermissionExportData = "ExportData";
+    private const string PermissionSystemConfiguration = "SystemConfiguration";
+
+    private bool IsSuperAdminRole()
+        => string.Equals(RoleName(), "Super Admin", StringComparison.OrdinalIgnoreCase);
+
+    private bool HasPermission(string permissionName)
+    {
+        if (string.IsNullOrWhiteSpace(permissionName))
+        {
+            return true;
+        }
+
+        if (IsSuperAdminRole())
+        {
+            return true;
+        }
+
+        return _session?.HasPermission(permissionName) == true;
+    }
+
+    private bool HasAnyPermission(params string[] permissionNames)
+        => permissionNames == null ||
+           permissionNames.Length == 0 ||
+           permissionNames.Any(HasPermission);
+
+    private bool RequirePermission(string permissionName, string actionName)
+    {
+        if (HasPermission(permissionName))
+        {
+            return true;
+        }
+
+        MessageBox.Show(this,
+            $"Bạn không có quyền thực hiện chức năng này{(string.IsNullOrWhiteSpace(actionName) ? "." : $": {actionName}.")}",
+            "Phân quyền",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
+        return false;
+    }
+
+    private bool RequireAnyPermission(string actionName, params string[] permissionNames)
+    {
+        if (HasAnyPermission(permissionNames))
+        {
+            return true;
+        }
+
+        MessageBox.Show(this,
+            $"Bạn không có quyền thực hiện chức năng này{(string.IsNullOrWhiteSpace(actionName) ? "." : $": {actionName}.")}",
+            "Phân quyền",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
+        return false;
+    }
+
+    private void ApplyActionPermission(Button button, string permissionName)
+    {
+        button.Enabled = HasPermission(permissionName);
+        if (!button.Enabled)
+        {
+            button.Cursor = Cursors.No;
+        }
+    }
+
+    private bool CanAccessPage(string pageKey)
+    {
+        if (string.IsNullOrWhiteSpace(pageKey))
+        {
+            return false;
+        }
+
+        if (IsResident)
+        {
+            return pageKey is "dashboard" or "profile" or "password" or "apartment-info" or
+                "my-invoices" or "payment" or "send-complaint" or "notifications" or
+                "vehicles" or "visitors";
+        }
+
+        return pageKey switch
+        {
+            "dashboard" or "profile" or "password" or "notifications" => true,
+            "accounts" => HasAnyPermission(PermissionUserManagement, PermissionManageRoles),
+            "permissions" => HasPermission(PermissionManageRoles),
+            "apartments" => HasPermission("ManageApartments"),
+            "residents" => HasPermission("ManageResidents"),
+            "invoices" => HasPermission("ManageInvoices"),
+            "complaints" => HasPermission("ManageComplaints"),
+            "vehicles" => HasPermission("ManageVehicles"),
+            "visitors" => HasPermission("ManageVisitors"),
+            "assets" => HasPermission("ManageAssets"),
+            "reports" => HasAnyPermission("ReportGeneration", "ViewReports"),
+            "logs" => HasPermission("ViewLogs"),
+            "settings" => HasPermission(PermissionSystemConfiguration),
+            _ => false
+        };
+    }
+
+    private void RefreshCurrentSessionFromDatabase()
+    {
+        if (_session?.UserID <= 0)
+        {
+            return;
+        }
+
+        var user = UserDAL.GetUserByID(_session.UserID);
+        if (user == null)
+        {
+            return;
+        }
+
+        _session.Username = user.Username;
+        _session.FullName = user.FullName;
+        _session.Email = user.Email;
+        _session.Phone = user.Phone;
+        _session.RoleID = user.RoleID;
+        _session.RoleName = user.RoleName;
+        _session.Status = user.Status;
+        _session.AvatarPath = user.AvatarPath;
+        _session.CurrentUser = user;
+        _session.Permissions = RolePermissionDAL.GetPermissionNamesForRole(user.RoleID);
+        SessionManager.SetSession(_session);
+    }
+
     private string GetDefaultPage() => "dashboard";
     private bool IsResident => RoleName().Contains("resident", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("cư dân", StringComparison.OrdinalIgnoreCase) || CurrentUsername().StartsWith("resident", StringComparison.OrdinalIgnoreCase);
-    private bool IsManager => !IsResident && (RoleName().Contains("manager", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("quản lý", StringComparison.OrdinalIgnoreCase) || CurrentUsername().StartsWith("manager", StringComparison.OrdinalIgnoreCase));
+    private bool IsManager => !IsResident && (RoleName().Contains("manager", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("quản lý", StringComparison.OrdinalIgnoreCase));
     private string RoleName() => _session?.RoleName ?? "Super Admin";
     private string CurrentUsername() => _session?.Username ?? "superadmin";
     private string CurrentDisplayName() => _session?.FullName ?? (IsResident ? "Nguyễn Văn An" : CurrentUsername());
-    private string FooterDisplayName() => IsManager ? CurrentUsername() : CurrentDisplayName();
-    private string RoleDisplay() => IsResident ? "Cư dân" : IsManager ? "Quản lý khu chung cư" : "Super Admin";
-    private string RoleFooterLabel() => IsResident ? "Cư dân" : IsManager ? "Người dùng" : "Tên người dùng";
+    private string FooterDisplayName() => CurrentDisplayName();
+    private string RoleDisplay() => UserRoleLabel(RoleName());
+    private string RoleFooterLabel() => "Tên người dùng";
     private int NotificationCount()
     {
         try

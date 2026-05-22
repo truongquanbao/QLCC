@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using ApartmentManager.DTO;
 using ApartmentManager.DAL;
 using ApartmentManager.Utilities;
@@ -21,6 +22,8 @@ public class AuthenticationBLL
             // Validate input
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Tên đăng nhập hoặc mật khẩu không được để trống", null);
+
+            RolePermissionDAL.EnsureRbacDefaults();
 
             // Allow login by username or email to match the UI label
             var user = UserDAL.GetUserByUsername(username);
@@ -147,8 +150,14 @@ public class AuthenticationBLL
             // Hash password
             var passwordHash = PasswordHasher.HashPassword(password);
 
-            // Create user account (Resident role = 3, status = Pending)
-            var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, roleID: 3, status: "Pending");
+            RolePermissionDAL.EnsureRbacDefaults();
+            var residentRole = RolePermissionDAL.GetAllRoles()
+                .FirstOrDefault(r => string.Equals(r.RoleName, "Resident", StringComparison.OrdinalIgnoreCase));
+            if (residentRole == null)
+                return (false, "Không tìm thấy vai trò cư dân", null);
+
+            // Create user account (Resident role, status = Pending)
+            var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, residentRole.RoleID, status: "Pending");
 
             AuditLogDAL.LogAction(userID, "Register", "User", userID, "Đăng ký tài khoản cư dân");
 

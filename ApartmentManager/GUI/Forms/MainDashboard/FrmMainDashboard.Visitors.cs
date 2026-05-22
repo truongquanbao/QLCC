@@ -650,6 +650,7 @@ public partial class FrmMainDashboard
         addButton.Click += (_, _) => AddVisitor();
         approveButton.Click += (_, _) => ApproveSelectedVisitor();
         checkoutActionButton.Click += (_, _) => CheckoutSelectedVisitor();
+        ApplyActionPermission(exportButton, PermissionExportData);
         exportButton.Click += (_, _) => ExportVisitorCsv(visitors);
 
         ApplyFilters();
@@ -1296,8 +1297,13 @@ public partial class FrmMainDashboard
         return null;
     }
 
-    private static void ExportVisitorCsv(IEnumerable<VisitorViewModel> visitors)
+    private void ExportVisitorCsv(IEnumerable<VisitorViewModel> visitors)
     {
+        if (!RequirePermission(PermissionExportData, "xuất khách ra vào"))
+        {
+            return;
+        }
+
         using var dialog = new SaveFileDialog
         {
             Title = "Xuất báo cáo khách ra vào",

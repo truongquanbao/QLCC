@@ -21,7 +21,7 @@ public partial class FrmMainDashboard
     {
         Text = "PHẦN MỀM QUẢN LÝ KHU CHUNG CƯ";
         WindowState = FormWindowState.Maximized;
-        FormBorderStyle = FormBorderStyle.None;
+        FormBorderStyle = FormBorderStyle.Sizable;
         MinimumSize = new Size(1360, 760);
         ModernUi.ApplyFormDefaults(this, new Size(1360, 760));
     }
@@ -467,9 +467,10 @@ public partial class FrmMainDashboard
 
     private IEnumerable<(string? Group, string Key, string Text, string Icon)> MenuItemsForRole()
     {
+        (string? Group, string Key, string Text, string Icon)[] items;
         if (IsResident)
         {
-            return new[]
+            items = new[]
             {
                 (null, "dashboard", "Dashboard cá nhân", "⌂"),
                 (null, "profile", "Hồ sơ cá nhân", "●"),
@@ -482,27 +483,10 @@ public partial class FrmMainDashboard
                 ("Hỗ trợ", "visitors", "Khách của tôi", "♙"),
                 ("Cài đặt", "password", "Đổi mật khẩu", "□")
             };
+            return items.Where(item => CanAccessPage(item.Key));
         }
 
-        if (IsManager)
-        {
-            return new[]
-            {
-                (null, "dashboard", "Dashboard", "◉"),
-                ("Quản lý", "apartments", "Căn hộ", "▦"),
-                ("Quản lý", "residents", "Cư dân", "●"),
-                ("Quản lý", "invoices", "Hóa đơn / phí", "▤"),
-                ("Vận hành", "complaints", "Phản ánh", "■"),
-                ("Vận hành", "vehicles", "Phương tiện", "▣"),
-                ("Vận hành", "visitors", "Khách ra vào", "♙"),
-                ("Vận hành", "assets", "Tài sản", "◇"),
-                ("Hỗ trợ", "notifications", "Thông báo", "◆"),
-                ("Hỗ trợ", "reports", "Báo cáo", "▥"),
-                ("Cài đặt", "profile", "Hồ sơ cá nhân", "●")
-            };
-        }
-
-        return new[]
+        items = new[]
         {
             (null, "dashboard", "Dashboard", "◉"),
             ("Quản lý", "accounts", "Quản lý tài khoản", "●"),
@@ -516,8 +500,12 @@ public partial class FrmMainDashboard
             ("Vận hành", "assets", "Tài sản", "◇"),
             ("Hệ thống", "reports", "Báo cáo", "▥"),
             ("Hệ thống", "logs", "Log hệ thống", "▤"),
-            ("Hệ thống", "settings", "Cấu hình hệ thống", "⚙")
+            ("Hệ thống", "settings", "Cấu hình hệ thống", "⚙"),
+            ("Cài đặt", "profile", "Hồ sơ cá nhân", "●"),
+            ("Cài đặt", "password", "Đổi mật khẩu", "□")
         };
+
+        return items.Where(item => CanAccessPage(item.Key));
     }
 
     private void UpdateClock()

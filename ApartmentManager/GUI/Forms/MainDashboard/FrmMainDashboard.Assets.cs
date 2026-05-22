@@ -631,6 +631,7 @@ public partial class FrmMainDashboard
         addButton.Click += (_, _) => AddAsset();
         scheduleButton.Click += (_, _) => ScheduleSelectedAsset();
         repairButton.Click += (_, _) => RecordSelectedAssetRepair();
+        ApplyActionPermission(exportButton, PermissionExportData);
         exportButton.Click += (_, _) => ExportAssetCsv(assets);
 
         ApplyFilters();
@@ -1034,8 +1035,13 @@ public partial class FrmMainDashboard
         };
     }
 
-    private static void ExportAssetCsv(IEnumerable<AssetViewModel> assets)
+    private void ExportAssetCsv(IEnumerable<AssetViewModel> assets)
     {
+        if (!RequirePermission(PermissionExportData, "xuất tài sản"))
+        {
+            return;
+        }
+
         using var dialog = new SaveFileDialog
         {
             Title = "Xuất báo cáo tài sản",

@@ -129,9 +129,15 @@ public class UserBLL
             if (!ValidationHelper.IsValidPhone(phone))
                 return (false, "Số điện thoại không hợp lệ", null);
 
-            // Create user with Manager role (2), Active status
+            RolePermissionDAL.EnsureRbacDefaults();
+            var managerRole = RolePermissionDAL.GetAllRoles()
+                .FirstOrDefault(r => string.Equals(r.RoleName, "Manager", StringComparison.OrdinalIgnoreCase));
+            if (managerRole == null)
+                return (false, "Không tìm thấy vai trò Manager", null);
+
+            // Create user with Manager role, Active status
             var passwordHash = PasswordHasher.HashPassword(tempPassword);
-            var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, roleID: 2, status: "Active");
+            var userID = UserDAL.CreateUser(username, passwordHash, fullName, email, phone, managerRole.RoleID, status: "Active");
 
             AuditLogDAL.LogAction(SessionManager.GetCurrentUserID(), "Create_Manager", "User", userID, 
                 $"Tạo tài khoản quản lý: {username}");
