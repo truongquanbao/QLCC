@@ -733,6 +733,9 @@ END";
         try
         {
             AuthenticationBLL.Logout(); // Clear session trước khi quay về đăng nhập.
+            _session = null;
+            _activePage = "dashboard";
+            _navButtons.Clear();
             Hide();
 
             using var loginForm = new FrmLogin();
@@ -869,7 +872,7 @@ END";
     private const string PermissionSystemConfiguration = "SystemConfiguration";
 
     private bool IsSuperAdminRole()
-        => string.Equals(RoleName(), "Super Admin", StringComparison.OrdinalIgnoreCase);
+        => _session != null && string.Equals(RoleName(), "Super Admin", StringComparison.OrdinalIgnoreCase);
 
     private bool HasPermission(string permissionName)
     {
@@ -990,9 +993,21 @@ END";
     }
 
     private string GetDefaultPage() => "dashboard";
-    private bool IsResident => RoleName().Contains("resident", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("cư dân", StringComparison.OrdinalIgnoreCase) || CurrentUsername().StartsWith("resident", StringComparison.OrdinalIgnoreCase);
-    private bool IsManager => !IsResident && (RoleName().Contains("manager", StringComparison.OrdinalIgnoreCase) || RoleName().Contains("quản lý", StringComparison.OrdinalIgnoreCase));
-    private string RoleName() => _session?.RoleName ?? "Super Admin";
+    private bool HasCurrentRole(string roleName)
+    {
+        string currentRole = RoleName();
+        if (string.IsNullOrWhiteSpace(currentRole))
+        {
+            return false;
+        }
+
+        return string.Equals(currentRole, roleName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(UserRoleLabel(currentRole), roleName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsResident => HasCurrentRole("Resident") || HasCurrentRole("Cư dân");
+    private bool IsManager => !IsResident && (HasCurrentRole("Manager") || HasCurrentRole("Quản lý"));
+    private string RoleName() => _session?.RoleName ?? string.Empty;
     private string CurrentUsername() => _session?.Username ?? "superadmin";
     private string CurrentDisplayName() => _session?.FullName ?? (IsResident ? "Nguyễn Văn An" : CurrentUsername());
     private string FooterDisplayName() => CurrentDisplayName();

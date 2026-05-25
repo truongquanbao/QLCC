@@ -118,6 +118,7 @@ public partial class FrmMainDashboard
     {
         var card = ModernUi.CardPanel();
         card.Size = new Size(width, 126);
+        card.Cursor = Cursors.Hand;
 
         var titleLabel = ModernUi.Label(title.ToUpperInvariant(), 8.6f, FontStyle.Bold, accent);
         titleLabel.Location = new Point(16, 12);
@@ -131,33 +132,39 @@ public partial class FrmMainDashboard
             Text = icon,
             CircleColor = accent,
             ForeColor = Color.White,
-            Font = ModernUi.Font(21f, FontStyle.Bold),
+            Font = ModernUi.Font(20f, FontStyle.Bold),
             Size = new Size(58, 58),
             Location = new Point(18, 48),
             TextAlign = ContentAlignment.MiddleCenter
         };
         card.Controls.Add(circle);
 
-        var valueLabel = ModernUi.Label(value, value.Length > 16 ? 10.5f : 13.5f, FontStyle.Bold, ModernUi.Navy);
-        valueLabel.Location = new Point(90, 40);
+        var valueLabel = ModernUi.Label(value, value.Length > 16 ? 10.8f : 13.3f, FontStyle.Bold, ModernUi.Navy);
+        valueLabel.Location = new Point(90, 38);
         valueLabel.Size = new Size(width - 106, 30);
         valueLabel.TextAlign = ContentAlignment.MiddleLeft;
         valueLabel.AutoEllipsis = true;
         card.Controls.Add(valueLabel);
 
         var detailLabel = ModernUi.Label(detail, 8.5f, FontStyle.Regular, ModernUi.Text);
-        detailLabel.Location = new Point(90, 68);
-        detailLabel.Size = new Size(width - 106, 36);
+        detailLabel.Location = new Point(90, 66);
+        detailLabel.Size = new Size(width - 106, 38);
         detailLabel.TextAlign = ContentAlignment.MiddleLeft;
         detailLabel.AutoEllipsis = true;
         card.Controls.Add(detailLabel);
 
         var actionLabel = ModernUi.Label(action + " →", 8.8f, FontStyle.Bold, ModernUi.Blue);
-        actionLabel.Location = new Point(90, 102);
+        actionLabel.Location = new Point(90, 103);
         actionLabel.Size = new Size(width - 106, 18);
         actionLabel.TextAlign = ContentAlignment.MiddleLeft;
         actionLabel.AutoEllipsis = true;
+        actionLabel.Cursor = Cursors.Hand;
         card.Controls.Add(actionLabel);
+
+        foreach (Control child in card.Controls)
+        {
+            child.Cursor = Cursors.Hand;
+        }
 
         return card;
     }
@@ -495,7 +502,7 @@ public partial class FrmMainDashboard
         {
             "Cao" or "Quá hạn" => (ModernUi.Red, Color.FromArgb(255, 235, 235)),
             "Từ chối" or "Tạm khóa" or "Hết hạn" or "Hỏng" or "Lỗi" => (ModernUi.Red, Color.FromArgb(255, 235, 235)),
-            "Trung bình" or "Chưa thanh toán" or "Cần bảo trì" or "Sắp đến hạn" or "Cảnh báo" => (ModernUi.Orange, Color.FromArgb(255, 244, 224)),
+            "Trung bình" or "Chưa thanh toán" or "Thanh toán một phần" or "Thanh toán 1 phần" or "Cần bảo trì" or "Sắp đến hạn" or "Cảnh báo" => (ModernUi.Orange, Color.FromArgb(255, 244, 224)),
             "Thấp" or "Đã thanh toán" or "Đã lên lịch" or "Đang sử dụng" or "Đang thuê" or "Hoạt động" or "Đã duyệt" or "Đã vào" or "Đã rời" or "Tốt" or "Thành công" or "Đã sao lưu" => (ModernUi.Green, Color.FromArgb(232, 248, 235)),
             "Đang xử lý" or "Đang cư trú" or "Chờ duyệt" or "Chờ xử lý" or "Thông tin" => (ModernUi.Blue, Color.FromArgb(232, 241, 255)),
             "Mới" => (ModernUi.Purple, Color.FromArgb(243, 232, 255)),
@@ -897,9 +904,9 @@ public partial class FrmMainDashboard
             emptyGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             parent.Controls.Add(emptyGrid);
 
-            var totalEmpty = ModernUi.Label("TỔNG CỘNG                                      0 VNĐ", 11f, FontStyle.Bold, ModernUi.Red);
-            totalEmpty.Location = new Point(pad, parent.Height - 48);
-            totalEmpty.Size = new Size(contentW, 30);
+            var totalEmpty = ModernUi.Label("TỔNG CỘNG: 0 VNĐ", 10.4f, FontStyle.Bold, ModernUi.Red);
+            totalEmpty.Location = new Point(pad, parent.Height - 76);
+            totalEmpty.Size = new Size(contentW, 24);
             totalEmpty.TextAlign = ContentAlignment.MiddleLeft;
             parent.Controls.Add(totalEmpty);
             return;
@@ -990,10 +997,29 @@ public partial class FrmMainDashboard
             });
 
         detailGrid.Location = new Point(pad, 364);
-        detailGrid.Size = new Size(contentW, 120);
+        detailGrid.Size = new Size(contentW, 90);
         detailGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        detailGrid.ScrollBars = ScrollBars.None;
+        detailGrid.ScrollBars = ScrollBars.Vertical;
+        detailGrid.RowTemplate.Height = 24;
+        detailGrid.ColumnHeadersHeight = 28;
+        detailGrid.DefaultCellStyle.Font = ModernUi.Font(7.8f);
+        detailGrid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(7.8f, FontStyle.Bold);
         parent.Controls.Add(detailGrid);
+
+        // Khu tổng kết đặt cố định ngay dưới bảng phí,
+        // không dùng parent.Height - ... nữa để tránh bị che ở đáy panel.
+        int summaryY = detailGrid.Bottom + 8;
+        int halfW = (contentW - 10) / 2;
+
+        var total = ModernUi.Label(
+            $"TỔNG CỘNG: {Money(invoice.TotalAmount)} VNĐ",
+            10.4f,
+            FontStyle.Bold,
+            ModernUi.Red);
+
+        total.SetBounds(pad, summaryY, contentW, 22);
+        total.TextAlign = ContentAlignment.MiddleRight;
+        parent.Controls.Add(total);
 
         var paidLabel = ModernUi.Label(
             $"Đã thanh toán: {Money(invoice.PaidAmount)} VNĐ",
@@ -1001,8 +1027,8 @@ public partial class FrmMainDashboard
             FontStyle.Bold,
             ModernUi.Green);
 
-        paidLabel.Location = new Point(pad, 492);
-        paidLabel.Size = new Size(contentW, 24);
+        paidLabel.SetBounds(pad, summaryY + 26, halfW, 20);
+        paidLabel.TextAlign = ContentAlignment.MiddleLeft;
         parent.Controls.Add(paidLabel);
 
         var remainLabel = ModernUi.Label(
@@ -1011,20 +1037,9 @@ public partial class FrmMainDashboard
             FontStyle.Bold,
             remaining > 0 ? ModernUi.Red : ModernUi.Green);
 
-        remainLabel.Location = new Point(pad, 518);
-        remainLabel.Size = new Size(contentW, 24);
+        remainLabel.SetBounds(pad + halfW + 10, summaryY + 26, halfW, 20);
+        remainLabel.TextAlign = ContentAlignment.MiddleRight;
         parent.Controls.Add(remainLabel);
-
-        var total = ModernUi.Label(
-            $"TỔNG CỘNG: {Money(invoice.TotalAmount)} VNĐ",
-            11.5f,
-            FontStyle.Bold,
-            ModernUi.Red);
-
-        total.Location = new Point(pad, parent.Height - 44);
-        total.Size = new Size(contentW, 30);
-        total.TextAlign = ContentAlignment.MiddleRight;
-        parent.Controls.Add(total);
 
         static void AddInfoPair(Control target, string label, string value, int x, int y, int width)
         {

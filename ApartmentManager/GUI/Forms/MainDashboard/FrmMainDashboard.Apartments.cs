@@ -55,12 +55,20 @@ public partial class FrmMainDashboard
         var statusFilter = AddApartmentFilter(page, "Trạng thái căn hộ", "Tất cả", x, filterY, filterWidths[3]);
         x += filterWidths[3] + gap;
 
-        var apartmentSearch = ModernUi.SearchBox("Tìm kiếm mã căn hộ...", searchW, 38);
-        apartmentSearch.Location = new Point(x, filterInputY);
+        var searchLabel = ModernUi.Label("Tìm kiếm", 8.7f, FontStyle.Bold, ModernUi.Text);
+        searchLabel.Location = new Point(x, filterY);
+        searchLabel.Size = new Size(searchW, 18);
+        page.Controls.Add(searchLabel);
+
+        // SearchBox là custom control nên phải nâng lên 2px để khớp ComboBox.
+        var apartmentSearch = ModernUi.SearchBox("Tìm kiếm mã căn hộ...", searchW, 30);
+        apartmentSearch.Location = new Point(x, filterInputY - 3);
+        apartmentSearch.Size = new Size(searchW, 30);
         page.Controls.Add(apartmentSearch);
 
-        var refresh = ModernUi.OutlineButton("⟳  Làm mới", refreshW, 38);
-        refresh.Location = new Point(w - refreshW + 18, filterInputY);
+        var refresh = ModernUi.OutlineButton("⟳  Làm mới", refreshW, 30);
+        refresh.Location = new Point(w - refreshW + 18, filterInputY - 3);
+        refresh.Size = new Size(refreshW, 30);
         page.Controls.Add(refresh);
 
         var title = ModernUi.Label("QUẢN LÝ TÒA NHÀ / BLOCK / TẦNG / CĂN HỘ", 10.5f, FontStyle.Bold, ModernUi.Blue);

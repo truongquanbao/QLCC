@@ -585,19 +585,6 @@ public class RolePermissionDAL
                 exists.Parameters.AddWithValue("@Username", username);
                 if ((int)exists.ExecuteScalar()! > 0)
                 {
-                    const string updateQuery = @"
-                        UPDATE Users
-                        SET RoleID = @RoleID,
-                            Status = N'Active',
-                            IsApproved = 1,
-                            ApprovedAt = COALESCE(ApprovedAt, GETDATE()),
-                            LockedUntil = NULL,
-                            UpdatedAt = GETDATE()
-                        WHERE Username = @Username;";
-                    using var update = new SqlCommand(updateQuery, connection, transaction);
-                    update.Parameters.AddWithValue("@Username", username);
-                    update.Parameters.AddWithValue("@RoleID", roleId);
-                    update.ExecuteNonQuery();
                     return;
                 }
             }

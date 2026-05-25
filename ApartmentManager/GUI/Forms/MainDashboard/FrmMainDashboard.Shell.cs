@@ -230,25 +230,25 @@ public partial class FrmMainDashboard
         summaryLabel.Size = new Size(summaryWidth, 26);
         parent.Controls.Add(summaryLabel);
 
-        var firstButton = ModernUi.OutlineButton("«", 32, 30);
+        var firstButton = ModernUi.OutlineButton("<<", 38, 30);
         firstButton.Location = new Point(buttonsX, buttonsY);
         parent.Controls.Add(firstButton);
 
-        var previousButton = ModernUi.OutlineButton("‹", 32, 30);
-        previousButton.Location = new Point(buttonsX + 38, buttonsY);
+        var previousButton = ModernUi.OutlineButton("<", 38, 30);
+        previousButton.Location = new Point(buttonsX + 44, buttonsY);
         parent.Controls.Add(previousButton);
 
-        var pageButton = ModernUi.Button("1", ModernUi.Blue, 32, 30);
-        pageButton.Location = new Point(buttonsX + 76, buttonsY);
+        var pageButton = ModernUi.Button("1", ModernUi.Blue, 38, 30);
+        pageButton.Location = new Point(buttonsX + 88, buttonsY);
         pageButton.Enabled = false; // Nút giữa chỉ hiển thị trang hiện tại.
         parent.Controls.Add(pageButton);
 
-        var nextButton = ModernUi.OutlineButton("›", 32, 30);
-        nextButton.Location = new Point(buttonsX + 114, buttonsY);
+        var nextButton = ModernUi.OutlineButton(">", 38, 30);
+        nextButton.Location = new Point(buttonsX + 132, buttonsY);
         parent.Controls.Add(nextButton);
 
-        var lastButton = ModernUi.OutlineButton("»", 32, 30);
-        lastButton.Location = new Point(buttonsX + 152, buttonsY);
+        var lastButton = ModernUi.OutlineButton(">>", 38, 30);
+        lastButton.Location = new Point(buttonsX + 176, buttonsY);
         parent.Controls.Add(lastButton);
 
         var pageSizeCombo = ModernUi.ComboBox(new[] { "10", "20", "50" }, 66);
@@ -542,7 +542,6 @@ public partial class FrmMainDashboard
                 (null, "profile", "Hồ sơ cá nhân", "●"),
                 ("Thông tin", "apartment-info", "Thông tin căn hộ", "▦"),
                 ("Thông tin", "my-invoices", "Hóa đơn của tôi", "▤"),
-                ("Thông tin", "payment", "Thanh toán / Lịch sử", "▰"),
                 ("Hỗ trợ", "send-complaint", "Gửi phản ánh", "■"),
                 ("Hỗ trợ", "notifications", "Thông báo", "◆"),
                 ("Hỗ trợ", "vehicles", "Xe của tôi", "▣"),

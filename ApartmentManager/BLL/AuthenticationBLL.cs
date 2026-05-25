@@ -80,7 +80,15 @@ public class AuthenticationBLL
             UserDAL.UpdateLoginAttempt(user.UserID, true);
             AuditLogDAL.LogLogin(user.UserID, true);
 
-            // Get user permissions
+            var latestUser = UserDAL.GetUserByID(user.UserID);
+            if (latestUser == null)
+            {
+                return (false, "Không thể tải lại thông tin tài khoản sau khi đăng nhập", null);
+            }
+
+            user = latestUser;
+
+            // Get user permissions from the latest role in database
             var permissions = RolePermissionDAL.GetPermissionNamesForRole(user.RoleID);
 
             // Create session
@@ -92,7 +100,10 @@ public class AuthenticationBLL
                 RoleID = user.RoleID,
                 RoleName = user.RoleName,
                 Email = user.Email,
+                Phone = user.Phone,
+                Status = user.Status,
                 AvatarPath = user.AvatarPath,
+                CurrentUser = user,
                 Permissions = permissions,
                 LoginTime = DateTime.Now
             };
@@ -176,20 +187,22 @@ public class AuthenticationBLL
     /// </summary>
     public static void Logout()
     {
+        var userID = SessionManager.GetCurrentUserID() ?? 0;
         try
         {
-            if (SessionManager.IsLoggedIn())
+            if (userID > 0)
             {
-                var userID = SessionManager.GetCurrentUserID() ?? 0;
                 AuditLogDAL.LogLogout(userID);
                 Log.Information("User logged out: {UserID}", userID);
             }
-
-            SessionManager.ClearSession();
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error during logout");
+        }
+        finally
+        {
+            SessionManager.ClearSession();
         }
     }
 

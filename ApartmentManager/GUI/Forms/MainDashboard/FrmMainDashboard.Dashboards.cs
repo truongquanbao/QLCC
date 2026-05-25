@@ -1030,15 +1030,18 @@ public partial class FrmMainDashboard
     private void RenderResidentDashboard()
     {
         var page = BeginPage("Dashboard cá nhân", $"Xin chào, {CurrentDisplayName()}! Chúc bạn một ngày tốt lành.");
-
         page.AutoScroll = true;
         page.AutoScrollMinSize = Size.Empty;
 
-        int x = 18;
-        int y = 76;
-        int gap = 14;
+        const int margin = 18;
+        const int gap = 14;
+        const int topY = 76;
+
         int scrollbar = SystemInformation.VerticalScrollBarWidth;
-        int w = Math.Max(860, page.ClientSize.Width - x * 2 - scrollbar);
+        int pageW = Math.Max(980, page.ClientSize.Width - margin * 2 - scrollbar);
+
+        page.HorizontalScroll.Enabled = false;
+        page.HorizontalScroll.Visible = false;
 
         ResidentDTO? resident = _session?.UserID > 0
             ? ResidentDAL.GetResidentByUserID(_session.UserID)
@@ -1048,11 +1051,21 @@ public partial class FrmMainDashboard
             .FirstOrDefault(r => string.Equals(r.Username, CurrentUsername(), StringComparison.OrdinalIgnoreCase));
 
         var apartment = resident == null ? null : ApartmentDAL.GetApartmentByID(resident.ApartmentID);
-        var residentInvoices = resident == null ? new List<InvoiceDTO>() : InvoiceDAL.GetInvoicesByResident(resident.ResidentID);
+
+        var residentInvoices = resident == null
+            ? new List<InvoiceDTO>()
+            : InvoiceDAL.GetInvoicesByResident(resident.ResidentID)
+                .OrderByDescending(i => i.Year)
+                .ThenByDescending(i => i.Month)
+                .ThenByDescending(i => i.CreatedAt)
+                .ToList();
+
         var latestInvoice = residentInvoices.FirstOrDefault();
 
         var residentNotifications = _session?.UserID > 0
             ? NotificationDAL.GetUserNotifications(_session.UserID)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToList()
             : new List<NotificationDTO>();
 
         var residentComplaints = resident == null
@@ -1062,208 +1075,731 @@ public partial class FrmMainDashboard
         int unreadCount = residentNotifications.Count(n => !n.IsRead);
         int openComplaintCount = residentComplaints.Count(c => ViStatus(c.Status) is not ("Đã xử lý" or "Đã đóng"));
 
-        int cardW = Math.Max(260, (w - gap * 2) / 3);
+        decimal latestRemaining = latestInvoice == null
+            ? 622800m
+            : Math.Max(0m, latestInvoice.TotalAmount - latestInvoice.PaidAmount);
 
-        string apartmentDetail = apartment == null
-            ? "Chưa có dữ liệu\r\n-"
-            : $"{Display(apartment.BuildingName)}\r\nDiện tích: {apartment.Area.ToString("N1", CultureInfo.InvariantCulture)} m²";
+        string residentName = Display(resident?.FullName, CurrentDisplayName());
+        string residentCode = resident == null ? "CD000123" : $"CD{resident.ResidentID:000000}";
+        string apartmentCode = Display(resident?.ApartmentCode, "A-0101");
+        string phone = Display(resident?.Phone, "0901 234 567");
+        string email = Display(resident?.Email, "minhanh@gmail.com");
 
-        var card1 = ResidentCard(
-            "Thông tin cá nhân",
-            Display(resident?.FullName, CurrentDisplayName()),
-            $"{Display(resident?.Phone)}\r\n{Display(resident?.Email)}",
-            ModernUi.Blue,
-            "●",
-            "Xem chi tiết",
-            cardW);
+        string buildingText = apartment == null
+            ? "Tòa A"
+            : Display(apartment.BuildingName, "Tòa A");
 
-        var card2 = ResidentCard(
-            "Căn hộ đang ở",
-            Display(resident?.ApartmentCode),
-            apartmentDetail,
-            Color.FromArgb(34, 197, 94),
-            "⌂",
-            "Xem chi tiết",
-            cardW);
+        string floorText = apartment == null
+            ? "Tầng 01"
+            : $"Tầng {apartment.FloorNumber?.ToString("00") ?? "01"}";
 
-        var card3 = ResidentCard(
-            "Hóa đơn mới nhất",
-            latestInvoice == null ? "Chưa có" : $"Tháng {latestInvoice.Month:00}/{latestInvoice.Year}",
-            latestInvoice == null
-                ? "Không có dữ liệu\r\n-"
-                : $"{Money(latestInvoice.TotalAmount)} VNĐ\r\nNgày phát hành: {DateText(latestInvoice.CreatedAt)}",
-            Color.FromArgb(249, 115, 22),
-            "▤",
-            "Xem hóa đơn",
-            cardW);
+        string areaText = apartment == null
+            ? "48.5 m²"
+            : $"{apartment.Area.ToString("N1", CultureInfo.InvariantCulture)} m²";
 
-        var card4 = ResidentCard(
-            "Trạng thái thanh toán",
-            latestInvoice == null ? "-" : ViStatus(latestInvoice.PaymentStatus),
-            latestInvoice == null
-                ? "Không có hóa đơn\r\n-"
-                : $"Đã thu: {Money(latestInvoice.PaidAmount)} VNĐ\r\nHạn: {DateText(latestInvoice.DueDate)}",
-            Color.FromArgb(34, 197, 94),
-            "✓",
-            "Xem lịch sử",
-            cardW);
+        int peopleCount = resident == null
+            ? 3
+            : Math.Max(1, ResidentDAL.GetAllResidents().Count(r => r.ApartmentID == resident.ApartmentID));
 
-        var card5 = ResidentCard(
-            "Thông báo chưa đọc",
-            unreadCount.ToString("N0"),
-            "Thông báo mới",
-            ModernUi.Blue,
-            "◆",
-            "Xem tất cả",
-            cardW);
+        int topCardH = 220;
 
-        var card6 = ResidentCard(
-            "Phản ánh đang xử lý",
-            openComplaintCount.ToString("N0"),
-            "Phản ánh đang xử lý",
-            Color.FromArgb(6, 182, 212),
-            "■",
-            "Xem chi tiết",
-            cardW);
+        int usableTopW = pageW - gap * 3;
+        int leftTopW = (int)(usableTopW * 0.28);
+        int midTopW = (int)(usableTopW * 0.22);
+        int invoiceTopW = (int)(usableTopW * 0.27);
+        int qrTopW = usableTopW - leftTopW - midTopW - invoiceTopW;
 
-        card1.Location = new Point(x, y);
-        card2.Location = new Point(x + cardW + gap, y);
-        card3.Location = new Point(x + (cardW + gap) * 2, y);
+        leftTopW = Math.Max(250, leftTopW);
+        midTopW = Math.Max(210, midTopW);
+        invoiceTopW = Math.Max(250, invoiceTopW);
+        qrTopW = pageW - leftTopW - midTopW - invoiceTopW - gap * 3;
 
-        y += 140;
+        if (qrTopW < 220)
+        {
+            int missing = 220 - qrTopW;
+            leftTopW = Math.Max(235, leftTopW - missing / 3);
+            midTopW = Math.Max(200, midTopW - missing / 3);
+            invoiceTopW = Math.Max(235, invoiceTopW - missing / 3);
+            qrTopW = pageW - leftTopW - midTopW - invoiceTopW - gap * 3;
+        }
 
-        card4.Location = new Point(x, y);
-        card5.Location = new Point(x + cardW + gap, y);
-        card6.Location = new Point(x + (cardW + gap) * 2, y);
+        var profileCard = CreateDemoCard("Thông tin cá nhân", leftTopW, topCardH);
+        profileCard.Location = new Point(margin, topY);
 
-        page.Controls.Add(card1);
-        page.Controls.Add(card2);
-        page.Controls.Add(card3);
-        page.Controls.Add(card4);
-        page.Controls.Add(card5);
-        page.Controls.Add(card6);
+        var profileIcon = new CircleLabel
+        {
+            Text = "●",
+            CircleColor = Color.FromArgb(239, 246, 255),
+            ForeColor = ModernUi.Blue,
+            Font = ModernUi.Font(18f, FontStyle.Bold),
+            Location = new Point(20, 58),
+            Size = new Size(58, 58),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        profileCard.Controls.Add(profileIcon);
 
-        y += 154;
+        int profileTextX = 92;
+        int profileTextW = Math.Max(120, profileCard.Width - profileTextX - 18);
 
-        int leftW = Math.Max(520, (int)(w * 0.58));
-        int rightW = w - leftW - gap;
+        AddCardText(profileCard, residentName, profileTextX, 46, profileTextW, 26, 11.4f, FontStyle.Bold, ModernUi.Navy);
+        AddCardText(profileCard, $"Mã cư dân: {residentCode}", profileTextX, 74, profileTextW, 19, 8.1f, FontStyle.Regular, ModernUi.Text);
+        AddCardText(profileCard, $"☎  {phone}", profileTextX, 96, profileTextW, 19, 8.1f, FontStyle.Regular, ModernUi.Text);
+        AddCardText(profileCard, $"✉  {email}", profileTextX, 118, profileTextW, 19, 8.1f, FontStyle.Regular, ModernUi.Text);
 
-        var invoices = ModernUi.Section("Hóa đơn gần đây", leftW, 276);
-        invoices.Location = new Point(x, y);
+        var livingBadge = ModernUi.Badge("Đang cư trú", ModernUi.Green);
+        livingBadge.Location = new Point(profileTextX, 140);
+        livingBadge.Size = new Size(96, 24);
+        profileCard.Controls.Add(livingBadge);
 
-        var grid = CreateGrid(
-            new[] { "Kỳ", "Ngày phát hành", "Hạn thanh toán", "Số tiền", "Trạng thái", "Hành động" },
-            RowsOrEmpty(residentInvoices.Take(6), 6, (invoice, _) => new object[]
+        var profileBtn = ModernUi.OutlineButton("Xem hồ sơ", profileCard.Width - 40, 32);
+        profileBtn.Location = new Point(20, profileCard.Height - 42);
+        profileBtn.Click += (_, _) => Navigate("profile");
+        profileCard.Controls.Add(profileBtn);
+        page.Controls.Add(profileCard);
+
+        var apartmentCard = CreateDemoCard("Căn hộ đang ở", midTopW, topCardH);
+        apartmentCard.Location = new Point(profileCard.Right + gap, topY);
+
+        var aptIcon = new CircleLabel
+        {
+            Text = "▥",
+            CircleColor = ModernUi.Green,
+            ForeColor = Color.White,
+            Font = ModernUi.Font(24f, FontStyle.Bold),
+            Location = new Point(26, 66),
+            Size = new Size(64, 64),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        apartmentCard.Controls.Add(aptIcon);
+
+        AddCardText(apartmentCard, apartmentCode, 112, 52, apartmentCard.Width - 130, 34, 16f, FontStyle.Bold, ModernUi.Navy);
+        AddCardText(apartmentCard, $"{buildingText}   •   {floorText}", 112, 92, apartmentCard.Width - 130, 20, 8.8f, FontStyle.Regular, ModernUi.Text);
+        AddCardText(apartmentCard, $"Diện tích: {areaText}", 112, 116, apartmentCard.Width - 130, 20, 8.8f, FontStyle.Regular, ModernUi.Text);
+        AddCardText(apartmentCard, $"{peopleCount} người đang ở", 112, 140, apartmentCard.Width - 130, 20, 8.8f, FontStyle.Regular, ModernUi.Text);
+
+        var aptBtn = ModernUi.OutlineButton("Xem chi tiết căn hộ  →", apartmentCard.Width - 40, 32);
+        aptBtn.Location = new Point(20, apartmentCard.Height - 48);
+        aptBtn.Click += (_, _) => Navigate("apartment-info");
+        apartmentCard.Controls.Add(aptBtn);
+        page.Controls.Add(apartmentCard);
+
+        var invoiceCard = CreateDemoCard("Hóa đơn mới nhất", invoiceTopW, topCardH, Color.FromArgb(249, 115, 22));
+        invoiceCard.Location = new Point(apartmentCard.Right + gap, topY);
+
+        var invoiceIcon = new CircleLabel
+        {
+            Text = "▤",
+            CircleColor = Color.FromArgb(249, 115, 22),
+            ForeColor = Color.White,
+            Font = ModernUi.Font(24f, FontStyle.Bold),
+            Location = new Point(22, 64),
+            Size = new Size(62, 62),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        invoiceCard.Controls.Add(invoiceIcon);
+
+        string invoicePeriod = latestInvoice == null ? "Tháng 05/2026" : $"Tháng {latestInvoice.Month:00}/{latestInvoice.Year}";
+        decimal invoiceTotal = latestInvoice == null ? 1384000m : latestInvoice.TotalAmount;
+        DateTime dueDate = latestInvoice?.DueDate ?? new DateTime(2026, 5, 31);
+        int dueDays = (dueDate.Date - DateTime.Today).Days;
+
+        AddCardText(invoiceCard, invoicePeriod, 104, 48, invoiceCard.Width - 120, 28, 12.4f, FontStyle.Bold, ModernUi.Navy);
+        AddCardText(invoiceCard, $"{Money(invoiceTotal)} VNĐ", 104, 78, invoiceCard.Width - 120, 28, 14f, FontStyle.Bold, ModernUi.Navy);
+
+        var unpaidBadge = ModernUi.Badge(latestRemaining > 0 ? "Chưa thanh toán" : "Đã thanh toán", latestRemaining > 0 ? ModernUi.Red : ModernUi.Green);
+        unpaidBadge.Location = new Point(104, 110);
+        unpaidBadge.Size = new Size(116, 24);
+        invoiceCard.Controls.Add(unpaidBadge);
+
+        string dueText = dueDays > 0
+            ? $"Hạn thanh toán: {DateText(dueDate)} (còn {dueDays} ngày)"
+            : dueDays == 0
+                ? $"Hạn thanh toán: {DateText(dueDate)} (hôm nay)"
+                : $"Đã quá hạn: {Math.Abs(dueDays)} ngày";
+
+        AddCardText(invoiceCard, dueText, 22, 144, invoiceCard.Width - 44, 22, 8.7f, FontStyle.Regular, dueDays < 0 ? ModernUi.Red : ModernUi.Text);
+
+        int invoiceBtnGap = 10;
+        int invoiceBtnW = Math.Max(92, (invoiceCard.Width - 44 - invoiceBtnGap) / 2);
+
+        var btnViewInvoice = ModernUi.OutlineButton("Xem hóa đơn", invoiceBtnW, 32);
+        btnViewInvoice.Location = new Point(22, invoiceCard.Height - 48);
+        btnViewInvoice.Click += (_, _) => Navigate("my-invoices");
+        invoiceCard.Controls.Add(btnViewInvoice);
+
+        var btnPayNow = ModernUi.Button("Thanh toán", Color.FromArgb(249, 115, 22), invoiceBtnW, 32);
+        btnPayNow.Location = new Point(btnViewInvoice.Right + invoiceBtnGap, invoiceCard.Height - 48);
+        btnPayNow.Click += (_, _) => Navigate("payment");
+        invoiceCard.Controls.Add(btnPayNow);
+        page.Controls.Add(invoiceCard);
+
+        var quickPay = CreateDemoCard("Thanh toán nhanh", qrTopW, topCardH);
+        quickPay.Location = new Point(invoiceCard.Right + gap, topY);
+
+        int qrSize = quickPay.Width < 260 ? 86 : 96;
+        int qrLeft = quickPay.Width - qrSize - 18;
+        int qrTextW = Math.Max(110, qrLeft - 34);
+
+        AddCardText(quickPay, "Số tiền cần thanh toán", 20, 50, qrTextW, 20, 8.2f, FontStyle.Regular, ModernUi.Text);
+        AddCardText(quickPay, $"{Money(latestRemaining)} VNĐ", 20, 76, qrTextW, 32, quickPay.Width < 260 ? 12.6f : 14.2f, FontStyle.Bold, ModernUi.Red);
+        AddCardText(quickPay, "Quét QR để thanh toán", 20, 120, qrTextW, 20, 8.2f, FontStyle.Regular, ModernUi.Text);
+
+        var qrBox = new PictureBox
+        {
+            Location = new Point(qrLeft, 50),
+            Size = new Size(qrSize, qrSize),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.White
+        };
+
+        string[] qrImageCandidates =
+        {
+        Path.Combine(AppContext.BaseDirectory, "Assets", "qr_payment_test.jpg"),
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "qr_payment_test.jpg"))
+    };
+
+        string? qrImagePath = qrImageCandidates.FirstOrDefault(File.Exists);
+        if (!string.IsNullOrWhiteSpace(qrImagePath))
+        {
+            using var loadedQr = Image.FromFile(qrImagePath);
+            qrBox.Image = new Bitmap(loadedQr);
+        }
+        quickPay.Controls.Add(qrBox);
+
+        string transferContent = $"{apartmentCode}-{invoicePeriod.Replace("Tháng ", "").Replace("/", "")}-{residentName.Replace(" ", "")}";
+
+        int payBtnGap = 10;
+        int payBtnW = Math.Max(88, (quickPay.Width - 40 - payBtnGap) / 2);
+
+        var copyTransfer = ModernUi.OutlineButton("Sao chép CK", payBtnW, 32);
+        copyTransfer.Location = new Point(20, quickPay.Height - 48);
+        copyTransfer.Click += (_, _) =>
+        {
+            Clipboard.SetText(transferContent);
+            MessageBox.Show(this, $"Đã sao chép nội dung chuyển khoản:\n{transferContent}", "Thanh toán", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+        quickPay.Controls.Add(copyTransfer);
+
+        var paymentHistory = ModernUi.OutlineButton("Lịch sử", payBtnW, 32);
+        paymentHistory.Location = new Point(copyTransfer.Right + payBtnGap, quickPay.Height - 48);
+        paymentHistory.Click += (_, _) => Navigate("payment");
+        quickPay.Controls.Add(paymentHistory);
+        page.Controls.Add(quickPay);
+
+        int row2Y = topY + topCardH + gap;
+        int row2H = 300;
+
+        int usableRow2W = pageW - gap * 2;
+        int taskW = (int)(usableRow2W * 0.43);
+        int noticeW = (int)(usableRow2W * 0.32);
+        int complaintTopW = usableRow2W - taskW - noticeW;
+
+        taskW = Math.Max(390, taskW);
+        noticeW = Math.Max(300, noticeW);
+        complaintTopW = pageW - taskW - noticeW - gap * 2;
+
+        var tasks = CreateDemoCard("Việc cần xử lý", taskW, row2H);
+        tasks.Location = new Point(margin, row2Y);
+
+        var taskBadge = ModernUi.Badge("3", ModernUi.Red);
+        taskBadge.Location = new Point(126, 14);
+        taskBadge.Size = new Size(26, 22);
+        tasks.Controls.Add(taskBadge);
+
+        int taskY = 50;
+        AddTaskItem(tasks, "₫", Color.FromArgb(249, 115, 22), $"Cần thanh toán {Money(latestRemaining)} VNĐ",
+            $"Hóa đơn {invoicePeriod.Replace("Tháng ", "tháng ")} · Hạn thanh toán: {DateText(dueDate)}", "Quan trọng", ModernUi.Red, "payment", ref taskY);
+
+        AddTaskItem(tasks, "●", Color.FromArgb(6, 182, 212), $"{Math.Max(1, openComplaintCount)} phản ánh đang xử lý",
+            "Phản ánh về đèn hành lang không sáng", "Đang xử lý", ModernUi.Blue, "send-complaint", ref taskY);
+
+        AddTaskItem(tasks, "!", ModernUi.Blue, "Thông báo bảo trì thang máy tòa A",
+            "Dự kiến bảo trì ngày 28/05/2026 từ 09:00 - 11:00", "Mới", ModernUi.Teal, "notifications", ref taskY);
+
+        var allTasks = ModernUi.OutlineButton("Xem tất cả việc cần xử lý", tasks.Width - 32, 32);
+        allTasks.Location = new Point(16, tasks.Height - 46);
+        allTasks.Click += (_, _) => Navigate("notifications");
+        tasks.Controls.Add(allTasks);
+        page.Controls.Add(tasks);
+
+        var notices = CreateDemoCard("Thông báo mới", noticeW, row2H);
+        notices.Location = new Point(tasks.Right + gap, row2Y);
+
+        var noticeBadge = ModernUi.Badge(Math.Max(1, unreadCount).ToString("N0"), ModernUi.Red);
+        noticeBadge.Location = new Point(122, 14);
+        noticeBadge.Size = new Size(26, 22);
+        notices.Controls.Add(noticeBadge);
+
+        var notificationItems = residentNotifications.Take(3).ToList();
+        var noticeRows = new List<(string Title, string Detail, string Time, Color Dot)>();
+
+        foreach (var n in notificationItems)
+        {
+            string title = Display(n.Title, "Thông báo");
+            string detail = string.IsNullOrWhiteSpace(n.Message) ? "Không có nội dung chi tiết." : n.Message.Trim();
+            if (detail.Length > 56) detail = detail[..56] + "...";
+            noticeRows.Add((title, detail, DateTimeText(n.CreatedAt), n.IsRead ? ModernUi.Blue : Color.FromArgb(249, 115, 22)));
+        }
+
+        while (noticeRows.Count < 3)
+        {
+            if (noticeRows.Count == 0)
+                noticeRows.Add(("Bảo trì thang máy tòa A", "Dự kiến 28/05/2026 09:00 - 11:00", "Hôm nay, 09:30", ModernUi.Blue));
+            else if (noticeRows.Count == 1)
+                noticeRows.Add(("Thông báo về phí gửi xe tháng 05/2026", "Vui lòng thanh toán trước 31/05/2026", "Hôm qua, 16:45", Color.FromArgb(249, 115, 22)));
+            else
+                noticeRows.Add(("Cập nhật tiện ích: Sân thể thao", "Sân cầu lông sẽ mở cửa từ 06:00 - 22:00", "20/05/2026, 14:20", ModernUi.Blue));
+        }
+
+        int noticeY = 52;
+        foreach (var notice in noticeRows.Take(3))
+        {
+            AddNoticeLine(notices, notice.Title, notice.Detail, notice.Time, notice.Dot, noticeY);
+            noticeY += 70;
+        }
+
+        var allNotices = ModernUi.OutlineButton("Xem tất cả thông báo", notices.Width - 32, 32);
+        allNotices.Location = new Point(16, notices.Height - 46);
+        allNotices.Click += (_, _) => Navigate("notifications");
+        notices.Controls.Add(allNotices);
+        page.Controls.Add(notices);
+
+        var latestComplaintBox = CreateDemoCard("Phản ánh gần nhất", complaintTopW, row2H);
+        latestComplaintBox.Location = new Point(notices.Right + gap, row2Y);
+
+        object? latestComplaint = residentComplaints
+            .Cast<object>()
+            .OrderByDescending(c => ReadDynamicDate(c, "CreatedAt", DateTime.MinValue))
+            .FirstOrDefault();
+
+        DateTime complaintCreated = latestComplaint == null
+            ? new DateTime(2026, 5, 16, 8, 45, 0)
+            : ReadDynamicDate(latestComplaint, "CreatedAt", DateTime.Today);
+
+        string complaintTitle = latestComplaint == null
+            ? "Đèn hành lang không sáng"
+            : Display(ReadDynamicString(latestComplaint, "Title"), "Phản ánh của tôi");
+
+        string complaintCode = latestComplaint == null
+            ? "PA260515-001"
+            : $"PA{complaintCreated:yyMMdd}-{ReadDynamicInt(latestComplaint, "ComplaintID", 1):000}";
+
+        string complaintStatus = latestComplaint == null
+            ? "Đang xử lý"
+            : ViStatus(ReadDynamicString(latestComplaint, "Status"));
+
+        var complaintInner = ModernUi.CardPanel(10);
+        complaintInner.Location = new Point(16, 58);
+        complaintInner.Size = new Size(latestComplaintBox.Width - 32, 164);
+        latestComplaintBox.Controls.Add(complaintInner);
+
+        var complaintIcon = new CircleLabel
+        {
+            Text = "▰",
+            CircleColor = Color.FromArgb(249, 115, 22),
+            ForeColor = Color.White,
+            Font = ModernUi.Font(16f, FontStyle.Bold),
+            Location = new Point(16, 20),
+            Size = new Size(48, 48),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        complaintInner.Controls.Add(complaintIcon);
+
+        AddCardText(complaintInner, complaintTitle, 78, 20, complaintInner.Width - 96, 24, 9.4f, FontStyle.Bold, ModernUi.Navy);
+        AddCardText(complaintInner, $"Mã: {complaintCode}", 78, 46, complaintInner.Width - 96, 22, 8.7f, FontStyle.Bold, ModernUi.Text);
+
+        var complaintStatusBadge = ModernUi.Badge(complaintStatus, complaintStatus is "Đã xử lý" or "Đã đóng" ? ModernUi.Green : ModernUi.Blue);
+        complaintStatusBadge.Location = new Point(78, 78);
+        complaintStatusBadge.Size = new Size(90, 24);
+        complaintInner.Controls.Add(complaintStatusBadge);
+
+        var line = new Panel
+        {
+            BackColor = Color.FromArgb(226, 232, 240),
+            Location = new Point(16, 112),
+            Size = new Size(complaintInner.Width - 32, 1)
+        };
+        complaintInner.Controls.Add(line);
+
+        AddCardText(complaintInner, $"▣  {DateTimeText(complaintCreated)}", 18, 124, complaintInner.Width - 36, 20, 8.2f, FontStyle.Regular, ModernUi.Text);
+        AddCardText(complaintInner, "♙  Ban quản lý tòa A", 18, 144, complaintInner.Width - 36, 20, 8.2f, FontStyle.Regular, ModernUi.Text);
+
+        var complaintDetail = ModernUi.OutlineButton("Xem chi tiết phản ánh", latestComplaintBox.Width - 32, 32);
+        complaintDetail.Location = new Point(16, latestComplaintBox.Height - 46);
+        complaintDetail.Click += (_, _) => Navigate("send-complaint");
+        latestComplaintBox.Controls.Add(complaintDetail);
+        page.Controls.Add(latestComplaintBox);
+
+        int row3Y = row2Y + row2H + gap;
+        int usableRow3W = pageW - gap;
+
+        int invoiceTableW = (int)(usableRow3W * 0.68);
+        int complaintListW = usableRow3W - invoiceTableW;
+
+        // Không ép min quá lớn, vì ép min là nguyên nhân làm panel bên phải bị che.
+        invoiceTableW = Math.Max(600, invoiceTableW);
+        complaintListW = pageW - invoiceTableW - gap;
+
+        var invoicePanel = CreateDemoCard("Hóa đơn gần đây", invoiceTableW, 288);
+        invoicePanel.Location = new Point(margin, row3Y);
+
+        var invoiceRows = residentInvoices
+            .Take(5)
+            .Select(invoice => new object[]
             {
             $"{invoice.Month:00}/{invoice.Year}",
             DateText(invoice.CreatedAt),
             DateText(invoice.DueDate),
             Money(invoice.TotalAmount),
+            Money(invoice.PaidAmount),
+            Money(Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount)),
             ViStatus(invoice.PaymentStatus),
             "Xem"
-            }));
+            })
+            .ToList();
 
-        grid.Location = new Point(12, 46);
-        grid.Size = new Size(invoices.Width - 24, 196);
-        grid.ScrollBars = ScrollBars.Vertical;
-        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        invoices.Controls.Add(grid);
-        page.Controls.Add(invoices);
+        var demoAmounts = new[] { 1384000m, 1681000m, 1846000m, 1295000m, 1450000m };
+        var demoPaid = new[] { 761200m, 1681000m, 1846000m, 1295000m, 1450000m };
+        var demoStatus = new[] { "Chưa thanh toán", "Đã thanh toán", "Đã thanh toán", "Đã thanh toán", "Đã thanh toán" };
 
-        var notices = ModernUi.Section("Thông báo gần đây", rightW, 276);
-        notices.Location = new Point(invoices.Right + gap, y);
-
-        var recentNotifications = residentNotifications.Take(5).ToList();
-        if (recentNotifications.Count == 0)
+        while (invoiceRows.Count < 5)
         {
-            recentNotifications.Add(new NotificationDTO
+            int index = invoiceRows.Count;
+            DateTime period = new DateTime(2026, 5, 1).AddMonths(-index);
+            decimal total = demoAmounts[index];
+            decimal paid = demoPaid[index];
+            invoiceRows.Add(new object[]
             {
-                Title = "Không có thông báo mới",
-                CreatedAt = DateTime.MinValue
+            $"{period.Month:00}/{period.Year}",
+            DateText(new DateTime(period.Year, period.Month, 20)),
+            DateText(new DateTime(period.Year, period.Month, Math.Min(31, DateTime.DaysInMonth(period.Year, period.Month)))),
+            Money(total),
+            Money(paid),
+            Money(Math.Max(0m, total - paid)),
+            demoStatus[index],
+            "Xem"
             });
         }
 
-        for (int i = 0; i < recentNotifications.Count; i++)
+        var invoiceGrid = CreateGrid(
+            new[] { "Kỳ", "Ngày phát hành", "Hạn thanh toán", "Số tiền", "Đã thanh toán", "Còn lại", "Trạng thái", "Hành động" },
+            invoiceRows.ToArray());
+
+        invoiceGrid.Location = new Point(14, 48);
+        invoiceGrid.Size = new Size(invoicePanel.Width - 28, 178);
+        invoiceGrid.RowTemplate.Height = 30;
+        invoiceGrid.ColumnHeadersHeight = 34;
+
+        // Cho phép kéo ngang trong bảng hóa đơn
+        invoiceGrid.ScrollBars = ScrollBars.Both;
+        invoiceGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        invoiceGrid.RowHeadersVisible = false;
+        invoiceGrid.AllowUserToResizeColumns = false;
+        invoiceGrid.AllowUserToResizeRows = false;
+
+        invoiceGrid.DefaultCellStyle.Font = ModernUi.Font(7.6f);
+        invoiceGrid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(7.5f, FontStyle.Bold);
+        invoiceGrid.DefaultCellStyle.Padding = new Padding(2, 0, 2, 0);
+        invoiceGrid.ColumnHeadersDefaultCellStyle.Padding = new Padding(2, 0, 2, 0);
+
+        void FixInvoiceGridColumns()
         {
-            string title = Display(recentNotifications[i].Title, Display(recentNotifications[i].Message));
-            string time = DateTimeText(recentNotifications[i].CreatedAt);
-
-            var row = ModernUi.Label("•  " + title, 9.4f, FontStyle.Regular, ModernUi.Text);
-            row.Location = new Point(18, 54 + i * 36);
-            row.Size = new Size(notices.Width - 150, 28);
-            row.AutoEllipsis = true;
-            notices.Controls.Add(row);
-
-            var date = ModernUi.Label(time, 8.4f, FontStyle.Regular, ModernUi.Muted);
-            date.Location = new Point(notices.Width - 128, 54 + i * 36);
-            date.Size = new Size(108, 28);
-            date.TextAlign = ContentAlignment.MiddleRight;
-            date.AutoEllipsis = true;
-            notices.Controls.Add(date);
-        }
-
-        page.Controls.Add(notices);
-
-        y += 292;
-
-        int qrW = Math.Max(560, (int)(w * 0.62));
-        int timelineW = w - qrW - gap;
-
-        var qr = ModernUi.Section("Thanh toán nhanh qua QR Code", qrW, 250);
-        qr.Location = new Point(x, y);
-
-        string[] qrImageCandidates =
-        {
-            Path.Combine(AppContext.BaseDirectory, "Assets", "qr_payment_test.jpg"),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "qr_payment_test.jpg"))
-        };
-        string? qrImagePath = qrImageCandidates.FirstOrDefault(File.Exists);
-
-        if (!string.IsNullOrWhiteSpace(qrImagePath))
-        {
-            using var qrImage = Image.FromFile(qrImagePath);
-            var qrPicture = new PictureBox
+            if (invoiceGrid.Columns.Count < 8)
             {
-                Location = new Point(24, 50),
-                Size = new Size(170, 170),
-                SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Image = new Bitmap(qrImage)
-            };
-            qr.Controls.Add(qrPicture);
+                return;
+            }
+
+            invoiceGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+            invoiceGrid.Columns[0].Width = 80;   // Kỳ
+            invoiceGrid.Columns[1].Width = 120;  // Ngày phát hành
+            invoiceGrid.Columns[2].Width = 120;  // Hạn thanh toán
+            invoiceGrid.Columns[3].Width = 110;  // Số tiền
+            invoiceGrid.Columns[4].Width = 115;  // Đã thanh toán
+            invoiceGrid.Columns[5].Width = 100;  // Còn lại
+            invoiceGrid.Columns[6].Width = 130;  // Trạng thái
+            invoiceGrid.Columns[7].Width = 90;   // Hành động
+
+            invoiceGrid.Columns[0].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            invoiceGrid.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            invoiceGrid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            invoiceGrid.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            invoiceGrid.Columns[4].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            invoiceGrid.Columns[5].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            invoiceGrid.Columns[6].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            invoiceGrid.Columns[7].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         }
-        else
+
+        FixInvoiceGridColumns();
+        invoiceGrid.DataBindingComplete += (_, _) => FixInvoiceGridColumns();
+
+        invoiceGrid.CellClick += (_, e) =>
         {
-            var missingQr = ModernUi.Label("Không tìm thấy ảnh QR", 10f, FontStyle.Bold, ModernUi.Muted);
-            missingQr.Location = new Point(24, 112);
-            missingQr.Size = new Size(170, 28);
-            missingQr.TextAlign = ContentAlignment.MiddleCenter;
-            qr.Controls.Add(missingQr);
+            if (e.RowIndex >= 0)
+            {
+                Navigate("my-invoices");
+            }
+        };
+        invoicePanel.Controls.Add(invoiceGrid);
+
+var allInvoices = ModernUi.OutlineButton("Xem tất cả hóa đơn", invoicePanel.Width - 28, 32);
+allInvoices.Location = new Point(14, invoicePanel.Height - 42);
+        allInvoices.Click += (_, _) => Navigate("my-invoices");
+        invoicePanel.Controls.Add(allInvoices);
+        page.Controls.Add(invoicePanel);
+
+        var complaintsList = CreateDemoCard("Phản ánh của tôi", complaintListW, 288);
+        complaintsList.Location = new Point(invoicePanel.Right + gap, row3Y);
+
+        var complaintRows = new List<(string Title, string Code, string Status, string Date, Color Accent)>();
+
+        foreach (var c in residentComplaints.Cast<object>().OrderByDescending(c => ReadDynamicDate(c, "CreatedAt", DateTime.MinValue)).Take(3))
+        {
+            DateTime created = ReadDynamicDate(c, "CreatedAt", DateTime.Today);
+            string title = Display(ReadDynamicString(c, "Title"), "Phản ánh");
+            string code = $"PA{created:yyMMdd}-{ReadDynamicInt(c, "ComplaintID", 1):000}";
+            string status = ViStatus(ReadDynamicString(c, "Status"));
+            Color color = status is "Đã xử lý" or "Đã đóng" ? ModernUi.Green : status == "Mới" ? ModernUi.Orange : ModernUi.Blue;
+            complaintRows.Add((title, code, status, DateText(created), color));
         }
 
-        string qrInvoiceText = latestInvoice == null
-            ? "Quét QR để thanh toán hóa đơn mới nhất\r\n\r\nHóa đơn:   Chưa có hóa đơn\r\nSố tiền:   0 VNĐ\r\nNội dung CK: -"
-            : $"Quét QR để thanh toán hóa đơn mới nhất\r\n\r\nHóa đơn:   Tháng {latestInvoice.Month:00}/{latestInvoice.Year}\r\nSố tiền:   {Money(Math.Max(0, latestInvoice.TotalAmount - latestInvoice.PaidAmount))} VNĐ\r\nNội dung CK: {Display(resident?.ApartmentCode)}-{latestInvoice.Month:00}{latestInvoice.Year}-{Display(resident?.FullName, CurrentUsername()).Replace(" ", "")}";
+        while (complaintRows.Count < 3)
+        {
+            if (complaintRows.Count == 0)
+                complaintRows.Add(("Đèn hành lang không sáng", "PA260515-001", "Đang xử lý", "16/05/2026", ModernUi.Blue));
+            else if (complaintRows.Count == 1)
+                complaintRows.Add(("Nước chảy yếu tại căn hộ", "PA260502-002", "Đã xử lý", "02/05/2026", ModernUi.Green));
+            else
+                complaintRows.Add(("Thang máy hay dừng đột ngột", "PA260420-003", "Đã đóng", "20/04/2026", Color.FromArgb(148, 163, 184)));
+        }
 
-        var qrText = ModernUi.Label(qrInvoiceText, 10f, FontStyle.Regular, ModernUi.Text);
-        qrText.Location = new Point(218, 58);
-        qrText.Size = new Size(qr.Width - 242, 116);
-        qr.Controls.Add(qrText);
+        int complaintY = 54;
+        foreach (var item in complaintRows.Take(3))
+        {
+            AddComplaintRow(complaintsList, item.Title, item.Code, item.Status, item.Date, item.Accent, complaintY);
+            complaintY += 58;
+        }
 
-        var note = ModernUi.Badge("Sau khi thanh toán, hệ thống sẽ tự động cập nhật trong vòng 5-10 phút.", ModernUi.Blue);
-        note.Location = new Point(218, 188);
-        note.Size = new Size(qr.Width - 242, 28);
-        qr.Controls.Add(note);
+        var newComplaint = ModernUi.OutlineButton("Gửi phản ánh mới", complaintsList.Width - 28, 32);
+        newComplaint.Location = new Point(14, complaintsList.Height - 46);
+        newComplaint.Click += (_, _) => Navigate("send-complaint");
+        complaintsList.Controls.Add(newComplaint);
+        page.Controls.Add(complaintsList);
 
-        page.Controls.Add(qr);
+        page.AutoScrollMinSize = new Size(0, row3Y + 322);
+        page.HorizontalScroll.Enabled = false;
+        page.HorizontalScroll.Visible = false;
 
-        var progress = ModernUi.Section("Tiến độ phản ánh của tôi", timelineW, 250);
-        progress.Location = new Point(qr.Right + gap, y);
-        AddTimeline(progress);
-        page.Controls.Add(progress);
+        static RoundedPanel CreateDemoCard(string title, int width, int height, Color? titleColor = null)
+        {
+            var card = ModernUi.CardPanel(12);
+            card.Size = new Size(width, height);
 
-        page.AutoScrollMinSize = new Size(0, y + 300);
+            var titleLabel = ModernUi.Label(title.ToUpperInvariant(), 9.2f, FontStyle.Bold, titleColor ?? ModernUi.Blue);
+            titleLabel.Location = new Point(18, 14);
+            titleLabel.Size = new Size(width - 36, 24);
+            titleLabel.AutoEllipsis = true;
+            card.Controls.Add(titleLabel);
+
+            return card;
+        }
+
+        static void AddCardText(Control parent, string text, int x, int y, int width, int height, float size, FontStyle style, Color color)
+        {
+            var label = ModernUi.Label(text, size, style, color);
+            label.Location = new Point(x, y);
+            label.Size = new Size(width, height);
+            label.AutoEllipsis = true;
+            parent.Controls.Add(label);
+        }
+
+        void AddTaskItem(Control parent, string iconText, Color accent, string title, string detail, string badgeText, Color badgeColor, string target, ref int y)
+        {
+            var item = ModernUi.CardPanel(10);
+            item.Location = new Point(16, y);
+            item.Size = new Size(parent.Width - 32, 64);
+            item.Cursor = Cursors.Hand;
+
+            var icon = new CircleLabel
+            {
+                Text = iconText,
+                CircleColor = accent,
+                ForeColor = Color.White,
+                Font = ModernUi.Font(13f, FontStyle.Bold),
+                Location = new Point(12, 12),
+                Size = new Size(40, 40),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            item.Controls.Add(icon);
+
+            var badge = ModernUi.Badge(badgeText, badgeColor);
+            int badgeW = Math.Max(92, TextRenderer.MeasureText(badgeText, badge.Font).Width + 22);
+            badge.Size = new Size(badgeW, 24);
+            badge.Location = new Point(item.Width - badgeW - 14, 20);
+            item.Controls.Add(badge);
+
+            int textW = Math.Max(120, item.Width - 62 - badgeW - 34);
+
+            AddCardText(item, title, 62, 10, textW, 22, 8.7f, FontStyle.Bold, ModernUi.Navy);
+            AddCardText(item, detail, 62, 34, textW, 20, 8.1f, FontStyle.Regular, ModernUi.Text);
+
+            BindTileClick(item, (_, _) => Navigate(target));
+            parent.Controls.Add(item);
+            y += 74;
+        }
+
+        static void AddNoticeLine(Control parent, string title, string detail, string time, Color dotColor, int y)
+        {
+            var dot = new CircleLabel
+            {
+                Text = "",
+                CircleColor = dotColor,
+                Location = new Point(18, y + 8),
+                Size = new Size(8, 8)
+            };
+            parent.Controls.Add(dot);
+
+            var titleLabel = ModernUi.Label(title, 8.8f, FontStyle.Bold, ModernUi.Navy);
+            titleLabel.Location = new Point(42, y);
+            titleLabel.Size = new Size(parent.Width - 160, 22);
+            titleLabel.AutoEllipsis = true;
+            parent.Controls.Add(titleLabel);
+
+            var timeLabel = ModernUi.Label(time, 8.1f, FontStyle.Regular, ModernUi.Muted);
+            timeLabel.Location = new Point(parent.Width - 122, y);
+            timeLabel.Size = new Size(104, 22);
+            timeLabel.TextAlign = ContentAlignment.MiddleRight;
+            timeLabel.AutoEllipsis = true;
+            parent.Controls.Add(timeLabel);
+
+            var detailLabel = ModernUi.Label(detail, 8.2f, FontStyle.Regular, ModernUi.Text);
+            detailLabel.Location = new Point(42, y + 24);
+            detailLabel.Size = new Size(parent.Width - 60, 22);
+            detailLabel.AutoEllipsis = true;
+            parent.Controls.Add(detailLabel);
+
+            var line = new Panel
+            {
+                BackColor = Color.FromArgb(226, 232, 240),
+                Location = new Point(18, y + 56),
+                Size = new Size(parent.Width - 36, 1)
+            };
+            parent.Controls.Add(line);
+        }
+
+        static void AddComplaintRow(Control parent, string title, string code, string status, string date, Color accent, int y)
+        {
+            var row = ModernUi.CardPanel(8);
+            row.Location = new Point(14, y);
+            row.Size = new Size(parent.Width - 28, 50);
+
+            var icon = new CircleLabel
+            {
+                Text = "▣",
+                CircleColor = Color.FromArgb(239, 246, 255),
+                ForeColor = accent,
+                Font = ModernUi.Font(12f, FontStyle.Bold),
+                Location = new Point(12, 11),
+                Size = new Size(28, 28),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            row.Controls.Add(icon);
+
+            var titleLabel = ModernUi.Label(title, 8.6f, FontStyle.Bold, ModernUi.Navy);
+            titleLabel.Location = new Point(52, 8);
+            titleLabel.Size = new Size(row.Width - 210, 20);
+            titleLabel.AutoEllipsis = true;
+            row.Controls.Add(titleLabel);
+
+            var codeLabel = ModernUi.Label(code, 8.1f, FontStyle.Regular, ModernUi.Text);
+            codeLabel.Location = new Point(52, 28);
+            codeLabel.Size = new Size(row.Width - 210, 18);
+            codeLabel.AutoEllipsis = true;
+            row.Controls.Add(codeLabel);
+
+            var badge = ModernUi.Badge(status, accent);
+            badge.Location = new Point(row.Width - 150, 13);
+            badge.Size = new Size(82, 24);
+            row.Controls.Add(badge);
+
+            var dateLabel = ModernUi.Label(date, 8f, FontStyle.Regular, ModernUi.Muted);
+            dateLabel.Location = new Point(row.Width - 66, 14);
+            dateLabel.Size = new Size(54, 22);
+            dateLabel.TextAlign = ContentAlignment.MiddleRight;
+            row.Controls.Add(dateLabel);
+
+            parent.Controls.Add(row);
+        }
+
+        static string ReadDynamicString(object? obj, string propertyName)
+        {
+            if (obj == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return string.Empty;
+            }
+
+            var property = obj.GetType().GetProperty(propertyName);
+            if (property == null)
+            {
+                return string.Empty;
+            }
+
+            return property.GetValue(obj, null)?.ToString() ?? string.Empty;
+        }
+
+        static int ReadDynamicInt(object? obj, string propertyName, int fallback = 0)
+        {
+            if (obj == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return fallback;
+            }
+
+            var property = obj.GetType().GetProperty(propertyName);
+            if (property == null)
+            {
+                return fallback;
+            }
+
+            var value = property.GetValue(obj, null);
+            if (value == null)
+            {
+                return fallback;
+            }
+
+            return int.TryParse(value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+                ? parsed
+                : fallback;
+        }
+
+        static DateTime ReadDynamicDate(object? obj, string propertyName, DateTime fallback)
+        {
+            if (obj == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return fallback;
+            }
+
+            var property = obj.GetType().GetProperty(propertyName);
+            if (property == null)
+            {
+                return fallback;
+            }
+
+            var value = property.GetValue(obj, null);
+            if (value == null)
+            {
+                return fallback;
+            }
+
+            if (value is DateTime dateTime)
+            {
+                return dateTime;
+            }
+
+            return DateTime.TryParse(value.ToString(), CultureInfo.CurrentCulture, DateTimeStyles.None, out DateTime parsed)
+                ? parsed
+                : fallback;
+        }
     }
 
     private RoundedPanel CreateDebtCard(int unpaidCount, decimal debtAmount, int width, bool hasDebt)

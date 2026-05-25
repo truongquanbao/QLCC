@@ -1,4 +1,4 @@
-using ApartmentManager.BLL;
+    using ApartmentManager.BLL;
 using ApartmentManager.DAL;
 using ApartmentManager.DTO;
 using ApartmentManager.Utilities;
@@ -722,8 +722,12 @@ public partial class FrmMainDashboard
                 {
                     var resident = ResidentForInvoice(invoice);
 
+                    string normalizedMonthText = monthText
+    .Replace("Tháng", "", StringComparison.OrdinalIgnoreCase)
+    .Trim();
+
                     if (monthText != "Tất cả" &&
-                        int.TryParse(monthText, out int month) &&
+                        int.TryParse(normalizedMonthText, out int month) &&
                         invoice.Month != month)
                     {
                         return false;
@@ -1025,8 +1029,81 @@ public partial class FrmMainDashboard
             return;
         }
 
-        var invoices = InvoiceDAL.GetInvoicesByResident(resident.ResidentID);
+        var invoices = InvoiceDAL.GetInvoicesByResident(resident.ResidentID)
+            .OrderByDescending(i => i.Year)
+            .ThenByDescending(i => i.Month)
+            .ThenByDescending(i => i.CreatedAt)
+            .ToList();
+
         var payments = PaymentBLL.GetPaymentHistoryForResident(resident.ResidentID);
+
+        // Bổ sung data mẫu chỉ để hiển thị UI cư dân.
+        // Không ghi vào SQL Server.
+        if (invoices.Count < 11)
+        {
+            var demoTotals = new[]
+            {
+        1384000m, 1681000m, 1846000m, 1295000m, 1450000m,
+        1572000m, 1328000m, 1760000m, 1190000m, 1515000m, 1425000m
+    };
+
+            var demoPaid = new[]
+            {
+        761200m, 0m, 1846000m, 1295000m, 1450000m,
+        1572000m, 1328000m, 1760000m, 1190000m, 1515000m, 1425000m
+    };
+
+            var demoStatus = new[]
+            {
+        "Partial", "Overdue", "Paid", "Paid", "Paid",
+        "Paid", "Paid", "Paid", "Paid", "Paid", "Paid"
+    };
+
+            int existingCount = invoices.Count;
+            int need = 11 - existingCount;
+            DateTime startPeriod = invoices.Count > 0
+                ? new DateTime(invoices.Max(i => i.Year), invoices.Where(i => i.Year == invoices.Max(x => x.Year)).Max(i => i.Month), 1).AddMonths(-1)
+                : new DateTime(2026, 5, 1);
+
+            for (int i = 0; i < need; i++)
+            {
+                int index = existingCount + i;
+                DateTime period = startPeriod.AddMonths(-i);
+                decimal total = demoTotals[Math.Min(index, demoTotals.Length - 1)];
+                decimal paid = demoPaid[Math.Min(index, demoPaid.Length - 1)];
+                string status = demoStatus[Math.Min(index, demoStatus.Length - 1)];
+
+                // Tránh trùng kỳ nếu DB đã có dữ liệu thật.
+                if (invoices.Any(inv => inv.Month == period.Month && inv.Year == period.Year))
+                {
+                    continue;
+                }
+
+                invoices.Add(new InvoiceDTO
+                {
+                    InvoiceID = 900000 + i,
+                    ApartmentID = resident.ApartmentID,
+                    ResidentID = resident.ResidentID,
+                    ApartmentCode = Display(resident.ApartmentCode, "A-0101"),
+                    Month = period.Month,
+                    Year = period.Year,
+                    CreatedAt = new DateTime(period.Year, period.Month, Math.Min(20, DateTime.DaysInMonth(period.Year, period.Month))),
+                    DueDate = new DateTime(period.Year, period.Month, Math.Min(25, DateTime.DaysInMonth(period.Year, period.Month))),
+                    TotalAmount = total,
+                    PaidAmount = paid,
+                    RemainingAmount = Math.Max(0m, total - paid),
+                    PaymentStatus = status,
+                    Status = status,
+                    Note = "Dữ liệu mẫu hiển thị giao diện cư dân"
+                });
+            }
+
+            invoices = invoices
+                .OrderByDescending(i => i.Year)
+                .ThenByDescending(i => i.Month)
+                .ThenByDescending(i => i.CreatedAt)
+                .ToList();
+        }
 
         int statW = Math.Max(210, (w - gap * 3) / 4);
         int unpaidCount = invoices.Count(IsResidentInvoicePayable);
@@ -1061,7 +1138,7 @@ public partial class FrmMainDashboard
             .Where(m => m >= 1 && m <= 12)
             .Distinct()
             .OrderBy(m => m)
-            .Select(m => $"{m:00}")
+            .Select(m => $"Tháng {m:00}")
             .Prepend("Tất cả")
             .ToArray();
 
@@ -1138,10 +1215,57 @@ public partial class FrmMainDashboard
             "Hành động"
         };
 
-        var grid = CreateGrid(invoiceColumns, new[] { EmptyRow(invoiceColumns.Length, "Bạn chưa có hóa đơn") });
-        grid.SetBounds(12, 44, list.Width - 24, 372);
-        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        list.Controls.Add(grid);
+var grid = CreateGrid(invoiceColumns, new[] { EmptyRow(invoiceColumns.Length, "Bạn chưa có hóa đơn") });
+grid.SetBounds(12, 44, list.Width - 24, 372);
+
+// Cho phép kéo ngang/dọc, không ép cột bị cắt chữ.
+grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+grid.ScrollBars = ScrollBars.Both;
+grid.RowHeadersVisible = false;
+grid.AllowUserToResizeColumns = false;
+grid.AllowUserToResizeRows = false;
+grid.RowTemplate.Height = 34;
+grid.ColumnHeadersHeight = 38;
+grid.DefaultCellStyle.Font = ModernUi.Font(8f);
+grid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(8.1f, FontStyle.Bold);
+
+void FixResidentInvoiceGridColumns()
+{
+    if (grid.Columns.Count < 8)
+    {
+        return;
+    }
+
+    grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+    grid.Columns[0].Width = 135;  // Mã hóa đơn
+    grid.Columns[1].Width = 90;   // Kỳ
+    grid.Columns[2].Width = 115;  // Tổng tiền
+    grid.Columns[3].Width = 120;  // Đã thanh toán
+    grid.Columns[4].Width = 105;  // Còn lại
+    grid.Columns[5].Width = 120;  // Hạn thanh toán
+    grid.Columns[6].Width = 130;  // Trạng thái
+    grid.Columns[7].Width = 100;  // Hành động
+
+    for (int i = 0; i < grid.Columns.Count; i++)
+    {
+        grid.Columns[i].SortMode = DataGridViewColumnSortMode.NotSortable;
+        grid.Columns[i].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+    }
+
+    grid.Columns[0].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+    grid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+    grid.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+    grid.Columns[4].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+    grid.Columns[7].DefaultCellStyle.ForeColor = ModernUi.Blue;
+    grid.Columns[7].DefaultCellStyle.Font = ModernUi.Font(8f, FontStyle.Bold);
+}
+
+FixResidentInvoiceGridColumns();
+grid.DataBindingComplete += (_, _) => FixResidentInvoiceGridColumns();
+
+list.Controls.Add(grid);
 
         var invoicePager = AddPaginationControls(
             list,
@@ -1261,17 +1385,16 @@ public partial class FrmMainDashboard
                 invoiceColumns,
                 RowsOrEmpty(pageInvoices, invoiceColumns.Length, (invoice, _) =>
                 {
-                    decimal remaining = ResidentInvoiceRemaining(invoice);
                     return new object[]
                     {
-                        InvoiceCode(invoice),
-                        $"{invoice.Month:00}/{invoice.Year}",
-                        Money(invoice.TotalAmount),
-                        Money(invoice.PaidAmount),
-                        Money(remaining),
-                        DateText(invoice.DueDate),
-                        ViStatus(invoice.PaymentStatus),
-                        IsResidentInvoicePayable(invoice) ? "Thanh toán" : "Xem"
+                      InvoiceCode(invoice),
+                      $"{invoice.Month:00}/{invoice.Year}",
+                      Money(invoice.TotalAmount),
+                      Money(invoice.PaidAmount),
+                      Money(ResidentInvoiceRemaining(invoice)),
+                      DateText(invoice.DueDate),
+                      ViStatus(invoice.PaymentStatus),
+                      IsResidentInvoicePayable(invoice) ? "Thanh toán" : "Xem"
                     };
                 }, "Không có hóa đơn phù hợp"));
 
@@ -1441,7 +1564,15 @@ public partial class FrmMainDashboard
         string defaultMethod = preferredAccount != null && IsQrPaymentAccount(preferredAccount) ? "QR" : "BankTransfer";
         string defaultTransferContent = BuildResidentTransferContent(invoice, resident);
 
-        using var dialog = CreateAssetDialog("Thanh toán hóa đơn", 760, 626);
+        // Ưu tiên tài khoản QR để ảnh QR và thông tin chuyển khoản khớp dữ liệu.
+        if (preferredAccount == null && accounts.Count > 0)
+        {
+            preferredAccount = accounts.FirstOrDefault(IsQrPaymentAccount) ?? accounts.First();
+            defaultMethod = IsQrPaymentAccount(preferredAccount) ? "QR" : "BankTransfer";
+        }
+        using var dialog = CreateAssetDialog("Thanh toán hóa đơn", 820, 660);
+        dialog.AutoScroll = true;
+        dialog.AutoScrollMinSize = new Size(0, 620);
         int leftX = 18;
         int leftW = 344;
         int rightX = 386;
@@ -1513,7 +1644,8 @@ public partial class FrmMainDashboard
         {
             BackColor = Color.Transparent,
             Location = new Point(14, 42),
-            Size = new Size(transferPanel.Width - 28, transferPanel.Height - 56)
+            Size = new Size(transferPanel.Width - 28, transferPanel.Height - 56),
+            AutoScroll = true
         };
         transferPanel.Controls.Add(transferBody);
         dialog.Controls.Add(transferPanel);
@@ -1588,7 +1720,10 @@ public partial class FrmMainDashboard
             infoY += 42;
             AddTransferInfoLine(transferBody, "Số tiền chuyển", $"{amountInput.Text.Trim()} VNĐ", infoY, transferBody.Width);
             infoY += 42;
-            AddTransferInfoLine(transferBody, "Nội dung CK", Display(transactionInput.Text.Trim(), defaultTransferContent), infoY, transferBody.Width);
+            AddTransferInfoLine(transferBody, "Nội dung CK", Display(transactionInput.Text.Trim(), defaultTransferContent), infoY, transferBody.Width - SystemInformation.VerticalScrollBarWidth - 4);
+            infoY += 48;
+
+            transferBody.AutoScrollMinSize = new Size(0, infoY + 12);
         }
 
         void SelectAccountForMethod(string method)
@@ -1639,13 +1774,13 @@ public partial class FrmMainDashboard
         transactionInput.TextChanged += (_, _) => RenderTransferInfo();
 
         var hint = ModernUi.Label("Thanh toán sẽ ở trạng thái chờ xác nhận cho đến khi ban quản lý kiểm tra.", 8.6f, FontStyle.Regular, ModernUi.Muted);
-        hint.SetBounds(leftX, 494, dialog.ClientSize.Width - 36, 22);
+        hint.SetBounds(leftX, 548, dialog.ClientSize.Width - 36, 22);
         dialog.Controls.Add(hint);
 
         var cancel = ModernUi.OutlineButton("Hủy", 96, 34);
         var submit = ModernUi.Button("Gửi thanh toán", ModernUi.Green, 132, 34);
-        cancel.SetBounds(dialog.ClientSize.Width - 246, 536, 96, 34);
-        submit.SetBounds(dialog.ClientSize.Width - 142, 536, 132, 34);
+        cancel.SetBounds(dialog.ClientSize.Width - 246, 590, 96, 34);
+        submit.SetBounds(dialog.ClientSize.Width - 142, 590, 132, 34);
         dialog.Controls.Add(cancel);
         dialog.Controls.Add(submit);
 
