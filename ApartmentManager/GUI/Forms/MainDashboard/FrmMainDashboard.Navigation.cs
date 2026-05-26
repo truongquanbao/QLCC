@@ -293,18 +293,7 @@ public partial class FrmMainDashboard
 
             void ToggleNotificationDropdown()
             {
-                try
-                {
-                    ShowNotificationMenu(bell);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(this,
-                        $"Không thể tải danh sách thông báo.\nChi tiết: {ex.Message}",
-                        "Thông báo",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                }
+                Navigate("notifications");
             }
 
             void ToggleAccountDropdown()
@@ -389,6 +378,7 @@ public partial class FrmMainDashboard
         return page;
     }
 
+    
     private static string PageHeaderIcon(string title)
     {
         string value = title ?? string.Empty;

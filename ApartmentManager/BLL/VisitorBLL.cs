@@ -13,6 +13,8 @@ namespace ApartmentManager.BLL
         private const int MAX_NAME_LENGTH = 100;
         private const int MIN_PURPOSE_LENGTH = 5;
         private const int MAX_PURPOSE_LENGTH = 500;
+        private const int MAX_GUEST_COUNT = 7;
+        private const int MAX_STAY_DAYS = 5;
 
         /// <summary>
         /// Check-in a visitor
@@ -201,6 +203,14 @@ namespace ApartmentManager.BLL
                 if (!string.IsNullOrWhiteSpace(email) && !ValidationHelper.IsValidEmail(email))
                     return (false, "Invalid email format.", 0);
 
+                // Validate ID number: CMND 9 digits or CCCD 12 digits
+                string safeIdNumber = (idNumber ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(safeIdNumber))
+                    return (false, "Vui lòng nhập CCCD / giấy tờ của khách.", 0);
+
+                if (!safeIdNumber.All(char.IsDigit) || (safeIdNumber.Length != 9 && safeIdNumber.Length != 12))
+                    return (false, "CCCD / giấy tờ không hợp lệ. Vui lòng nhập 9 hoặc 12 chữ số.", 0);
+
                 // Validate visitor type
                 var validTypes = new[] { "Guest", "Delivery", "Service", "Family", "Other" };
                 if (!validTypes.ToList().Contains(visitorType))
@@ -208,14 +218,14 @@ namespace ApartmentManager.BLL
 
                 int visitorID = VisitorDAL.RegisterVisitor(
                     residentID,
-                    visitorName,
-                    phone ?? "",
-                    email ?? "",
-                    idNumber ?? "",
+                    visitorName?.Trim() ?? "",
+                    phone?.Trim() ?? "",
+                    email?.Trim() ?? "",
+                    safeIdNumber,
                     visitorType,
-                    purpose ?? "",
+                    purpose?.Trim() ?? "",
                     arrivalTime,
-                    note ?? "");
+                    note?.Trim() ?? "");
 
                 if (visitorID > 0)
                 {
@@ -229,6 +239,202 @@ namespace ApartmentManager.BLL
             {
                 Log.Error(ex, "Error registering visitor");
                 return (false, $"Error: {ex.Message}", 0);
+            }
+        }
+
+
+
+        public static (bool Success, string Message, int VisitorID) RegisterVisitor(
+    int residentID,
+    string visitorName,
+    string phone,
+    string email,
+    string idNumber,
+    string visitorType,
+    string purpose,
+    DateTime arrivalTime,
+    DateTime expectedDepartureTime,
+    int guestCount,
+    string note = "")
+        {
+            try
+            {
+                var resident = ResidentDAL.GetResidentByID(residentID);
+                if (resident == null)
+                    return (false, "Không tìm thấy hồ sơ cư dân.", 0);
+
+                if (string.IsNullOrWhiteSpace(visitorName))
+                    return (false, "Vui lòng nhập tên khách.", 0);
+
+                if (!ValidationHelper.IsValidLength(visitorName, MIN_NAME_LENGTH, MAX_NAME_LENGTH))
+                    return (false, $"Tên khách phải từ {MIN_NAME_LENGTH} đến {MAX_NAME_LENGTH} ký tự.", 0);
+
+                if (string.IsNullOrWhiteSpace(phone))
+                    return (false, "Vui lòng nhập số điện thoại khách.", 0);
+
+                if (!ValidationHelper.IsValidPhone(phone))
+                    return (false, "Số điện thoại không hợp lệ.", 0);
+
+                if (!string.IsNullOrWhiteSpace(email) && !ValidationHelper.IsValidEmail(email))
+                    return (false, "Email không hợp lệ.", 0);
+
+                string safeIdNumber = (idNumber ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(safeIdNumber))
+                    return (false, "Vui lòng nhập CCCD / giấy tờ của khách.", 0);
+
+                if (!safeIdNumber.All(char.IsDigit) || (safeIdNumber.Length != 9 && safeIdNumber.Length != 12))
+                    return (false, "CCCD / giấy tờ không hợp lệ. Vui lòng nhập 9 hoặc 12 chữ số.", 0);
+
+                var validTypes = new[] { "Guest", "Delivery", "Service", "Family", "Other" };
+                if (!validTypes.Contains(visitorType))
+                    return (false, "Loại khách không hợp lệ.", 0);
+
+                if (string.IsNullOrWhiteSpace(purpose))
+                    return (false, "Vui lòng nhập mục đích đến.", 0);
+
+                if (!ValidationHelper.IsValidLength(purpose, MIN_PURPOSE_LENGTH, MAX_PURPOSE_LENGTH))
+                    return (false, $"Mục đích phải từ {MIN_PURPOSE_LENGTH} đến {MAX_PURPOSE_LENGTH} ký tự.", 0);
+
+                if (arrivalTime < DateTime.Now.AddMinutes(-5))
+                    return (false, "Thời gian vào không được nhỏ hơn thời gian hiện tại.", 0);
+
+                if (expectedDepartureTime <= arrivalTime)
+                    return (false, "Thời gian ra dự kiến phải lớn hơn thời gian vào.", 0);
+
+                if (expectedDepartureTime > arrivalTime.AddDays(MAX_STAY_DAYS))
+                    return (false, $"Khách chỉ được đăng ký ở lại tối đa {MAX_STAY_DAYS} ngày.", 0);
+
+                if (guestCount < 1 || guestCount > MAX_GUEST_COUNT)
+                    return (false, $"Số lượng khách phải từ 1 đến {MAX_GUEST_COUNT} người.", 0);
+
+                int visitorID = VisitorDAL.RegisterVisitor(
+                    residentID,
+                    visitorName?.Trim() ?? "",
+                    phone?.Trim() ?? "",
+                    email?.Trim() ?? "",
+                    safeIdNumber,
+                    visitorType,
+                    purpose?.Trim() ?? "",
+                    arrivalTime,
+                    expectedDepartureTime,
+                    guestCount,
+                    note?.Trim() ?? "");
+
+                if (visitorID > 0)
+                {
+                    Log.Information($"Resident visitor registered: ID={visitorID}, Name={visitorName}, Count={guestCount}");
+                    return (true, "Đăng ký khách thành công.", visitorID);
+                }
+
+                return (false, "Không thể đăng ký khách.", 0);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error registering resident visitor");
+                return (false, $"Lỗi: {ex.Message}", 0);
+            }
+        }
+
+        public static (bool Success, string Message) UpdateResidentVisitor(
+    int visitorID,
+    int residentID,
+    string visitorName,
+    string phone,
+    string email,
+    string idNumber,
+    string visitorType,
+    string purpose,
+    DateTime arrivalTime,
+    DateTime expectedDepartureTime,
+    int guestCount,
+    string note = "")
+        {
+            try
+            {
+                if (visitorID <= 0)
+                    return (false, "Phiếu khách không hợp lệ.");
+
+                var visitor = VisitorDAL.GetVisitorByID(visitorID);
+                if (visitor == null)
+                    return (false, "Không tìm thấy phiếu khách.");
+
+                if (visitor.ResidentID != residentID)
+                    return (false, "Bạn không có quyền sửa phiếu khách này.");
+
+                string currentStatus = visitor.Status?.ToString() ?? "";
+                if (currentStatus != "Pending")
+                    return (false, "Chỉ có thể sửa phiếu khách đang chờ duyệt.");
+
+                var resident = ResidentDAL.GetResidentByID(residentID);
+                if (resident == null)
+                    return (false, "Không tìm thấy hồ sơ cư dân.");
+
+                if (string.IsNullOrWhiteSpace(visitorName))
+                    return (false, "Vui lòng nhập tên khách.");
+
+                if (!ValidationHelper.IsValidLength(visitorName, MIN_NAME_LENGTH, MAX_NAME_LENGTH))
+                    return (false, $"Tên khách phải từ {MIN_NAME_LENGTH} đến {MAX_NAME_LENGTH} ký tự.");
+
+                if (string.IsNullOrWhiteSpace(phone))
+                    return (false, "Vui lòng nhập số điện thoại khách.");
+
+                if (!ValidationHelper.IsValidPhone(phone))
+                    return (false, "Số điện thoại không hợp lệ.");
+
+                if (!string.IsNullOrWhiteSpace(email) && !ValidationHelper.IsValidEmail(email))
+                    return (false, "Email không hợp lệ.");
+
+                string safeIdNumber = (idNumber ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(safeIdNumber))
+                    return (false, "Vui lòng nhập CCCD / giấy tờ của khách.");
+
+                if (!safeIdNumber.All(char.IsDigit) || (safeIdNumber.Length != 9 && safeIdNumber.Length != 12))
+                    return (false, "CCCD / giấy tờ không hợp lệ. Vui lòng nhập 9 hoặc 12 chữ số.");
+
+                var validTypes = new[] { "Guest", "Delivery", "Service", "Family", "Other" };
+                if (!validTypes.Contains(visitorType))
+                    return (false, "Loại khách không hợp lệ.");
+
+                if (string.IsNullOrWhiteSpace(purpose))
+                    return (false, "Vui lòng nhập mục đích đến.");
+
+                if (!ValidationHelper.IsValidLength(purpose, MIN_PURPOSE_LENGTH, MAX_PURPOSE_LENGTH))
+                    return (false, $"Mục đích phải từ {MIN_PURPOSE_LENGTH} đến {MAX_PURPOSE_LENGTH} ký tự.");
+
+                if (arrivalTime < DateTime.Now.AddMinutes(-5))
+                    return (false, "Thời gian vào không được nhỏ hơn thời gian hiện tại.");
+
+                if (expectedDepartureTime <= arrivalTime)
+                    return (false, "Thời gian ra dự kiến phải lớn hơn thời gian vào.");
+
+                if (expectedDepartureTime > arrivalTime.AddDays(MAX_STAY_DAYS))
+                    return (false, $"Khách chỉ được đăng ký ở lại tối đa {MAX_STAY_DAYS} ngày.");
+
+                if (guestCount < 1 || guestCount > MAX_GUEST_COUNT)
+                    return (false, $"Số lượng khách phải từ 1 đến {MAX_GUEST_COUNT} người.");
+
+                bool updated = VisitorDAL.UpdateResidentVisitor(
+                    visitorID,
+                    residentID,
+                    visitorName.Trim(),
+                    phone.Trim(),
+                    email?.Trim() ?? "",
+                    safeIdNumber,
+                    visitorType,
+                    purpose.Trim(),
+                    arrivalTime,
+                    expectedDepartureTime,
+                    guestCount,
+                    note?.Trim() ?? "");
+
+                return updated
+                    ? (true, "Đã cập nhật phiếu đăng ký khách.")
+                    : (false, "Không thể cập nhật phiếu khách. Phiếu có thể đã được duyệt hoặc không còn ở trạng thái chờ duyệt.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error updating resident visitor");
+                return (false, $"Lỗi: {ex.Message}");
             }
         }
 

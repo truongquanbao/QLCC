@@ -189,12 +189,12 @@ public partial class FrmMainDashboard
             {
                 var visitor = filteredVisitors[i];
                 table.Rows.Add(
-                    selectedVisitor != null && visitor.VisitorID == selectedVisitor.VisitorID,
+                    false,
                     VisitorCode(visitor),
                     visitor.VisitorName,
-                    Display(visitor.Phone),
-                    Display(visitor.ApartmentCode),
-                    Display(visitor.ResidentName),
+                    visitor.Phone,
+                    visitor.ApartmentCode,
+                    visitor.ResidentName,
                     visitor.VisitorType,
                     DateTimeText(visitor.ArrivalTime),
                     DateTimeText(visitor.DepartureTime),
@@ -683,10 +683,12 @@ public partial class FrmMainDashboard
         var visitors = LoadVisitorRows(true);
         VisitorViewModel selectedVisitor = visitors.FirstOrDefault();
         bool suppressGridSelection = false;
+        bool residentEditMode = false;
+        int editingVisitorId = 0;
 
         int formW = Math.Max(440, (int)(w * 0.43));
         int listW = w - formW - 12;
-        var form = ModernUi.Section("Đăng ký khách", formW, 406);
+        var form = ModernUi.Section("Đăng ký khách", formW, 480);
         form.Location = new Point(18, y);
         page.Controls.Add(form);
 
@@ -697,18 +699,41 @@ public partial class FrmMainDashboard
         var email = AddVisitorInput(form, "Email", "", phone.Right + 18, 104, form.Width - phone.Right - 36);
         var idNumber = AddVisitorInput(form, "CCCD / giấy tờ", "", 18, 156, halfW);
         var arrival = AddVisitorInput(form, "Thời gian vào", DateTime.Now.AddHours(1).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture), idNumber.Right + 18, 156, form.Width - idNumber.Right - 36);
-        var purpose = AddVisitorInput(form, "Mục đích", "", 18, 208, form.Width - 36, true);
-        var note = AddVisitorInput(form, "Ghi chú", "", 18, 282, form.Width - 36);
+
+        var expectedDeparture = AddVisitorInput(form, "Thời gian ra dự kiến", DateTime.Now.AddHours(3).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture), 18, 208, halfW);
+
+        var guestCount = AddVisitorValueCombo(
+            form,
+            "Số lượng khách",
+            Enumerable.Range(1, 7).Select(i => (i.ToString(), i.ToString())),
+            "1",
+            expectedDeparture.Right + 18,
+            208,
+            form.Width - expectedDeparture.Right - 36);
+
+        var purpose = AddVisitorInput(form, "Mục đích", "", 18, 260, form.Width - 36, true);
+        var note = AddVisitorInput(form, "Ghi chú", "", 18, 334, form.Width - 36);
+
         var submit = ModernUi.Button("Gửi đăng ký", ModernUi.Blue, 136, 34);
-        submit.Location = new Point(18, 348);
+        submit.Location = new Point(18, 410);
         form.Controls.Add(submit);
 
-        var list = ModernUi.Section($"Khách đã đăng ký ({visitors.Count})", listW, 406);
+        var confirmEdit = ModernUi.Button("Xác nhận sửa", ModernUi.Orange, 150, 34);
+        confirmEdit.Location = new Point(submit.Right + 10, 410);
+        confirmEdit.Visible = false;
+        form.Controls.Add(confirmEdit);
+
+        var cancelEdit = ModernUi.OutlineButton("Hủy sửa", 110, 34);
+        cancelEdit.Location = new Point(confirmEdit.Right + 10, 410);
+        cancelEdit.Visible = false;
+        form.Controls.Add(cancelEdit);
+
+        var list = ModernUi.Section($"Khách đã đăng ký ({visitors.Count})", listW, 480);
         list.Location = new Point(form.Right + 12, y);
         var listTitle = list.Controls.OfType<Label>().FirstOrDefault();
         var grid = ModernUi.Grid();
         grid.Location = new Point(12, 44);
-        grid.Size = new Size(list.Width - 24, 318);
+        grid.Size = new Size(list.Width - 24, 392);
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         grid.ScrollBars = ScrollBars.Both;
         grid.RowTemplate.Height = 34;
@@ -716,8 +741,8 @@ public partial class FrmMainDashboard
         list.Controls.Add(grid);
         page.Controls.Add(list);
 
-        y += 424;
-        var detail = ModernUi.Section("Chi tiết lượt khách", w, 238);
+        y += 498;
+        var detail = ModernUi.Section("Chi tiết lượt khách", w, 360);
         detail.Location = new Point(18, y);
         var detailBody = new Panel
         {
@@ -738,13 +763,77 @@ public partial class FrmMainDashboard
             RenderResidentDetail();
         }
 
+        void SetResidentEditMode(bool editing)
+        {
+            residentEditMode = editing;
+            submit.Visible = !editing;
+            confirmEdit.Visible = editing;
+            cancelEdit.Visible = editing;
+        }
+
+        void ResetResidentVisitorForm()
+        {
+            editingVisitorId = 0;
+            SetResidentEditMode(false);
+
+            ComboBoxHelper.SelectValue(type, "Guest");
+            visitorName.Clear();
+            phone.Clear();
+            email.Clear();
+            idNumber.Clear();
+            purpose.Clear();
+            note.Clear();
+
+            arrival.Text = DateTime.Now.AddHours(1).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+            expectedDeparture.Text = DateTime.Now.AddHours(3).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+            ComboBoxHelper.SelectValue(guestCount, "1");
+        }
+
+        void LoadVisitorToEditForm(VisitorViewModel visitor)
+        {
+            if (visitor == null)
+            {
+                return;
+            }
+
+            if (visitor.StatusValue != "Pending")
+            {
+                MessageBox.Show(
+                    "Chỉ có thể sửa phiếu khách đang chờ duyệt.",
+                    "Sửa đăng ký khách",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            editingVisitorId = visitor.VisitorID;
+            SetResidentEditMode(true);
+
+            ComboBoxHelper.SelectValue(type, visitor.VisitorTypeValue);
+            visitorName.Text = visitor.VisitorName;
+            phone.Text = visitor.Phone;
+            email.Text = visitor.Email;
+            idNumber.Text = visitor.IDNumber;
+            purpose.Text = visitor.Purpose;
+            note.Text = visitor.Note;
+
+            arrival.Text = visitor.ArrivalTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+            expectedDeparture.Text = visitor.ExpectedDepartureTime.HasValue
+                ? visitor.ExpectedDepartureTime.Value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)
+                : DateTime.Now.AddHours(3).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+
+            ComboBoxHelper.SelectValue(guestCount, Math.Max(1, Math.Min(7, visitor.GuestCount)).ToString());
+        }
+
         void RefreshResidentGrid()
         {
             var table = new DataTable();
             table.Columns.Add("Mã phiếu");
             table.Columns.Add("Khách");
+            table.Columns.Add("Số khách");
             table.Columns.Add("Loại");
             table.Columns.Add("Giờ vào");
+            table.Columns.Add("Ra dự kiến");
             table.Columns.Add("Giờ ra");
             table.Columns.Add("Trạng thái");
 
@@ -753,8 +842,10 @@ public partial class FrmMainDashboard
                 table.Rows.Add(
                     VisitorCode(visitor),
                     visitor.VisitorName,
+                    visitor.GuestCount,
                     visitor.VisitorType,
                     DateTimeText(visitor.ArrivalTime),
+                    DateTimeText(visitor.ExpectedDepartureTime),
                     DateTimeText(visitor.DepartureTime),
                     visitor.Status);
             }
@@ -763,7 +854,7 @@ public partial class FrmMainDashboard
             grid.DataSource = table;
             if (grid.Columns.Count > 0)
             {
-                int[] widths = { 108, 154, 100, 132, 132, 120 };
+                int[] widths = { 108, 150, 76, 96, 124, 124, 116, 120 };
                 for (int i = 0; i < Math.Min(widths.Length, grid.Columns.Count); i++)
                 {
                     grid.Columns[i].Width = widths[i];
@@ -809,15 +900,44 @@ public partial class FrmMainDashboard
             int colW = Math.Max(160, (detailBody.Width - 54) / 3);
             AddVisitorInfo(detailBody, "Mã phiếu", VisitorCode(selectedVisitor), x, yInfo, colW);
             AddVisitorInfo(detailBody, "Tên khách", selectedVisitor.VisitorName, x + colW, yInfo, colW);
-            AddVisitorInfo(detailBody, "Loại khách", selectedVisitor.VisitorType, x + colW * 2, yInfo, colW);
-            AddVisitorInfo(detailBody, "Thời gian vào", DateTimeText(selectedVisitor.ArrivalTime), x, yInfo + 62, colW);
-            AddVisitorInfo(detailBody, "Thời gian ra", DateTimeText(selectedVisitor.DepartureTime), x + colW, yInfo + 62, colW);
-            AddVisitorInfo(detailBody, "Liên hệ", Display(selectedVisitor.Phone), x + colW * 2, yInfo + 62, colW);
+            AddVisitorInfo(detailBody, "Số lượng khách", selectedVisitor.GuestCount.ToString(), x + colW * 2, yInfo, colW);
+
+            AddVisitorInfo(detailBody, "Loại khách", selectedVisitor.VisitorType, x, yInfo + 62, colW);
+            AddVisitorInfo(detailBody, "Thời gian vào", DateTimeText(selectedVisitor.ArrivalTime), x + colW, yInfo + 62, colW);
+            AddVisitorInfo(detailBody, "Ra dự kiến", DateTimeText(selectedVisitor.ExpectedDepartureTime), x + colW * 2, yInfo + 62, colW);
+
+            AddVisitorInfo(detailBody, "Thời gian ra thực tế", DateTimeText(selectedVisitor.DepartureTime), x, yInfo + 124, colW);
+            AddVisitorInfo(detailBody, "Liên hệ", Display(selectedVisitor.Phone), x + colW, yInfo + 124, colW);
+            AddVisitorInfo(detailBody, "CCCD / giấy tờ", Display(selectedVisitor.IDNumber), x + colW * 2, yInfo + 124, colW);
 
             var purposeLabel = ModernUi.Label($"Mục đích: {Display(selectedVisitor.Purpose)}", 9.2f, FontStyle.Regular, ModernUi.Text);
-            purposeLabel.SetBounds(18, yInfo + 124, detailBody.Width - 36, 26);
+            purposeLabel.SetBounds(18, yInfo + 176, detailBody.Width - 36, 26);
             purposeLabel.AutoEllipsis = true;
             detailBody.Controls.Add(purposeLabel);
+
+            if (selectedVisitor.StatusValue == "Pending" && selectedVisitor.VisitorID > 0)
+            {
+                var editButton = ModernUi.Button("Sửa đăng ký", ModernUi.Orange, 132, 34);
+                editButton.Location = new Point(18, yInfo + 206);
+                detailBody.Controls.Add(editButton);
+
+                editButton.Click += (_, _) =>
+                {
+                    LoadVisitorToEditForm(selectedVisitor);
+                };
+            }
+            else
+            {
+                var hint = ModernUi.Label(
+                    "Chỉ có thể sửa phiếu khi trạng thái còn Chờ duyệt.",
+                    8.6f,
+                    FontStyle.Regular,
+                    ModernUi.Muted);
+
+                hint.SetBounds(18, yInfo + 210, detailBody.Width - 36, 24);
+                hint.AutoEllipsis = true;
+                detailBody.Controls.Add(hint);
+            }
         }
 
         submit.Click += (_, _) =>
@@ -825,11 +945,32 @@ public partial class FrmMainDashboard
             DateTime? parsedArrival = ParseVisitorDateTime(arrival.Text);
             if (!parsedArrival.HasValue)
             {
-                MessageBox.Show("Thời gian vào không hợp lệ. Vui lòng nhập dạng dd/MM/yyyy HH:mm.", "Đăng ký khách", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Thời gian vào không hợp lệ.\nVui lòng nhập đúng định dạng: dd/MM/yyyy HH:mm\nVí dụ: 26/05/2026 09:30",
+                    "Đăng ký khách",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
+            DateTime? parsedExpectedDeparture = ParseVisitorDateTime(expectedDeparture.Text);
+            if (!parsedExpectedDeparture.HasValue)
+            {
+                MessageBox.Show(
+                    "Thời gian ra dự kiến không hợp lệ.\nVui lòng nhập đúng định dạng: dd/MM/yyyy HH:mm\nVí dụ: 26/05/2026 18:00",
+                    "Đăng ký khách",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(ComboBoxHelper.GetSelectedValueString(guestCount), out int guestCountValue))
+            {
+                guestCountValue = 1;
+            }
+
             string safePurpose = string.IsNullOrWhiteSpace(purpose.Text) ? "Khách ra vào" : purpose.Text.Trim();
+
             var result = VisitorBLL.RegisterVisitor(
                 resident.ResidentID,
                 visitorName.Text.Trim(),
@@ -839,6 +980,8 @@ public partial class FrmMainDashboard
                 ComboBoxHelper.GetSelectedValueString(type),
                 safePurpose,
                 parsedArrival.Value,
+                parsedExpectedDeparture.Value,
+                guestCountValue,
                 note.Text.Trim());
 
             if (!result.Success)
@@ -848,14 +991,87 @@ public partial class FrmMainDashboard
             }
 
             MessageBox.Show("Đã gửi đăng ký khách. Ban quản lý sẽ duyệt trước khi khách vào tòa.", "Đăng ký khách", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            visitorName.Clear();
-            phone.Clear();
-            email.Clear();
-            idNumber.Clear();
-            purpose.Clear();
-            note.Clear();
-            arrival.Text = DateTime.Now.AddHours(1).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+            ResetResidentVisitorForm();
             ReloadResidentData(result.VisitorID);
+        };
+
+        confirmEdit.Click += (_, _) =>
+        {
+            if (editingVisitorId <= 0)
+            {
+                MessageBox.Show(
+                    "Vui lòng chọn phiếu khách cần sửa.",
+                    "Sửa đăng ký khách",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            DateTime? parsedArrival = ParseVisitorDateTime(arrival.Text);
+            if (!parsedArrival.HasValue)
+            {
+                MessageBox.Show(
+                    "Thời gian vào không hợp lệ.\nVui lòng nhập đúng định dạng: dd/MM/yyyy HH:mm\nVí dụ: 26/05/2026 09:30",
+                    "Sửa đăng ký khách",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            DateTime? parsedExpectedDeparture = ParseVisitorDateTime(expectedDeparture.Text);
+            if (!parsedExpectedDeparture.HasValue)
+            {
+                MessageBox.Show(
+                    "Thời gian ra dự kiến không hợp lệ.\nVui lòng nhập đúng định dạng: dd/MM/yyyy HH:mm\nVí dụ: 26/05/2026 18:00",
+                    "Sửa đăng ký khách",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(ComboBoxHelper.GetSelectedValueString(guestCount), out int guestCountValue))
+            {
+                guestCountValue = 1;
+            }
+
+            string safePurpose = string.IsNullOrWhiteSpace(purpose.Text)
+                ? "Khách ra vào"
+                : purpose.Text.Trim();
+
+            var result = VisitorBLL.UpdateResidentVisitor(
+                editingVisitorId,
+                resident.ResidentID,
+                visitorName.Text.Trim(),
+                phone.Text.Trim(),
+                email.Text.Trim(),
+                idNumber.Text.Trim(),
+                ComboBoxHelper.GetSelectedValueString(type),
+                safePurpose,
+                parsedArrival.Value,
+                parsedExpectedDeparture.Value,
+                guestCountValue,
+                note.Text.Trim());
+
+            if (!result.Success)
+            {
+                MessageBox.Show(result.Message, "Sửa đăng ký khách", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            MessageBox.Show(
+                "Đã cập nhật phiếu đăng ký khách. Ban quản lý sẽ xem thông tin mới.",
+                "Sửa đăng ký khách",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            int updatedId = editingVisitorId;
+            ResetResidentVisitorForm();
+            ReloadResidentData(updatedId);
+        };
+
+        cancelEdit.Click += (_, _) =>
+        {
+            ResetResidentVisitorForm();
         };
 
         grid.SelectionChanged += (_, _) =>
@@ -876,7 +1092,7 @@ public partial class FrmMainDashboard
         RefreshResidentGrid();
         RenderResidentDetail();
         page.AutoScroll = true;
-        page.AutoScrollMinSize = new Size(0, y + 280);
+        page.AutoScrollMinSize = new Size(0, y + 420);
     }
 
     private List<VisitorViewModel> LoadVisitorRows(bool currentResidentOnly)
@@ -916,6 +1132,10 @@ public partial class FrmMainDashboard
         DateTime createdAt = VisitorDynamicDate(row, "CreatedAt") ?? DateTime.Today;
         DateTime arrivalTime = VisitorDynamicDate(row, "ArrivalTime", "CheckInTime") ?? createdAt;
         DateTime? departureTime = VisitorDynamicDate(row, "DepartureTime", "CheckOutTime");
+        DateTime? expectedDepartureTime = VisitorDynamicDate(row, "ExpectedDepartureTime");
+        int guestCount = VisitorDynamicInt(row, "GuestCount", 1);
+        guestCount = Math.Max(1, Math.Min(7, guestCount));
+
         if (departureTime.HasValue && departureTime.Value <= DateTime.MinValue.AddDays(1))
         {
             departureTime = null;
@@ -947,7 +1167,9 @@ public partial class FrmMainDashboard
             VisitorType = VisitorTypeText(visitorTypeValue),
             Purpose = VisitorDynamicString(row, "Purpose"),
             ArrivalTime = arrivalTime,
+            ExpectedDepartureTime = expectedDepartureTime,
             DepartureTime = departureTime,
+            GuestCount = guestCount,
             StatusValue = statusValue,
             Status = VisitorStatusText(statusValue, departureTime),
             ApprovedBy = VisitorDynamicString(row, "ApprovedBy"),
@@ -975,6 +1197,8 @@ public partial class FrmMainDashboard
             VisitorType = "Khách",
             Purpose = "Khách ra vào",
             ArrivalTime = DateTime.Now,
+            ExpectedDepartureTime = DateTime.Now.AddHours(2),
+            GuestCount = 1,
             StatusValue = "Pending",
             Status = "Chờ duyệt",
             Note = string.Empty,
@@ -1005,6 +1229,7 @@ public partial class FrmMainDashboard
         parent.Controls.Add(lbl);
 
         var combo = ModernUi.ComboBox(Array.Empty<string>(), width);
+        combo.DropDownStyle = ComboBoxStyle.DropDownList;
         combo.SetBounds(x, y + 18, width, 28);
         foreach (var option in options)
         {
@@ -1190,19 +1415,17 @@ public partial class FrmMainDashboard
         string[] formats =
         {
             "dd/MM/yyyy HH:mm",
-            "dd/MM/yyyy H:mm",
-            "dd/MM/yyyy",
-            "yyyy-MM-dd HH:mm",
-            "yyyy-MM-ddTHH:mm",
-            "MM/dd/yyyy HH:mm"
+            "dd/MM/yyyy H:mm"
         };
 
-        if (DateTime.TryParseExact(value.Trim(), formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime exact))
-        {
-            return exact;
-        }
-
-        return DateTime.TryParse(value, out DateTime parsed) ? parsed : null;
+        return DateTime.TryParseExact(
+            value.Trim(),
+            formats,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateTime exact)
+            ? exact
+            : null;
     }
 
     private static string VisitorCode(VisitorViewModel visitor)
@@ -1548,7 +1771,9 @@ public partial class FrmMainDashboard
         public string VisitorType { get; set; } = "Khách";
         public string Purpose { get; set; } = string.Empty;
         public DateTime ArrivalTime { get; set; }
+        public DateTime? ExpectedDepartureTime { get; set; }
         public DateTime? DepartureTime { get; set; }
+        public int GuestCount { get; set; } = 1;
         public string StatusValue { get; set; } = "Pending";
         public string Status { get; set; } = "Chờ duyệt";
         public string ApprovedBy { get; set; } = string.Empty;

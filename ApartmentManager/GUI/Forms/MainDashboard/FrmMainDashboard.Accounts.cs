@@ -1481,6 +1481,719 @@ public partial class FrmMainDashboard
 
     private void RenderNotificationsPage()
     {
-        ShowNotificationListPopup();
+        var page = BeginPage("Thông báo của tôi", "Cư dân / Thông báo");
+        page.AutoScroll = true;
+
+        int w = PageWorkWidth();
+        int x = 18;
+        int y = 86;
+        int gap = 14;
+
+        int currentUserId = _session?.UserID ?? 0;
+
+        List<NotificationDTO> allNotifications = currentUserId > 0
+            ? NotificationDAL.GetUserNotifications(currentUserId)
+            : new List<NotificationDTO>();
+
+        allNotifications = allNotifications
+            .OrderByDescending(n => n.CreatedAt)
+            .ToList();
+
+        List<NotificationDTO> filteredNotifications = new List<NotificationDTO>();
+        NotificationDTO selectedNotification = null;
+        string activeFilter = "All";
+
+        List<NotificationDTO> demoNotifications = CreateDemoNotifications();
+
+        List<NotificationDTO> CreateDemoNotifications()
+        {
+            DateTime now = DateTime.Now;
+
+            return new List<NotificationDTO>
+    {
+        new NotificationDTO
+        {
+            NotificationID = -1,
+            UserID = currentUserId,
+            Title = "Hóa đơn tháng 05/2026 đã được phát hành",
+            Message = "Hóa đơn tháng 05/2026 của căn A-0101 đã được phát hành. Vui lòng kiểm tra và thanh toán đúng hạn.",
+            NotificationType = "Payment",
+            Priority = "High",
+            IsRead = false,
+            CreatedAt = now.AddMinutes(-15)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -2,
+            UserID = currentUserId,
+            Title = "Nhắc hạn thanh toán hóa đơn",
+            Message = "Hóa đơn tháng 05/2026 còn 6 ngày đến hạn thanh toán. Vui lòng thanh toán để tránh bị quá hạn.",
+            NotificationType = "Payment",
+            Priority = "Critical",
+            IsRead = false,
+            CreatedAt = now.AddHours(-2)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -3,
+            UserID = currentUserId,
+            Title = "Phản ánh của bạn đã được tiếp nhận",
+            Message = "Ban quản lý đã tiếp nhận phản ánh về đèn hành lang không sáng. Bộ phận kỹ thuật sẽ kiểm tra trong thời gian sớm nhất.",
+            NotificationType = "Complaint",
+            Priority = "Medium",
+            IsRead = false,
+            CreatedAt = now.AddHours(-5)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -4,
+            UserID = currentUserId,
+            Title = "Phản ánh đã chuyển sang trạng thái đang xử lý",
+            Message = "Phản ánh PA260515-001 của bạn đang được xử lý bởi bộ phận kỹ thuật.",
+            NotificationType = "Complaint",
+            Priority = "Medium",
+            IsRead = true,
+            CreatedAt = now.AddDays(-1)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -5,
+            UserID = currentUserId,
+            Title = "Bảo trì thang máy tòa A",
+            Message = "Thang máy tòa A sẽ được bảo trì từ 09:00 đến 11:00 ngày 28/05/2026. Cư dân vui lòng sử dụng thang máy còn lại.",
+            NotificationType = "Maintenance",
+            Priority = "High",
+            IsRead = false,
+            CreatedAt = now.AddDays(-2)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -6,
+            UserID = currentUserId,
+            Title = "Thông báo cắt nước tạm thời",
+            Message = "Khu căn hộ A-0101 có thể bị gián đoạn nước trong khoảng 14:00 - 16:00 để bảo trì đường ống.",
+            NotificationType = "Warning",
+            Priority = "Critical",
+            IsRead = false,
+            CreatedAt = now.AddDays(-3)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -7,
+            UserID = currentUserId,
+            Title = "Cập nhật tiện ích sân thể thao",
+            Message = "Sân thể thao mở cửa từ 06:00 đến 22:00 hằng ngày. Cư dân có thể đăng ký sử dụng tại quầy lễ tân.",
+            NotificationType = "Announcement",
+            Priority = "Low",
+            IsRead = true,
+            CreatedAt = now.AddDays(-4)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -8,
+            UserID = currentUserId,
+            Title = "Thông báo phí gửi xe tháng 05/2026",
+            Message = "Phí gửi xe tháng 05/2026 đã được cập nhật. Vui lòng kiểm tra trong mục Hóa đơn của tôi.",
+            NotificationType = "Payment",
+            Priority = "Medium",
+            IsRead = false,
+            CreatedAt = now.AddDays(-5)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -9,
+            UserID = currentUserId,
+            Title = "Thông báo vệ sinh khu vực chung",
+            Message = "Ban quản lý sẽ tổng vệ sinh khu vực hành lang và thang bộ vào cuối tuần này.",
+            NotificationType = "Announcement",
+            Priority = "Low",
+            IsRead = true,
+            CreatedAt = now.AddDays(-6)
+        },
+        new NotificationDTO
+        {
+            NotificationID = -10,
+            UserID = currentUserId,
+            Title = "Cảnh báo an toàn phòng cháy chữa cháy",
+            Message = "Cư dân vui lòng không để vật dụng cá nhân tại hành lang, cầu thang thoát hiểm và khu vực kỹ thuật.",
+            NotificationType = "Warning",
+            Priority = "Critical",
+            IsRead = false,
+            CreatedAt = now.AddDays(-7)
+        }
+    };
+        }
+
+        List<NotificationDTO> BuildDisplayNotifications()
+        {
+            return allNotifications
+                .Concat(demoNotifications)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToList();
+        }
+
+        int statW = Math.Max(200, (w - gap * 3) / 4);
+        int statH = 104;
+
+        var totalCard = ModernUi.Section("TỔNG THÔNG BÁO", statW, statH);
+        totalCard.Location = new Point(x, y);
+        page.Controls.Add(totalCard);
+
+        var unreadCard = ModernUi.Section("CHƯA ĐỌC", statW, statH);
+        unreadCard.Location = new Point(totalCard.Right + gap, y);
+        page.Controls.Add(unreadCard);
+
+        var readCard = ModernUi.Section("ĐÃ ĐỌC", statW, statH);
+        readCard.Location = new Point(unreadCard.Right + gap, y);
+        page.Controls.Add(readCard);
+
+        var importantCard = ModernUi.Section("QUAN TRỌNG", statW, statH);
+        importantCard.Location = new Point(readCard.Right + gap, y);
+        page.Controls.Add(importantCard);
+
+        int listW = Math.Max(620, (int)(w * 0.60));
+        int detailW = Math.Max(360, w - listW - gap);
+
+        var listPanel = ModernUi.Section("DANH SÁCH THÔNG BÁO", listW, 520);
+        listPanel.Location = new Point(x, totalCard.Bottom + 16);
+        page.Controls.Add(listPanel);
+
+        var detailPanel = ModernUi.Section("CHI TIẾT THÔNG BÁO", detailW, 520);
+        detailPanel.Location = new Point(listPanel.Right + gap, listPanel.Top);
+        page.Controls.Add(detailPanel);
+
+        Button filterAll = ModernUi.Button("Tất cả", ModernUi.Blue, 86, 32);
+        Button filterUnread = ModernUi.OutlineButton("Chưa đọc", 108, 32);
+        Button filterRead = ModernUi.OutlineButton("Đã đọc", 92, 32);
+        Button filterPayment = ModernUi.OutlineButton("Hóa đơn", 98, 32);
+        Button filterComplaint = ModernUi.OutlineButton("Phản ánh", 104, 32);
+        Button filterSystem = ModernUi.OutlineButton("Hệ thống", 104, 32);
+
+        Button[] filterButtons = { filterAll, filterUnread, filterRead, filterPayment, filterComplaint, filterSystem };
+        foreach (Button button in filterButtons)
+        {
+            button.TextAlign = ContentAlignment.MiddleCenter;
+            button.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+        }
+
+        filterAll.Location = new Point(16, 42);
+        filterUnread.Location = new Point(filterAll.Right + 8, 42);
+        filterRead.Location = new Point(filterUnread.Right + 8, 42);
+        filterPayment.Location = new Point(filterRead.Right + 8, 42);
+        filterComplaint.Location = new Point(filterPayment.Right + 8, 42);
+        filterSystem.Location = new Point(filterComplaint.Right + 8, 42);
+
+        listPanel.Controls.Add(filterAll);
+        listPanel.Controls.Add(filterUnread);
+        listPanel.Controls.Add(filterRead);
+        listPanel.Controls.Add(filterPayment);
+        listPanel.Controls.Add(filterComplaint);
+        listPanel.Controls.Add(filterSystem);
+
+        string[] gridColumns = { "Mã", "Tiêu đề", "Loại", "Ngày gửi", "Trạng thái" };
+        var grid = CreateGrid(gridColumns, new[] { EmptyRow(gridColumns.Length, "Chưa có thông báo") });
+        grid.SetBounds(16, 88, listPanel.Width - 32, 330);
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        grid.ScrollBars = ScrollBars.Both;
+        grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        grid.MultiSelect = false;
+        listPanel.Controls.Add(grid);
+
+        Button markAllRead = ModernUi.Button("Đánh dấu toàn bộ đã đọc", ModernUi.Blue, 214, 36);
+        markAllRead.Location = new Point(16, listPanel.Height - 54);
+        markAllRead.TextAlign = ContentAlignment.MiddleCenter;
+        markAllRead.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+        listPanel.Controls.Add(markAllRead);
+
+        Button refresh = ModernUi.OutlineButton("Làm mới", 104, 36);
+        refresh.Location = new Point(markAllRead.Right + 10, listPanel.Height - 54);
+        refresh.TextAlign = ContentAlignment.MiddleCenter;
+        refresh.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+        listPanel.Controls.Add(refresh);
+
+        Button deleteSelected = ModernUi.OutlineButton("Xóa thông báo", 138, 36);
+        deleteSelected.Location = new Point(refresh.Right + 10, listPanel.Height - 54);
+        deleteSelected.TextAlign = ContentAlignment.MiddleCenter;
+        deleteSelected.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+        listPanel.Controls.Add(deleteSelected);
+
+        string GetTitle(NotificationDTO n)
+        {
+            return Display(n.Title, Display(n.Subject, "Thông báo"));
+        }
+
+        string GetBody(NotificationDTO n)
+        {
+            return Display(n.Message, Display(n.Body, "Không có nội dung chi tiết."));
+        }
+
+        string GetTypeValue(NotificationDTO n)
+        {
+            return Display(n.NotificationType, Display(n.Type, "Other"));
+        }
+
+        string GetTypeText(NotificationDTO n)
+        {
+            string type = GetTypeValue(n);
+
+            if (type.Equals("Payment", StringComparison.OrdinalIgnoreCase))
+                return "Hóa đơn";
+
+            if (type.Equals("Complaint", StringComparison.OrdinalIgnoreCase))
+                return "Phản ánh";
+
+            if (type.Equals("Maintenance", StringComparison.OrdinalIgnoreCase))
+                return "Bảo trì";
+
+            if (type.Equals("Warning", StringComparison.OrdinalIgnoreCase))
+                return "Cảnh báo";
+
+            if (type.Equals("Announcement", StringComparison.OrdinalIgnoreCase))
+                return "Thông báo";
+
+            return "Hệ thống";
+        }
+
+        Color GetTypeColor(NotificationDTO n)
+        {
+            string type = GetTypeValue(n);
+
+            if (type.Equals("Payment", StringComparison.OrdinalIgnoreCase))
+                return ModernUi.Orange;
+
+            if (type.Equals("Complaint", StringComparison.OrdinalIgnoreCase))
+                return ModernUi.Teal;
+
+            if (type.Equals("Maintenance", StringComparison.OrdinalIgnoreCase))
+                return ModernUi.Blue;
+
+            if (type.Equals("Warning", StringComparison.OrdinalIgnoreCase))
+                return ModernUi.Red;
+
+            if (type.Equals("Announcement", StringComparison.OrdinalIgnoreCase))
+                return ModernUi.Green;
+
+            return Color.FromArgb(100, 116, 139);
+        }
+
+        bool IsImportant(NotificationDTO n)
+        {
+            string priority = Display(n.Priority, "");
+            string type = GetTypeValue(n);
+
+            return priority.Equals("High", StringComparison.OrdinalIgnoreCase)
+                || priority.Equals("Critical", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("Warning", StringComparison.OrdinalIgnoreCase);
+        }
+
+        bool MatchFilter(NotificationDTO n)
+        {
+            string type = GetTypeValue(n);
+            string title = GetTitle(n);
+            string body = GetBody(n);
+
+            if (activeFilter == "Unread")
+                return !n.IsRead;
+
+            if (activeFilter == "Read")
+                return n.IsRead;
+
+            if (activeFilter == "Payment")
+                return type.Equals("Payment", StringComparison.OrdinalIgnoreCase)
+                    || title.Contains("hóa đơn", StringComparison.OrdinalIgnoreCase)
+                    || title.Contains("thanh toán", StringComparison.OrdinalIgnoreCase)
+                    || body.Contains("hóa đơn", StringComparison.OrdinalIgnoreCase)
+                    || body.Contains("thanh toán", StringComparison.OrdinalIgnoreCase);
+
+            if (activeFilter == "Complaint")
+                return type.Equals("Complaint", StringComparison.OrdinalIgnoreCase)
+                    || title.Contains("phản ánh", StringComparison.OrdinalIgnoreCase)
+                    || body.Contains("phản ánh", StringComparison.OrdinalIgnoreCase);
+
+            if (activeFilter == "System")
+                return type.Equals("Other", StringComparison.OrdinalIgnoreCase)
+                    || type.Equals("Announcement", StringComparison.OrdinalIgnoreCase)
+                    || type.Equals("Maintenance", StringComparison.OrdinalIgnoreCase)
+                    || type.Equals("Warning", StringComparison.OrdinalIgnoreCase);
+
+            return true;
+        }
+
+        void AddStatValue(Control card, string value, string subtitle, Color color)
+        {
+            var valueLabel = ModernUi.Label(value, 20f, FontStyle.Bold, color);
+            valueLabel.SetBounds(22, 42, card.Width - 44, 32);
+            valueLabel.TextAlign = ContentAlignment.MiddleCenter;
+            card.Controls.Add(valueLabel);
+
+            var subtitleLabel = ModernUi.Label(subtitle, 8.8f, FontStyle.Regular, ModernUi.Muted);
+            subtitleLabel.SetBounds(18, 74, card.Width - 36, 22);
+            subtitleLabel.TextAlign = ContentAlignment.MiddleCenter;
+            subtitleLabel.AutoEllipsis = true;
+            card.Controls.Add(subtitleLabel);
+        }
+
+        void RenderStats()
+        {
+            totalCard.Controls.Clear();
+            unreadCard.Controls.Clear();
+            readCard.Controls.Clear();
+            importantCard.Controls.Clear();
+
+            var totalTitle = ModernUi.Label("TỔNG THÔNG BÁO", 10f, FontStyle.Bold, ModernUi.Blue);
+            totalTitle.SetBounds(18, 12, totalCard.Width - 36, 24);
+            totalCard.Controls.Add(totalTitle);
+
+            var unreadTitle = ModernUi.Label("CHƯA ĐỌC", 10f, FontStyle.Bold, ModernUi.Orange);
+            unreadTitle.SetBounds(18, 12, unreadCard.Width - 36, 24);
+            unreadCard.Controls.Add(unreadTitle);
+
+            var readTitle = ModernUi.Label("ĐÃ ĐỌC", 10f, FontStyle.Bold, ModernUi.Green);
+            readTitle.SetBounds(18, 12, readCard.Width - 36, 24);
+            readCard.Controls.Add(readTitle);
+
+            var importantTitle = ModernUi.Label("QUAN TRỌNG", 10f, FontStyle.Bold, ModernUi.Red);
+            importantTitle.SetBounds(18, 12, importantCard.Width - 36, 24);
+            importantCard.Controls.Add(importantTitle);
+
+            AddStatValue(totalCard, allNotifications.Count.ToString("N0"), "Tất cả thông báo", ModernUi.Blue);
+            AddStatValue(unreadCard, allNotifications.Count(n => !n.IsRead).ToString("N0"), "Cần xem", ModernUi.Orange);
+            AddStatValue(readCard, allNotifications.Count(n => n.IsRead).ToString("N0"), "Đã xử lý", ModernUi.Green);
+            AddStatValue(importantCard, allNotifications.Count(IsImportant).ToString("N0"), "Ưu tiên / cảnh báo", ModernUi.Red);
+        }
+
+        void SetFilterButtons()
+        {
+            void Apply(Button button, string key)
+            {
+                bool active = activeFilter == key;
+                button.BackColor = active ? ModernUi.Blue : Color.White;
+                button.ForeColor = active ? Color.White : ModernUi.Blue;
+                button.FlatAppearance.BorderColor = active ? ModernUi.Blue : Color.FromArgb(203, 213, 225);
+            }
+
+            Apply(filterAll, "All");
+            Apply(filterUnread, "Unread");
+            Apply(filterRead, "Read");
+            Apply(filterPayment, "Payment");
+            Apply(filterComplaint, "Complaint");
+            Apply(filterSystem, "System");
+        }
+
+        void RenderDetail(NotificationDTO notification)
+        {
+            detailPanel.Controls.Clear();
+
+            var header = ModernUi.Label("CHI TIẾT THÔNG BÁO", 10f, FontStyle.Bold, ModernUi.Blue);
+            header.SetBounds(18, 16, detailPanel.Width - 36, 24);
+            detailPanel.Controls.Add(header);
+
+            if (notification == null)
+            {
+                var empty = ModernUi.Label("Chọn một thông báo để xem nội dung đầy đủ.", 9.2f, FontStyle.Regular, ModernUi.Muted);
+                empty.SetBounds(18, 90, detailPanel.Width - 36, 32);
+                empty.TextAlign = ContentAlignment.MiddleCenter;
+                detailPanel.Controls.Add(empty);
+                return;
+            }
+
+            var typeBadge = ModernUi.Badge(GetTypeText(notification), GetTypeColor(notification));
+            typeBadge.Location = new Point(18, 52);
+            typeBadge.Size = new Size(96, 26);
+            detailPanel.Controls.Add(typeBadge);
+
+            var readBadge = ModernUi.Badge(notification.IsRead ? "Đã đọc" : "Chưa đọc", notification.IsRead ? ModernUi.Green : ModernUi.Orange);
+            readBadge.Location = new Point(typeBadge.Right + 8, 52);
+            readBadge.Size = new Size(96, 26);
+            detailPanel.Controls.Add(readBadge);
+
+            var title = ModernUi.Label(GetTitle(notification), 11.2f, FontStyle.Bold, ModernUi.Navy);
+            title.SetBounds(18, 92, detailPanel.Width - 36, 52);
+            title.AutoEllipsis = true;
+            detailPanel.Controls.Add(title);
+
+            var date = ModernUi.Label($"Ngày gửi: {DateTimeText(notification.CreatedAt)}", 8.8f, FontStyle.Regular, ModernUi.Muted);
+            date.SetBounds(18, 148, detailPanel.Width - 36, 22);
+            detailPanel.Controls.Add(date);
+
+            var bodyTitle = ModernUi.Label("Nội dung đầy đủ", 8.8f, FontStyle.Bold, ModernUi.Text);
+            bodyTitle.SetBounds(18, 184, detailPanel.Width - 36, 20);
+            detailPanel.Controls.Add(bodyTitle);
+
+            var body = new TextBox
+            {
+                Text = GetBody(notification),
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Font = ModernUi.Font(9f),
+                Location = new Point(18, 208),
+                Size = new Size(detailPanel.Width - 36, 150)
+            };
+            detailPanel.Controls.Add(body);
+
+            Button markRead = notification.IsRead
+                ? ModernUi.OutlineButton("Đã đọc", 112, 36)
+                : ModernUi.Button("Đánh dấu đã đọc", ModernUi.Blue, 154, 36);
+
+            markRead.Location = new Point(18, 380);
+            markRead.Enabled = !notification.IsRead;
+            markRead.TextAlign = ContentAlignment.MiddleCenter;
+            markRead.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+
+            if (notification.IsRead)
+            {
+                markRead.ForeColor = ModernUi.Green;
+            }
+
+            detailPanel.Controls.Add(markRead);
+
+            var deleteCurrent = ModernUi.OutlineButton("Xóa thông báo", 132, 36);
+            deleteCurrent.Location = new Point(markRead.Right + 10, 380);
+            deleteCurrent.TextAlign = ContentAlignment.MiddleCenter;
+            deleteCurrent.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+            detailPanel.Controls.Add(deleteCurrent);
+
+            var clear = ModernUi.OutlineButton("Bỏ chọn", 92, 36);
+            clear.Location = new Point(deleteCurrent.Right + 10, 380);
+            clear.TextAlign = ContentAlignment.MiddleCenter;
+            clear.Font = ModernUi.Font(8.8f, FontStyle.Bold);
+            detailPanel.Controls.Add(clear);
+
+            markRead.Click += (_, _) =>
+            {
+                if (notification.NotificationID > 0)
+                {
+                    NotificationDAL.MarkAsRead(notification.NotificationID);
+                }
+                else
+                {
+                    var demo = demoNotifications.FirstOrDefault(n => n.NotificationID == notification.NotificationID);
+                    if (demo != null)
+                    {
+                        demo.IsRead = true;
+                    }
+                }
+
+                MessageBox.Show(
+                    this,
+                    "Đã đánh dấu thông báo này là đã đọc.",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                ReloadNotifications(notification.NotificationID);
+            };
+
+            deleteCurrent.Click += (_, _) =>
+            {
+                DialogResult confirm = MessageBox.Show(
+                    this,
+                    "Bạn có chắc muốn xóa thông báo này không?",
+                    "Xóa thông báo",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (confirm != DialogResult.Yes)
+                {
+                    return;
+                }
+
+                if (notification.NotificationID > 0)
+                {
+                    NotificationDAL.DeleteNotification(notification.NotificationID);
+                }
+                else
+                {
+                    demoNotifications.RemoveAll(n => n.NotificationID == notification.NotificationID);
+                }
+
+                selectedNotification = null;
+
+                MessageBox.Show(
+                    this,
+                    "Đã xóa thông báo.",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                ReloadNotifications();
+            };
+
+            clear.Click += (_, _) =>
+            {
+                selectedNotification = null;
+                grid.ClearSelection();
+                RenderDetail(null);
+            };
+        }
+
+        void ReloadNotifications(int? selectedId = null)
+        {
+            allNotifications = currentUserId > 0
+                ? NotificationDAL.GetUserNotifications(currentUserId)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .ToList()
+                : new List<NotificationDTO>();
+
+            allNotifications = BuildDisplayNotifications();
+
+            filteredNotifications = allNotifications
+                .Where(MatchFilter)
+                .ToList();
+
+            SetGridData(grid, gridColumns, RowsOrEmpty(filteredNotifications, gridColumns.Length, (n, _) => new object[]
+            {
+            $"TB{n.NotificationID:00000}",
+            GetTitle(n),
+            GetTypeText(n),
+            DateTimeText(n.CreatedAt),
+            n.IsRead ? "Đã đọc" : "Chưa đọc"
+            }, "Không có thông báo phù hợp"));
+
+            int[] widths = { 90, 280, 110, 150, 100 };
+            for (int i = 0; i < grid.Columns.Count && i < widths.Length; i++)
+            {
+                grid.Columns[i].Width = widths[i];
+                grid.Columns[i].MinimumWidth = widths[i];
+                grid.Columns[i].SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+
+            if (grid.Columns.Count > 1)
+            {
+                grid.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            }
+
+            RenderStats();
+            SetFilterButtons();
+
+            selectedNotification = selectedId.HasValue
+                ? filteredNotifications.FirstOrDefault(n => n.NotificationID == selectedId.Value)
+                : filteredNotifications.FirstOrDefault();
+
+            RenderDetail(selectedNotification);
+
+            grid.ClearSelection();
+
+            if (selectedNotification != null)
+            {
+                int rowIndex = filteredNotifications.FindIndex(n => n.NotificationID == selectedNotification.NotificationID);
+
+                if (rowIndex >= 0 && rowIndex < grid.Rows.Count)
+                {
+                    grid.Rows[rowIndex].Selected = true;
+                    grid.CurrentCell = grid.Rows[rowIndex].Cells[0];
+                }
+            }
+        }
+
+        void ChangeFilter(string filter)
+        {
+            activeFilter = filter;
+            ReloadNotifications();
+        }
+
+        filterAll.Click += (_, _) => ChangeFilter("All");
+        filterUnread.Click += (_, _) => ChangeFilter("Unread");
+        filterRead.Click += (_, _) => ChangeFilter("Read");
+        filterPayment.Click += (_, _) => ChangeFilter("Payment");
+        filterComplaint.Click += (_, _) => ChangeFilter("Complaint");
+        filterSystem.Click += (_, _) => ChangeFilter("System");
+
+        grid.CellClick += (_, e) =>
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= filteredNotifications.Count)
+            {
+                return;
+            }
+
+            selectedNotification = filteredNotifications[e.RowIndex];
+            RenderDetail(selectedNotification);
+        };
+
+        markAllRead.Click += (_, _) =>
+        {
+            if (currentUserId <= 0)
+            {
+                return;
+            }
+
+            DialogResult confirm = MessageBox.Show(
+                this,
+                "Bạn có muốn đánh dấu toàn bộ thông báo là đã đọc không?",
+                "Đánh dấu toàn bộ đã đọc",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes)
+            {
+                return;
+            }
+
+            NotificationDAL.MarkAllAsRead(currentUserId);
+
+            foreach (var demo in demoNotifications)
+            {
+                demo.IsRead = true;
+            }
+
+            MessageBox.Show(
+                this,
+                "Đã đánh dấu toàn bộ thông báo là đã đọc.",
+                "Thông báo",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            ReloadNotifications(selectedNotification?.NotificationID);
+        };
+
+        refresh.Click += (_, _) =>
+        {
+            ReloadNotifications(selectedNotification?.NotificationID);
+        };
+
+        deleteSelected.Click += (_, _) =>
+        {
+            if (selectedNotification == null)
+            {
+                MessageBox.Show(this, "Vui lòng chọn thông báo cần xóa.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DialogResult confirm = MessageBox.Show(
+                this,
+                "Bạn có chắc muốn xóa thông báo này không?",
+                "Xóa thông báo",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes)
+            {
+                return;
+            }
+
+            if (selectedNotification.NotificationID > 0)
+            {
+                NotificationDAL.DeleteNotification(selectedNotification.NotificationID);
+            }
+            else
+            {
+                demoNotifications.RemoveAll(n => n.NotificationID == selectedNotification.NotificationID);
+            }
+
+            selectedNotification = null;
+
+            MessageBox.Show(
+                this,
+                "Đã xóa thông báo.",
+                "Thông báo",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            ReloadNotifications();
+        };
+
+        page.AutoScrollMinSize = new Size(0, listPanel.Bottom + 90);
+        ReloadNotifications();
     }
 }

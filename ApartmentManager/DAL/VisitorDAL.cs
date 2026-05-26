@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using ApartmentManager.Utilities;
@@ -261,10 +261,93 @@ public class VisitorDAL
         return RegisterVisitor(residentID, visitorName, phone, email, "", purpose, DateTime.Now, BuildVisitorNote(visitorType, ""));
     }
 
+
+
     public static int RegisterVisitor(int residentID, string visitorName, string phone, string email,
                                       string idNumber, string visitorType, string purpose, DateTime arrivalTime, string note = null)
     {
         return RegisterVisitor(residentID, visitorName, phone, email, idNumber, purpose, arrivalTime, BuildVisitorNote(visitorType, note));
+    }
+
+    public static int RegisterVisitor(
+    int residentID,
+    string visitorName,
+    string phone,
+    string email,
+    string idNumber,
+    string visitorType,
+    string purpose,
+    DateTime arrivalTime,
+    DateTime expectedDepartureTime,
+    int guestCount,
+    string note = null)
+    {
+        return RegisterVisitor(
+            residentID,
+            visitorName,
+            phone,
+            email,
+            idNumber,
+            purpose,
+            arrivalTime,
+            BuildVisitorNote(visitorType, note, expectedDepartureTime, guestCount));
+    }
+
+    public static bool UpdateResidentVisitor(
+    int visitorID,
+    int residentID,
+    string visitorName,
+    string phone,
+    string email,
+    string idNumber,
+    string visitorType,
+    string purpose,
+    DateTime arrivalTime,
+    DateTime expectedDepartureTime,
+    int guestCount,
+    string note = null)
+    {
+        try
+        {
+            const string query = @"
+            UPDATE Visitors
+            SET VisitorName = @VisitorName,
+                Phone = @Phone,
+                Email = @Email,
+                IDNumber = @IDNumber,
+                Purpose = @Purpose,
+                ArrivalTime = @ArrivalTime,
+                Note = @Note,
+                UpdatedAt = GETDATE()
+            WHERE VisitorID = @VisitorID
+              AND ResidentID = @ResidentID
+              AND Status = 'Pending'
+        ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@VisitorID", visitorID);
+                    command.Parameters.AddWithValue("@ResidentID", residentID);
+                    command.Parameters.AddWithValue("@VisitorName", visitorName);
+                    command.Parameters.AddWithValue("@Phone", phone);
+                    command.Parameters.AddWithValue("@Email", email);
+                    command.Parameters.AddWithValue("@IDNumber", idNumber);
+                    command.Parameters.AddWithValue("@Purpose", purpose);
+                    command.Parameters.AddWithValue("@ArrivalTime", arrivalTime);
+                    command.Parameters.AddWithValue("@Note", BuildVisitorNote(visitorType, note, expectedDepartureTime, guestCount));
+
+                    connection.Open();
+                    return command.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating resident visitor: {VisitorID}", visitorID);
+            return false;
+        }
     }
 
     /// <summary>
@@ -448,6 +531,19 @@ public class VisitorDAL
         string note = metadata.TryGetValue("NOTE", out var noteValue) ? noteValue : (IsVisitorType(rawNote) ? string.Empty : rawNote);
         DateTime? checkOutTime = reader.IsDBNull(9) ? null : reader.GetDateTime(9);
 
+        int guestCount = 1;
+        if (metadata.TryGetValue("COUNT", out var countText) && int.TryParse(countText, out int parsedCount))
+        {
+            guestCount = Math.Max(1, Math.Min(7, parsedCount));
+        }
+
+        DateTime? expectedDepartureTime = null;
+        if (metadata.TryGetValue("EXPECTED_OUT", out var expectedText) &&
+            DateTime.TryParse(expectedText, out DateTime parsedExpected))
+        {
+            expectedDepartureTime = parsedExpected;
+        }
+
         return new
         {
             VisitorID = reader.GetInt32(0),
@@ -463,6 +559,8 @@ public class VisitorDAL
             ArrivalTime = reader.GetDateTime(8),
             CheckOutTime = checkOutTime,
             DepartureTime = checkOutTime ?? DateTime.MinValue,
+            ExpectedDepartureTime = expectedDepartureTime,
+            GuestCount = guestCount,
             Status = reader.GetString(10),
             ApprovedByUserID = reader.IsDBNull(11) ? 0 : reader.GetInt32(11),
             ApprovedBy = reader.GetString(12),
@@ -481,6 +579,15 @@ public class VisitorDAL
         string safeType = string.IsNullOrWhiteSpace(visitorType) ? "Guest" : visitorType.Trim();
         string safeNote = note ?? string.Empty;
         return $"TYPE={safeType};NOTE={safeNote}";
+    }
+
+    private static string BuildVisitorNote(string visitorType, string note, DateTime expectedDepartureTime, int guestCount)
+    {
+        string safeType = string.IsNullOrWhiteSpace(visitorType) ? "Guest" : visitorType.Trim();
+        string safeNote = (note ?? string.Empty).Replace(";", ",");
+        int safeCount = Math.Max(1, Math.Min(7, guestCount));
+
+        return $"TYPE={safeType};COUNT={safeCount};EXPECTED_OUT={expectedDepartureTime:yyyy-MM-dd HH:mm};NOTE={safeNote}";
     }
 
     private static Dictionary<string, string> ParseVisitorNote(string rawNote)

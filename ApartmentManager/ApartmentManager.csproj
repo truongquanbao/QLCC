@@ -33,12 +33,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Remove="GUI\Forms\MainDashboard\FrmMainDashboard.*.resx" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="GUI\Forms\MainDashboard\FrmMainDashboard.CustomerComplaints.resx" />
-    <None Include="GUI\Forms\MainDashboard\FrmMainDashboard.UiHelpers.resx" />
+    <EmbeddedResource Remove="GUI\Forms\MainDashboard\FrmMainDashboard.Accounts.resx" />
+    <EmbeddedResource Remove="GUI\Forms\MainDashboard\FrmMainDashboard.CustomerComplaints.resx" />
+    <EmbeddedResource Remove="GUI\Forms\MainDashboard\FrmMainDashboard.UiHelpers.resx" />
+    <EmbeddedResource Remove="GUI\Forms\MainDashboard\FrmMainDashboard.Visitors.resx" />
   </ItemGroup>
 
 </Project>
