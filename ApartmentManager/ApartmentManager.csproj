@@ -1,4 +1,4 @@
-
+﻿
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -37,7 +37,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="GUI\Forms\MainDashboard\FrmMainDashboard.UiHelpers.resx" />
+    <None Include="GUI\Forms\MainDashboard\FrmMainDashboard.CustomerComplaints.resx" />
+    <None Include="GUI\Forms\MainDashboard\FrmMainDashboard.UiHelpers.resx" />
   </ItemGroup>
 
 </Project>

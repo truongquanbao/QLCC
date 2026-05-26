@@ -473,14 +473,12 @@ public partial class FrmMainDashboard
             int parsedUserId;
             int assignedTo = int.TryParse(ComboBoxHelper.GetSelectedValueString(staffCombo), out parsedUserId) ? parsedUserId : 0;
             string status = ComboBoxHelper.GetSelectedValueString(statusCombo);
-            if (assignedTo > 0)
-            {
-                ComplaintBLL.AssignComplaint(complaintId, assignedTo);
-            }
 
-            var result = status == "Resolved"
-                ? ComplaintBLL.ResolveComplaint(complaintId, note.Text.Trim())
-                : ComplaintBLL.UpdateComplaintStatus(complaintId, status);
+            var result = ComplaintBLL.SaveComplaintHandling(
+                complaintId,
+                status,
+                assignedTo,
+                note.Text.Trim());
 
             if (!result.Success)
             {
@@ -488,6 +486,7 @@ public partial class FrmMainDashboard
                 return;
             }
 
+            MessageBox.Show(parent.FindForm(), "Đã lưu xử lý phản ánh.", "Phản ánh", MessageBoxButtons.OK, MessageBoxIcon.Information);
             refresh();
         };
 
@@ -559,7 +558,9 @@ public partial class FrmMainDashboard
         clear.Location = new Point(submit.Right + 10, 426);
         form.Controls.Add(clear);
 
-        var mine = ComplaintDAL.GetComplaintsByResident(resident.ResidentID);
+        List<dynamic> mine = ComplaintDAL.GetComplaintsByResident(resident.ResidentID);
+        List<dynamic> displayMine = new();
+
         var minePagination = new PaginationState();
         var myGridColumns = new[] { "Mã phản ánh", "Tiêu đề", "Loại", "Ưu tiên", "Trạng thái", "Ngày gửi" };
         var myGrid = CreateGrid(myGridColumns, new[] { EmptyRow(myGridColumns.Length, "Bạn chưa có phản ánh") });
@@ -568,22 +569,350 @@ public partial class FrmMainDashboard
         myGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         myGrid.ScrollBars = ScrollBars.Both;
         list.Controls.Add(myGrid);
-        var pager = AddPaginationControls(list, 18, 382, list.Width - 270, 380, list.Width - 80, 380, list.Width - 300);
+        var pager = AddPaginationControls(
+            list,
+            18,
+            382,
+            list.Width - 300,
+            380,
+            list.Width - 76,
+            380,
+            list.Width - 340);
 
-        var detail = ModernUi.Section("Theo dõi xử lý", w, 256);
+        // Sửa lại text phân trang cho đúng dạng: << < 1 > >>
+        pager.FirstButton.Text = "<<";
+        pager.PreviousButton.Text = "<";
+        pager.NextButton.Text = ">";
+        pager.LastButton.Text = ">>";
+
+        void LayoutResidentComplaintPager()
+        {
+            int pagerY = 380;
+            int edgeButtonW = 56;   // Nút << và >> cần rộng hơn để không bị cắt chữ.
+            int normalButtonW = 42; // Nút <, số trang, >
+            int buttonGap = 6;
+            int comboW = 58;
+
+            pager.FirstButton.Text = "<<";
+            pager.PreviousButton.Text = "<";
+            pager.NextButton.Text = ">";
+            pager.LastButton.Text = ">>";
+
+            pager.SummaryLabel.Location = new Point(18, pagerY + 4);
+            pager.SummaryLabel.Size = new Size(Math.Max(180, list.Width - 430), 26);
+
+            pager.PageSizeCombo.Size = new Size(comboW, 30);
+            pager.PageSizeCombo.Location = new Point(list.Width - comboW - 16, pagerY);
+
+            int blockW =
+                edgeButtonW +
+                buttonGap +
+                normalButtonW +
+                buttonGap +
+                normalButtonW +
+                buttonGap +
+                normalButtonW +
+                buttonGap +
+                edgeButtonW;
+
+            int blockX = pager.PageSizeCombo.Left - blockW - 14;
+
+            pager.FirstButton.Size = new Size(edgeButtonW, 30);
+            pager.PreviousButton.Size = new Size(normalButtonW, 30);
+            pager.PageButton.Size = new Size(normalButtonW, 30);
+            pager.NextButton.Size = new Size(normalButtonW, 30);
+            pager.LastButton.Size = new Size(edgeButtonW, 30);
+
+            pager.FirstButton.TextAlign = ContentAlignment.MiddleCenter;
+            pager.PreviousButton.TextAlign = ContentAlignment.MiddleCenter;
+            pager.PageButton.TextAlign = ContentAlignment.MiddleCenter;
+            pager.NextButton.TextAlign = ContentAlignment.MiddleCenter;
+            pager.LastButton.TextAlign = ContentAlignment.MiddleCenter;
+
+            pager.FirstButton.Location = new Point(blockX, pagerY);
+            pager.PreviousButton.Location = new Point(pager.FirstButton.Right + buttonGap, pagerY);
+            pager.PageButton.Location = new Point(pager.PreviousButton.Right + buttonGap, pagerY);
+            pager.NextButton.Location = new Point(pager.PageButton.Right + buttonGap, pagerY);
+            pager.LastButton.Location = new Point(pager.NextButton.Right + buttonGap, pagerY);
+        }
+
+        LayoutResidentComplaintPager();
+
+        var detail = ModernUi.Section("Theo dõi xử lý", w, 316);
         detail.Location = new Point(18, form.Bottom + 14);
+        detail.AutoScroll = true;
         page.Controls.Add(detail);
+
+        dynamic CreateDemoResidentComplaint(int index)
+        {
+            string[] titles =
+            {
+        "Đèn hành lang không sáng",
+        "Nước chảy yếu tại căn hộ",
+        "Thang máy dừng đột ngột",
+        "Rò rỉ nước khu hành lang",
+        "Tiếng ồn sau 22 giờ",
+        "Bãi xe thiếu ánh sáng",
+        "Mùi rác tại tầng",
+        "Wifi khu sinh hoạt yếu",
+        "Cửa block bị kẹt",
+        "Máy bơm nước hoạt động ồn"
+    };
+
+            string[] categories =
+            {
+        "Electrical",
+        "Water",
+        "Elevator",
+        "Maintenance",
+        "Security",
+        "Parking",
+        "Cleaning",
+        "Facility",
+        "General",
+        "Maintenance"
+    };
+
+            string[] priorities =
+            {
+        "Medium",
+        "High",
+        "Critical",
+        "Medium",
+        "Low",
+        "High",
+        "Medium",
+        "Low",
+        "High",
+        "Critical"
+    };
+
+            string[] statuses =
+            {
+        "New",
+        "Open",
+        "InProgress",
+        "Resolved",
+        "Closed",
+        "New",
+        "Open",
+        "InProgress",
+        "Resolved",
+        "New"
+    };
+
+            DateTime created = DateTime.Today.AddDays(-index);
+
+            return new
+            {
+                ComplaintID = -index,
+                ResidentID = resident.ResidentID,
+                ResidentName = resident.FullName,
+                ApartmentID = resident.ApartmentID,
+                ApartmentCode = resident.ApartmentCode,
+                Title = titles[(index - 1) % titles.Length],
+                Description = $"Dữ liệu phản ánh mẫu số {index} dùng để kiểm tra phân trang và click xem chi tiết.",
+                Category = categories[(index - 1) % categories.Length],
+                ComplaintType = categories[(index - 1) % categories.Length],
+                Priority = priorities[(index - 1) % priorities.Length],
+                Status = statuses[(index - 1) % statuses.Length],
+                AssignedToUserID = (int?)null,
+                AssignedTo = "Unassigned",
+                AssignedToName = "Chưa phân công",
+                ResolutionNotes = index % 3 == 0
+                    ? "Ban quản lý đã tiếp nhận phản ánh mẫu này."
+                    : "",
+                ResolutionNote = index % 3 == 0
+                    ? "Ban quản lý đã tiếp nhận phản ánh mẫu này."
+                    : "",
+                ImageAttachmentPath = "",
+                SatisfactionRating = (int?)null,
+                CreatedAt = created,
+                UpdatedAt = created,
+                ReportDate = created,
+                CompletionDate = (DateTime?)null
+            };
+        }
+
+        void BuildResidentComplaintDisplayData()
+        {
+            displayMine = mine
+                .OrderByDescending(c => GetDynamicDate(c, "CreatedAt") ?? DateTime.MinValue)
+                .ToList();
+
+            // Thêm 10 dòng mẫu chỉ để test giao diện/phân trang.
+            // Không ghi vào SQL Server.
+            for (int i = 1; i <= 10; i++)
+            {
+                displayMine.Add(CreateDemoResidentComplaint(i));
+            }
+        }
+
+        void ResetResidentComplaintForm()
+        {
+            submit.Text = "Gửi phản ánh";
+            submit.Tag = null;
+
+            title.Clear();
+            description.Clear();
+            attachment.Clear();
+
+            attachment.ReadOnly = false;
+            browse.Enabled = true;
+
+            category.SelectedIndex = category.Items.Count > 0 ? 0 : -1;
+            priority.SelectedIndex = priority.Items.Count > 1 ? 1 : 0;
+        }
+
+        void OpenComplaintAttachment(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                MessageBox.Show(
+                    this,
+                    "Phản ánh này chưa có ảnh đính kèm hoặc file ảnh không còn tồn tại.",
+                    "Ảnh đính kèm",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+
+        void LoadComplaintToForm(dynamic complaint)
+        {
+            if (complaint == null)
+            {
+                return;
+            }
+
+            int id = GetDynamicInt(complaint, "ComplaintID");
+            string status = ComplaintStatusValue(complaint);
+
+            if (status != "New" && status != "Open")
+            {
+                MessageBox.Show(
+                    this,
+                    "Chỉ có thể sửa phản ánh khi trạng thái còn Mới.",
+                    "Phản ánh",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            ComboBoxHelper.SelectValue(category, GetDynamicString(complaint, "Category"));
+            ComboBoxHelper.SelectValue(priority, ComplaintPriorityValue(complaint));
+
+            title.Text = GetDynamicString(complaint, "Title");
+            description.Text = GetDynamicString(complaint, "Description");
+
+            // Ảnh hiện tại chỉ cho xem, chưa cho cập nhật lại khi sửa phản ánh
+            // vì DAL hiện chưa có hàm cập nhật ImageAttachmentPath riêng.
+            attachment.Text = GetDynamicString(complaint, "ImageAttachmentPath");
+            attachment.ReadOnly = true;
+            browse.Enabled = false;
+
+            submit.Text = "Cập nhật phản ánh";
+            submit.Tag = id;
+        }
+
+        void DeleteResidentComplaint(int complaintId)
+        {
+            var complaint = mine.FirstOrDefault(c => GetDynamicInt(c, "ComplaintID") == complaintId);
+            if (complaint == null)
+            {
+                return;
+            }
+
+            string status = ComplaintStatusValue(complaint);
+
+            if (status != "New" && status != "Open")
+            {
+                MessageBox.Show(
+                    this,
+                    "Chỉ có thể xóa phản ánh khi trạng thái còn Mới.",
+                    "Phản ánh",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                this,
+                "Bạn có chắc muốn xóa phản ánh này không?",
+                "Xóa phản ánh",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes)
+            {
+                return;
+            }
+
+            var result = ComplaintBLL.DeleteComplaint(complaintId);
+
+            if (!result.Success)
+            {
+                MessageBox.Show(
+                    this,
+                    result.Message,
+                    "Xóa phản ánh",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            MessageBox.Show(
+                this,
+                "Đã xóa phản ánh.",
+                "Xóa phản ánh",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            ResetResidentComplaintForm();
+            ReloadMine();
+        }
+
+        void RenderSelectedResidentComplaint(object selected)
+        {
+            Action<int> editHandler = id =>
+            {
+                var item = mine.FirstOrDefault(c => GetDynamicInt(c, "ComplaintID") == id);
+                if (item != null)
+                {
+                    LoadComplaintToForm(item);
+                }
+            };
+
+            Action<int> deleteHandler = DeleteResidentComplaint;
+            Action<string> viewAttachmentHandler = OpenComplaintAttachment;
+
+            RenderResidentComplaintDetail(
+                detail,
+                selected,
+                editHandler,
+                deleteHandler,
+                viewAttachmentHandler);
+        }
 
         void ReloadMine(int? selectedId = null)
         {
             mine = ComplaintDAL.GetComplaintsByResident(resident.ResidentID);
+            BuildResidentComplaintDisplayData();
+
             if (selectedId.HasValue)
             {
-                int index = mine.FindIndex(c => GetDynamicInt(c, "ComplaintID") == selectedId.Value);
+                int index = displayMine.FindIndex(c => GetDynamicInt(c, "ComplaintID") == selectedId.Value);
                 minePagination.CurrentPage = FindPageForIndex(index, minePagination.PageSize);
             }
 
-            var pageRows = Paginate(mine, minePagination);
+            var pageRows = Paginate(displayMine, minePagination);
+
             SetGridData(myGrid, myGridColumns, RowsOrEmpty(pageRows, myGridColumns.Length, (complaint, _) => new object[]
             {
                 ComplaintCode(complaint),
@@ -599,13 +928,47 @@ public partial class FrmMainDashboard
             {
                 myGrid.Columns[i].Width = widths[i];
                 myGrid.Columns[i].MinimumWidth = widths[i];
+                myGrid.Columns[i].SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+
+            if (myGrid.Columns.Count > 1)
+            {
+                myGrid.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             }
 
             UpdatePaginationControls(minePagination, pager, "phản ánh");
-            dynamic selected = selectedId.HasValue
-                ? mine.FirstOrDefault(c => GetDynamicInt(c, "ComplaintID") == selectedId.Value)
-                : mine.Skip(minePagination.StartIndex).FirstOrDefault();
-            RenderResidentComplaintDetail(detail, selected);
+            LayoutResidentComplaintPager();
+
+            object selected = selectedId.HasValue
+                ? displayMine.FirstOrDefault(c => GetDynamicInt(c, "ComplaintID") == selectedId.Value)
+                : displayMine.Skip(minePagination.StartIndex).FirstOrDefault();
+
+            if (selected != null)
+            {
+                RenderSelectedResidentComplaint(selected);
+            }
+            else
+            {
+                RenderResidentComplaintDetail(detail, null);
+            }
+
+            myGrid.ClearSelection();
+
+            if (selected != null)
+            {
+                int selectedComplaintId = GetDynamicInt(selected, "ComplaintID");
+                int rowIndex = displayMine
+                    .Skip(minePagination.StartIndex)
+                    .Take(minePagination.PageSize)
+                    .ToList()
+                    .FindIndex(c => GetDynamicInt(c, "ComplaintID") == selectedComplaintId);
+
+                if (rowIndex >= 0 && rowIndex < myGrid.Rows.Count)
+                {
+                    myGrid.Rows[rowIndex].Selected = true;
+                    myGrid.CurrentCell = myGrid.Rows[rowIndex].Cells[0];
+                }
+            }
         }
 
         browse.Click += (_, _) =>
@@ -622,17 +985,33 @@ public partial class FrmMainDashboard
             }
         };
 
-        clear.Click += (_, _) =>
-        {
-            title.Clear();
-            description.Clear();
-            attachment.Clear();
-            category.SelectedIndex = 0;
-            priority.SelectedIndex = 1;
-        };
+        clear.Click += (_, _) => ResetResidentComplaintForm();
 
         submit.Click += (_, _) =>
         {
+            if (submit.Tag is int editingId && editingId > 0)
+            {
+                var updateResult = ComplaintBLL.UpdateResidentComplaint(
+                    editingId,
+                    title.Text.Trim(),
+                    description.Text.Trim(),
+                    ComboBoxHelper.GetSelectedValueString(category),
+                    ComboBoxHelper.GetSelectedValueString(priority),
+                    string.Empty);
+
+                if (!updateResult.Success)
+                {
+                    MessageBox.Show(this, updateResult.Message, "Cập nhật phản ánh", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                MessageBox.Show(this, "Đã cập nhật phản ánh.", "Cập nhật phản ánh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                ResetResidentComplaintForm();
+                ReloadMine(editingId);
+                return;
+            }
+
             var result = ComplaintBLL.CreateComplaint(
                 resident.ResidentID,
                 title.Text.Trim(),
@@ -648,18 +1027,19 @@ public partial class FrmMainDashboard
             }
 
             MessageBox.Show(this, "Đã gửi phản ánh thành công.", "Gửi phản ánh", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            title.Clear();
-            description.Clear();
-            attachment.Clear();
+
+            ResetResidentComplaintForm();
+
             ReloadMine(result.ComplaintID);
         };
 
         myGrid.CellClick += (_, e) =>
         {
             int absoluteIndex = minePagination.StartIndex + e.RowIndex;
-            if (e.RowIndex >= 0 && absoluteIndex >= 0 && absoluteIndex < mine.Count)
+
+            if (e.RowIndex >= 0 && absoluteIndex >= 0 && absoluteIndex < displayMine.Count)
             {
-                RenderResidentComplaintDetail(detail, mine[absoluteIndex]);
+                RenderSelectedResidentComplaint((object)displayMine[absoluteIndex]);
             }
         };
 
@@ -674,13 +1054,19 @@ public partial class FrmMainDashboard
         };
 
         page.AutoScroll = true;
-        page.AutoScrollMinSize = new Size(0, detail.Bottom + 80);
+        page.AutoScrollMinSize = new Size(0, detail.Bottom + 190);
         ReloadMine();
     }
 
-    private void RenderResidentComplaintDetail(Control parent, dynamic complaint)
+    private void RenderResidentComplaintDetail(
+        Control parent,
+        object complaint,
+        Action<int> onEdit = null,
+        Action<int> onDelete = null,
+        Action<string> onViewAttachment = null)
     {
         parent.Controls.Clear();
+
         if (complaint == null)
         {
             var empty = ModernUi.Label("Chọn một phản ánh để theo dõi tình trạng xử lý.", 10f, FontStyle.Regular, ModernUi.Muted);
@@ -689,16 +1075,34 @@ public partial class FrmMainDashboard
             return;
         }
 
+        int complaintId = GetDynamicInt(complaint, "ComplaintID");
+        string status = ComplaintStatusValue(complaint);
+        string attachmentPath = Display(GetDynamicString(complaint, "ImageAttachmentPath"), "");
+
+        bool canEdit = complaintId > 0 && (status == "New" || status == "Open");
+        bool hasAttachment = !string.IsNullOrWhiteSpace(attachmentPath) && attachmentPath != "-";
+
         int colW = (parent.Width - 60) / 3;
+
         AddComplaintInfo(parent, "Mã phản ánh", ComplaintCode(complaint), 18, 48, colW);
-        AddComplaintInfo(parent, "Trạng thái", ViStatus(ComplaintStatusValue(complaint)), 30 + colW, 48, colW);
-        AddComplaintInfo(parent, "Người xử lý", GetDynamicString(complaint, "AssignedToName", "AssignedTo"), 42 + colW * 2, 48, colW);
+        AddComplaintInfo(parent, "Trạng thái", ViStatus(status), 30 + colW, 48, colW);
+        AddComplaintInfo(
+            parent,
+            "Người xử lý",
+            Display(GetDynamicString(complaint, "AssignedToName", "AssignedTo"), "Chưa phân công"),
+            42 + colW * 2,
+            48,
+            colW);
+
+        var leftLabel = ModernUi.Label("Nội dung đã gửi", 8.6f, FontStyle.Bold, ModernUi.Text);
+        leftLabel.SetBounds(18, 96, (parent.Width - 54) / 2, 18);
+        parent.Controls.Add(leftLabel);
 
         var content = new TextBox
         {
             Text = GetDynamicString(complaint, "Description"),
-            Location = new Point(18, 106),
-            Size = new Size((parent.Width - 54) / 2, 96),
+            Location = new Point(18, 118),
+            Size = new Size((parent.Width - 54) / 2, 88),
             Multiline = true,
             ReadOnly = true,
             Font = ModernUi.Font(8.7f),
@@ -706,11 +1110,22 @@ public partial class FrmMainDashboard
         };
         parent.Controls.Add(content);
 
+        var rightLabel = ModernUi.Label("Phản hồi từ ban quản lý", 8.6f, FontStyle.Bold, ModernUi.Text);
+        rightLabel.SetBounds(content.Right + 18, 96, parent.Width - content.Right - 36, 18);
+        parent.Controls.Add(rightLabel);
+
+        string response = GetDynamicString(complaint, "ResolutionNotes", "ResolutionNote");
+
+        if (string.IsNullOrWhiteSpace(response) || response == "-")
+        {
+            response = "Ban quản lý chưa phản hồi.";
+        }
+
         var reply = new TextBox
         {
-            Text = GetDynamicString(complaint, "ResolutionNotes", "ResolutionNote"),
-            Location = new Point(content.Right + 18, 106),
-            Size = new Size(parent.Width - content.Right - 36, 96),
+            Text = response,
+            Location = new Point(content.Right + 18, 118),
+            Size = new Size(parent.Width - content.Right - 36, 88),
             Multiline = true,
             ReadOnly = true,
             Font = ModernUi.Font(8.7f),
@@ -718,13 +1133,43 @@ public partial class FrmMainDashboard
         };
         parent.Controls.Add(reply);
 
-        var leftLabel = ModernUi.Label("Nội dung đã gửi", 8.6f, FontStyle.Bold, ModernUi.Text);
-        leftLabel.SetBounds(content.Left, 84, content.Width, 18);
-        parent.Controls.Add(leftLabel);
+        var attachmentInfo = ModernUi.Label(
+            hasAttachment
+                ? $"Ảnh đính kèm: {Path.GetFileName(attachmentPath)}"
+                : "Ảnh đính kèm: Chưa có ảnh",
+            8.5f,
+            FontStyle.Bold,
+            hasAttachment ? ModernUi.Blue : ModernUi.Muted);
 
-        var rightLabel = ModernUi.Label("Phản hồi từ ban quản lý", 8.6f, FontStyle.Bold, ModernUi.Text);
-        rightLabel.SetBounds(reply.Left, 84, reply.Width, 18);
-        parent.Controls.Add(rightLabel);
+        attachmentInfo.SetBounds(18, 216, parent.Width - 36, 22);
+        parent.Controls.Add(attachmentInfo);
+
+        var viewImage = ModernUi.OutlineButton("Xem ảnh", 96, 30);
+        viewImage.Location = new Point(18, 238);    
+        viewImage.Enabled = hasAttachment;
+        viewImage.Click += (_, _) => onViewAttachment?.Invoke(attachmentPath);
+        parent.Controls.Add(viewImage);
+
+        var edit = ModernUi.Button("Sửa phản ánh", ModernUi.Orange, 118, 30);
+        edit.Location = new Point(viewImage.Right + 10, 238);
+        edit.Enabled = canEdit;
+        edit.Click += (_, _) => onEdit?.Invoke(complaintId);
+        parent.Controls.Add(edit);
+
+        var delete = ModernUi.Button("Xóa", ModernUi.Red, 82, 30);
+        delete.Location = new Point(edit.Right + 10, 238);
+        delete.Enabled = canEdit;
+        delete.Click += (_, _) => onDelete?.Invoke(complaintId);
+        parent.Controls.Add(delete);
+
+        string hintText = canEdit
+            ? "Bạn có thể sửa hoặc xóa phản ánh khi trạng thái còn Mới."
+            : "Khi ban quản lý đã tiếp nhận/xử lý, cư dân chỉ được theo dõi trạng thái và phản hồi.";
+
+        var hint = ModernUi.Label(hintText, 8.4f, FontStyle.Regular, ModernUi.Muted);
+        hint.SetBounds(delete.Right + 14, 242, Math.Max(120, parent.Width - delete.Right - 32), 24);
+        hint.AutoEllipsis = true;
+        parent.Controls.Add(hint);
     }
 
     private static ComboBox AddComplaintEditCombo(Control parent, string label, (string Text, string Value)[] options, string selectedValue, int x, int y, int width)

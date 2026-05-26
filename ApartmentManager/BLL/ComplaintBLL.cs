@@ -135,6 +135,69 @@ public class ComplaintBLL
         }
     }
 
+    public static (bool Success, string Message) UpdateResidentComplaint(
+        int complaintID,
+        string title,
+        string description,
+        string category,
+        string priority,
+        string imageAttachmentPath)
+    {
+        try
+        {
+            if (complaintID <= 0)
+                return (false, "Mã phản ánh không hợp lệ.");
+
+            if (string.IsNullOrWhiteSpace(title))
+                return (false, "Vui lòng nhập tiêu đề phản ánh.");
+
+            if (title.Length < 5 || title.Length > 200)
+                return (false, "Tiêu đề phải từ 5 đến 200 ký tự.");
+
+            if (string.IsNullOrWhiteSpace(description))
+                return (false, "Vui lòng nhập nội dung phản ánh.");
+
+            if (description.Length < 10 || description.Length > 2000)
+                return (false, "Nội dung phản ánh phải từ 10 đến 2000 ký tự.");
+
+            var validPriorities = new[] { "Low", "Medium", "High", "Critical" };
+            if (!validPriorities.Contains(priority))
+                return (false, "Mức ưu tiên không hợp lệ.");
+
+            if (string.IsNullOrWhiteSpace(category))
+                category = "General";
+
+            var complaint = ComplaintDAL.GetComplaintByID(complaintID);
+            if (complaint == null)
+                return (false, "Không tìm thấy phản ánh.");
+
+            string currentStatus = complaint.Status?.ToString() ?? "";
+
+            if (currentStatus != "New" && currentStatus != "Open")
+                return (false, "Chỉ có thể sửa phản ánh khi trạng thái còn Mới.");
+
+            bool success = ComplaintDAL.UpdateComplaint(
+                complaintID,
+                title,
+                description,
+                category,
+                priority);
+
+            if (success)
+            {
+                Log.Information($"Resident complaint updated: {complaintID}");
+                return (true, "Cập nhật phản ánh thành công.");
+            }
+
+            return (false, "Không thể cập nhật phản ánh.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating resident complaint");
+            return (false, $"Lỗi: {ex.Message}");
+        }
+    }
+
     /// <summary>
     /// Assign complaint to staff member
     /// </summary>
@@ -204,6 +267,49 @@ public class ComplaintBLL
         catch (Exception ex)
         {
             Log.Error(ex, "Error resolving complaint");
+            return (false, $"Error: {ex.Message}");
+        }
+    }
+
+    public static (bool Success, string Message) SaveComplaintHandling(
+    int complaintID,
+    string status,
+    int assignedToUserID,
+    string resolutionNotes)
+    {
+        try
+        {
+            if (complaintID <= 0)
+                return (false, "Invalid complaint ID.");
+
+            var validStatuses = new[] { "New", "Open", "InProgress", "Resolved", "Closed" };
+            if (!validStatuses.Contains(status))
+                return (false, "Invalid complaint status.");
+
+            var complaint = ComplaintDAL.GetComplaintByID(complaintID);
+            if (complaint == null)
+                return (false, "Complaint not found.");
+
+            if (assignedToUserID > 0)
+            {
+                var user = UserDAL.GetUserByID(assignedToUserID);
+                if (user == null)
+                    return (false, "Selected staff member not found.");
+            }
+
+            bool success = ComplaintDAL.UpdateComplaintHandling(
+                complaintID,
+                status,
+                assignedToUserID,
+                resolutionNotes ?? string.Empty);
+
+            return success
+                ? (true, "Complaint handling saved successfully.")
+                : (false, "Failed to save complaint handling.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error saving complaint handling");
             return (false, $"Error: {ex.Message}");
         }
     }

@@ -336,16 +336,68 @@ public class ComplaintDAL
     /// <summary>
     /// Backward-compatible complaint update overload that preserves the existing category.
     /// </summary>
-    public static bool UpdateComplaint(int complaintID, string title, string description, string priority)
+public static bool UpdateComplaintAttachment(int complaintID, string imageAttachmentPath)
+{
+    try
     {
-        var complaint = GetComplaintByID(complaintID);
-        string category = complaint != null ? complaint.Category : "General";
-        return UpdateComplaint(complaintID, title, description, category, priority);
-    }
+        const string query = @"
+            UPDATE Complaints
+            SET ImageAttachmentPath = NULLIF(@ImageAttachmentPath, N''), UpdatedAt = GETDATE()
+            WHERE ComplaintID = @ComplaintID
+        ";
 
-    /// <summary>
-    /// Update complaint status
-    /// </summary>
+        using (var connection = DatabaseHelper.CreateConnection())
+        {
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@ComplaintID", complaintID);
+                command.Parameters.AddWithValue("@ImageAttachmentPath", imageAttachmentPath ?? string.Empty);
+
+                connection.Open();
+                return command.ExecuteNonQuery() > 0;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error updating complaint attachment: {ComplaintID}", complaintID);
+        return false;
+    }
+}
+
+    public static bool UpdateComplaintHandling(int complaintID, string status, int assignedToUserID, string resolutionNotes)
+    {
+        try
+        {
+            const string query = @"
+            UPDATE Complaints
+            SET Status = @Status,
+                AssignedToUserID = NULLIF(@AssignedToUserID, 0),
+                ResolutionNotes = @ResolutionNotes,
+                UpdatedAt = GETDATE()
+            WHERE ComplaintID = @ComplaintID
+        ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ComplaintID", complaintID);
+                    command.Parameters.AddWithValue("@Status", status);
+                    command.Parameters.AddWithValue("@AssignedToUserID", assignedToUserID);
+                    command.Parameters.AddWithValue("@ResolutionNotes", resolutionNotes ?? string.Empty);
+
+                    connection.Open();
+                    return command.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating complaint handling: {ComplaintID}", complaintID);
+            return false;
+        }
+    }
     public static bool UpdateComplaintStatus(int complaintID, string status)
     {
         try
