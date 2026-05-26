@@ -856,34 +856,81 @@ public partial class FrmMainDashboard
     {
         var page = BeginPage("Dashboard", "Trang chủ / Dashboard");
         int x = 14;
-        int w = Math.Max(1150, _content.ClientSize.Width - 28);
+        int w = Math.Max(980, _content.ClientSize.Width - 28 - SystemInformation.VerticalScrollBarWidth);
         int y = 83;
-        int gap = 16;
-        int cardW = (w - gap * 5) / 6;
+        int gap = 12;
         var residents = ResidentDAL.GetAllResidents();
         var apartments = ApartmentDAL.GetAllApartments();
         var invoices = InvoiceDAL.GetAllInvoices();
         var complaints = ComplaintDAL.GetAllComplaints();
         var visitors = VisitorDAL.GetAllVisitors();
+        var vehicles = VehicleDAL.GetAllVehicles();
         var schedules = AssetDAL.GetMaintenanceSchedules();
-        var notifications = NotificationDAL.GetAllNotifications();
+        var pendingPayments = PaymentDAL.GetPendingPayments();
+        var notifications = _session?.UserID > 0
+            ? NotificationDAL.GetUserNotifications(_session.UserID)
+            : new List<NotificationDTO>();
+        int currentResidents = residents.Count(IsCurrentResident);
+        int newComplaintCount = complaints.Count(c => ViStatus(c.Status) == "Mới");
         int occupied = apartments.Count(a => ViStatus(a.Status) == "Đang sử dụng");
         int occupancyRate = apartments.Count == 0 ? 0 : (int)Math.Round(occupied * 100m / apartments.Count);
-        int unpaidInvoices = invoices.Count(i => ViStatus(i.PaymentStatus) != "Đã thanh toán");
-        int todayVisitors = visitors.Count(v => ((DateTime)v.ArrivalTime).Date == DateTime.Today);
+        var unpaidInvoiceItems = invoices
+            .Where(i => InvoiceRemaining(i) > 0m || ViStatus(i.PaymentStatus) != "Đã thanh toán")
+            .ToList();
+        int unpaidInvoices = unpaidInvoiceItems.Count;
+        DateTime today = DateTime.Today;
+        DateTime weekEnd = today.AddDays(7);
+        var upcomingSchedules = schedules
+            .Where(s => s.ScheduledDate.Date >= today && s.ScheduledDate.Date <= weekEnd)
+            .OrderBy(s => s.ScheduledDate)
+            .ToList();
+        int todayVisitors = visitors.Count(v => ((DateTime)v.ArrivalTime).Date == today);
 
-        decimal debtAmount = invoices.Sum(i => Math.Max(0, i.TotalAmount - i.PaidAmount));
+        decimal debtAmount = unpaidInvoiceItems.Sum(InvoiceRemaining);
         bool hasDebt = unpaidInvoices > 0 && debtAmount > 0;
+        string residentTrend = residents.Count == 0 ? "Chưa có dữ liệu" : $"{residents.Count:N0} hồ sơ cư dân";
+        string complaintTrend = complaints.Count == 0 ? "Chưa có dữ liệu" : $"{complaints.Count:N0} tổng phiếu";
+        string occupancyTrend = apartments.Count == 0 ? "Chưa có dữ liệu" : $"{occupancyRate}% lấp đầy";
 
-        AddRowAt(page, x, y, gap,
-            ModernUi.StatCard("Số cư dân hiện tại", residents.Count.ToString("N0"), "Người", ModernUi.Blue, "●●", $"{residents.Count(r => IsActiveStatus(r.Status))} đang cư trú", cardW, 162),
-            ModernUi.StatCard("Phản ánh mới", complaints.Count(c => ViStatus(c.Status) == "Mới").ToString("N0"), "Phản ánh", Color.FromArgb(34, 197, 94), "▤", $"{complaints.Count:N0} tổng phiếu", cardW, 162),
-            CreateDebtCard(unpaidInvoices, debtAmount, cardW, hasDebt),
-            ModernUi.StatCard("Bảo trì sắp tới", schedules.Count(s => s.ScheduledDate <= DateTime.Today.AddDays(7)).ToString("N0"), "Lịch", Color.FromArgb(6, 182, 212), "⚒", "Trong 7 ngày tới", cardW, 162),
-            ModernUi.StatCard("Khách hôm nay", todayVisitors.ToString("N0"), "Khách", ModernUi.Blue, "●", $"{visitors.Count:N0} tổng lượt", cardW, 162),
-            ModernUi.StatCard("Lấp đầy căn hộ", $"{occupancyRate}%", "Đơn vị", Color.FromArgb(34, 197, 94), "◔", $"{occupied:N0}/{apartments.Count:N0}", cardW, 162));
+        const int kpiCardWidth = 190;
+        const int kpiCardHeight = 132;
+        int kpiCardsPerRow = w >= kpiCardWidth * 6 + gap * 5 ? 6 : 3;
+        int kpiRows = kpiCardsPerRow == 6 ? 1 : 2;
+        var kpiPanel = new FlowLayoutPanel
+        {
+            Location = new Point(x, y),
+            Size = new Size(w, kpiRows * kpiCardHeight + (kpiRows - 1) * gap + 2),
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            AutoScroll = false,
+            BackColor = ModernUi.Surface,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        var kpiCards = new Control[]
+        {
+            ModernUi.StatCard("Số cư dân hiện tại", currentResidents.ToString("N0"), "Người", ModernUi.Blue, "●●", residentTrend, kpiCardWidth, kpiCardHeight),
+            ModernUi.StatCard("Phản ánh mới", newComplaintCount.ToString("N0"), "Phản ánh", Color.FromArgb(34, 197, 94), "▤", complaintTrend, kpiCardWidth, kpiCardHeight),
+            CreateDebtCard(unpaidInvoices, debtAmount, kpiCardWidth, hasDebt, kpiCardHeight),
+            ModernUi.StatCard("Bảo trì sắp tới", upcomingSchedules.Count.ToString("N0"), "Lịch", Color.FromArgb(6, 182, 212), "⚒", "Trong 7 ngày tới", kpiCardWidth, kpiCardHeight),
+            ModernUi.StatCard("Khách hôm nay", todayVisitors.ToString("N0"), "Khách", ModernUi.Blue, "●", $"{visitors.Count:N0} tổng lượt", kpiCardWidth, kpiCardHeight),
+            ModernUi.StatCard("Lấp đầy căn hộ", $"{occupied:N0}/{apartments.Count:N0}", "Căn hộ", Color.FromArgb(34, 197, 94), "◔", occupancyTrend, kpiCardWidth, kpiCardHeight)
+        };
 
-        y += 176;
+        for (int i = 0; i < kpiCards.Length; i++)
+        {
+            bool isLastInRow = (i + 1) % kpiCardsPerRow == 0;
+            kpiCards[i].Margin = new Padding(0, 0, isLastInRow ? 0 : gap, i < kpiCards.Length - kpiCardsPerRow ? gap : 0);
+            kpiPanel.Controls.Add(kpiCards[i]);
+
+            if (isLastInRow && i < kpiCards.Length - 1)
+            {
+                kpiPanel.SetFlowBreak(kpiCards[i], true);
+            }
+        }
+
+        page.Controls.Add(kpiPanel);
+        y = kpiPanel.Bottom + 16;
 
         int leftW = (int)((w - gap) * 0.42);
         int rightW = w - leftW - gap;
@@ -896,25 +943,36 @@ public partial class FrmMainDashboard
         axisTitle.Location = new Point(16, 32);
         axisTitle.Size = new Size(90, 20);
         chartPanel.Controls.Add(axisTitle);
-        var chart = new BarChartPanel
-        {
-            Location = new Point(12, 52),
-            Size = new Size(chartPanel.Width - 24, 194),
-            BarColor = ModernUi.Orange,
-            AxisMax = 50,
-            GridSteps = 5,
-            ShowValueLabels = true,
-            SeriesLabel = "Số lượng phản ánh"
-        };
         var complaintGroups = complaints
-            .GroupBy(c => (string)Display(c.Category, "Khác"))
+            .GroupBy(c => (string)Display(c.ComplaintType, Display(c.Category, "Khác")))
             .OrderByDescending(g => g.Count())
             .Take(6)
-            .Select(g => (Label: g.Key.Length > 10 ? g.Key[..10] : g.Key, Value: g.Count()))
+            .Select(g => (Label: ShortChartLabel(g.Key), Value: g.Count()))
             .ToList();
-        chart.AxisMax = Math.Max(1, complaintGroups.Count == 0 ? 1 : (int)(complaintGroups.Max(g => g.Value) * 1.2m));
-        chart.Bars.AddRange(complaintGroups);
-        chartPanel.Controls.Add(chart);
+        if (complaintGroups.Count == 0)
+        {
+            var emptyChart = ModernUi.Label("Chưa có dữ liệu phản ánh.", 10f, FontStyle.Regular, ModernUi.Muted);
+            emptyChart.Location = new Point(20, 108);
+            emptyChart.Size = new Size(chartPanel.Width - 40, 36);
+            emptyChart.TextAlign = ContentAlignment.MiddleCenter;
+            chartPanel.Controls.Add(emptyChart);
+        }
+        else
+        {
+            int maxCount = complaintGroups.Max(g => g.Value);
+            var chart = new BarChartPanel
+            {
+                Location = new Point(12, 54),
+                Size = new Size(chartPanel.Width - 24, 190),
+                BarColor = ModernUi.Orange,
+                AxisMax = Math.Max(5, maxCount + 1),
+                GridSteps = 5,
+                ShowValueLabels = true,
+                SeriesLabel = "Số lượng phản ánh"
+            };
+            chart.Bars.AddRange(complaintGroups);
+            chartPanel.Controls.Add(chart);
+        }
         page.Controls.Add(chartPanel);
 
         var newComplaints = ModernUi.Section("Phản ánh mới cần xử lý", rightW, topPanelH);
@@ -922,7 +980,10 @@ public partial class FrmMainDashboard
         AddSectionDots(newComplaints);
         var grid = CreateGrid(
             new[] { "STT", "Mã phản ánh", "Nội dung", "Căn hộ", "Người gửi", "Thời gian", "Ưu tiên", "Trạng thái" },
-            RowsOrEmpty(complaints.Where(c => ViStatus(c.Status) == "Mới").Take(5), 8, (c, i) => new object[]
+            RowsOrEmpty(complaints
+                .Where(c => ViStatus(c.Status) == "Mới")
+                .OrderByDescending(c => c.CreatedAt)
+                .Take(5), 8, (c, i) => new object[]
             {
                 i + 1,
                 $"PA{c.CreatedAt:yyMMdd}-{c.ComplaintID:000}",
@@ -934,7 +995,8 @@ public partial class FrmMainDashboard
                 ViStatus(c.Status)
             }));
         grid.Location = new Point(12, 38);
-        grid.Size = new Size(newComplaints.Width - 24, 192);
+        grid.Size = new Size(newComplaints.Width - 24, 184);
+        ConfigureFixedWidthGrid(grid, 50, 110, 240, 90, 140, 140, 90, 110);
         newComplaints.Controls.Add(grid);
         var link = ModernUi.OutlineButton("Xem tất cả phản ánh mới  →", 210, 30);
         link.Location = new Point(newComplaints.Width - 232, 231);
@@ -949,42 +1011,239 @@ public partial class FrmMainDashboard
         schedule.Location = new Point(x, y);
         AddSectionDots(schedule);
         var scheduleGrid = CreateGrid(
-            new[] { "Ngày", "Hạng mục", "Khu vực", "Nội dung", "Trạng thái" },
-            RowsOrEmpty(schedules.Take(5), 5, (s, _) => new object[]
+            new[] { "Ngày", "Hạng mục", "Khu vực", "Nội dung", "Trạng thái", "Người phụ trách" },
+            RowsOrEmpty(upcomingSchedules.Take(5), 6, (s, _) => new object[]
             {
                 DateText(s.ScheduledDate),
                 s.Category,
                 s.Location,
                 Display(s.Note, s.AssetName),
-                ViStatus(s.Status)
+                ViStatus(s.Status),
+                Display(s.AssignedTo)
             }, "Không có lịch bảo trì"));
         scheduleGrid.Location = new Point(12, 42);
         scheduleGrid.Size = new Size(schedule.Width - 24, 194);
+        ConfigureFixedWidthGrid(scheduleGrid, 110, 130, 150, 260, 110, 140);
         schedule.Controls.Add(scheduleGrid);
         page.Controls.Add(schedule);
 
         var notice = ModernUi.Section("Thông báo nhanh", rightW, bottomPanelH);
         notice.Location = new Point(schedule.Right + gap, y);
-        var latestNotices = notifications.Take(5).ToList();
-        if (latestNotices.Count == 0)
+        var quickNotifications = BuildQuickNotifications()
+            .GroupBy(item => $"{item.PageKey}|{item.Title}|{item.Detail}|{item.Time:yyyyMMddHHmm}")
+            .Select(group => group.First())
+            .OrderByDescending(item => item.Time)
+            .Take(5)
+            .ToList();
+        if (quickNotifications.Count == 0)
         {
-            AddNoticeRow(notice, 0, "Không có thông báo", "");
+            var emptyNotice = ModernUi.Label("Không có thông báo mới.", 10f, FontStyle.Regular, ModernUi.Muted);
+            emptyNotice.Location = new Point(18, 96);
+            emptyNotice.Size = new Size(notice.Width - 36, 32);
+            emptyNotice.TextAlign = ContentAlignment.MiddleCenter;
+            notice.Controls.Add(emptyNotice);
         }
-        for (int i = 0; i < latestNotices.Count; i++)
+        for (int i = 0; i < quickNotifications.Count; i++)
         {
-            AddNoticeRow(notice, i, Display(latestNotices[i].Title, Display(latestNotices[i].Message)), DateTimeText(latestNotices[i].CreatedAt));
+            AddNoticeRow(notice, i, quickNotifications[i]);
         }
         page.Controls.Add(notice);
 
-        static void AddRowAt(Control parent, int startX, int top, int spacing, params Control[] controls)
+        List<(string Title, string Detail, DateTime Time, string Tag, string PageKey, string Icon, Color Accent)> BuildQuickNotifications()
         {
-            int cx = startX;
-            foreach (var control in controls)
+            var items = new List<(string Title, string Detail, DateTime Time, string Tag, string PageKey, string Icon, Color Accent)>();
+
+            void AddItem(string title, string detail, DateTime time, string tag, string pageKey, string icon, Color accent)
             {
-                control.Location = new Point(cx, top);
-                parent.Controls.Add(control);
-                cx += control.Width + spacing;
+                title = Display(title, "Thông báo");
+                detail = Display(detail, "");
+                if (time <= DateTime.MinValue)
+                {
+                    time = DateTime.Now;
+                }
+
+                items.Add((title, detail, time, Display(tag, "Mới"), pageKey, icon, accent));
             }
+
+            foreach (var notification in notifications.Take(12))
+            {
+                string title = Display(notification.Title, Display(notification.Subject, "Thông báo"));
+                string detail = Display(notification.Message, Display(notification.Body, Display(notification.Description, "")));
+                string pageKey = NotificationPageKey(notification, title, detail);
+                DateTime time = notification.CreatedAt > DateTime.MinValue
+                    ? notification.CreatedAt
+                    : notification.SentDate ?? DateTime.Now;
+                string tag = notification.IsRead ? Display(notification.Priority, "Đã gửi") : "Mới";
+                AddItem(title, detail, time, ViStatus(tag), pageKey, NotificationIcon(pageKey), notification.IsRead ? ModernUi.Blue : ModernUi.Orange);
+            }
+
+            foreach (var complaint in complaints
+                .Where(c => ViStatus(c.Status) == "Mới")
+                .OrderByDescending(c => c.CreatedAt)
+                .Take(5))
+            {
+                AddItem(
+                    "Phản ánh mới cần xử lý",
+                    $"{Display(complaint.Title)} - căn hộ {Display(complaint.ApartmentCode)}",
+                    complaint.CreatedAt,
+                    "Mới",
+                    "complaints",
+                    "!",
+                    ModernUi.Orange);
+            }
+
+            foreach (var complaint in complaints
+                .Where(c => c.UpdatedAt > c.CreatedAt.AddMinutes(1) && ViStatus(c.Status) != "Mới")
+                .OrderByDescending(c => c.UpdatedAt)
+                .Take(3))
+            {
+                AddItem(
+                    "Phản ánh vừa cập nhật",
+                    $"{Display(complaint.Title)} - {ViStatus(complaint.Status)}",
+                    complaint.UpdatedAt,
+                    ViStatus(complaint.Status),
+                    "complaints",
+                    "■",
+                    ModernUi.Blue);
+            }
+
+            foreach (var payment in pendingPayments.Take(5))
+            {
+                AddItem(
+                    "Thanh toán chờ xác nhận",
+                    $"{Display(payment.ResidentName, "Cư dân")} - {Money(payment.Amount)} VNĐ",
+                    payment.CreatedAt,
+                    "Chờ xử lý",
+                    "invoices",
+                    "₫",
+                    ModernUi.Green);
+            }
+
+            foreach (var visitor in visitors
+                .Where(v => ViStatus(v.Status) == "Chờ duyệt")
+                .OrderByDescending(v => v.CreatedAt)
+                .Take(5))
+            {
+                AddItem(
+                    "Khách ra vào chờ duyệt",
+                    $"{Display(visitor.VisitorName)} - căn hộ {Display(visitor.ApartmentCode)}",
+                    visitor.CreatedAt,
+                    "Chờ xử lý",
+                    "visitors",
+                    "♙",
+                    Color.FromArgb(6, 182, 212));
+            }
+
+            foreach (var vehicle in vehicles
+                .Where(v => ViStatus(v.Status) == "Chờ duyệt")
+                .OrderByDescending(v => v.CreatedAt)
+                .Take(5))
+            {
+                AddItem(
+                    "Phương tiện chờ duyệt",
+                    $"{Display(vehicle.LicensePlate)} - {Display(vehicle.ResidentName)}",
+                    vehicle.CreatedAt,
+                    "Chờ xử lý",
+                    "vehicles",
+                    "▣",
+                    ModernUi.Orange);
+            }
+
+            foreach (var invoice in unpaidInvoiceItems
+                .Where(i => i.DueDate.HasValue && i.DueDate.Value.Date < today)
+                .OrderByDescending(i => i.DueDate)
+                .Take(3))
+            {
+                AddItem(
+                    "Hóa đơn quá hạn",
+                    $"{Display(invoice.ApartmentCode)} còn {Money(Math.Max(0m, invoice.RemainingAmount))} VNĐ",
+                    invoice.DueDate ?? invoice.CreatedAt,
+                    "Quan trọng",
+                    "invoices",
+                    "!",
+                    ModernUi.Red);
+            }
+
+            foreach (var maintenance in upcomingSchedules.Take(3))
+            {
+                AddItem(
+                    "Nhắc lịch bảo trì",
+                    $"{Display(maintenance.AssetName)} - {DateText(maintenance.ScheduledDate)}",
+                    maintenance.ScheduledDate,
+                    "Quan trọng",
+                    "assets",
+                    "◇",
+                    Color.FromArgb(6, 182, 212));
+            }
+
+            return items;
+        }
+
+        static bool IsCurrentResident(ResidentDTO resident)
+        {
+            if (resident.EndDate.HasValue && resident.EndDate.Value.Date < DateTime.Today)
+            {
+                return false;
+            }
+
+            return IsActiveStatus(resident.Status) || ResidentLivingStatus(resident) == "Đang cư trú";
+        }
+
+        static decimal InvoiceRemaining(InvoiceDTO invoice)
+        {
+            return invoice.RemainingAmount > 0m
+                ? invoice.RemainingAmount
+                : Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
+        }
+
+        static string ShortChartLabel(string label)
+        {
+            label = Display(label, "Khác").Trim();
+            return label.Length <= 12 ? label : label[..9] + "...";
+        }
+
+        static string NotificationPageKey(NotificationDTO notification, string title, string detail)
+        {
+            string text = $"{notification.NotificationType} {notification.Type} {title} {detail}".ToLowerInvariant();
+            if (text.Contains("complaint") || text.Contains("phản ánh") || text.Contains("phan anh"))
+            {
+                return "complaints";
+            }
+
+            if (text.Contains("payment") || text.Contains("invoice") || text.Contains("thanh toán") || text.Contains("thanh toan") || text.Contains("hóa đơn") || text.Contains("hoa don"))
+            {
+                return "invoices";
+            }
+
+            if (text.Contains("visitor") || text.Contains("khách") || text.Contains("khach"))
+            {
+                return "visitors";
+            }
+
+            if (text.Contains("vehicle") || text.Contains("phương tiện") || text.Contains("phuong tien"))
+            {
+                return "vehicles";
+            }
+
+            if (text.Contains("maintenance") || text.Contains("bảo trì") || text.Contains("bao tri"))
+            {
+                return "assets";
+            }
+
+            return "";
+        }
+
+        static string NotificationIcon(string pageKey)
+        {
+            return pageKey switch
+            {
+                "complaints" => "!",
+                "invoices" => "₫",
+                "visitors" => "♙",
+                "vehicles" => "▣",
+                "assets" => "◇",
+                _ => "▰"
+            };
         }
 
         static void AddSectionDots(Control parent)
@@ -994,32 +1253,109 @@ public partial class FrmMainDashboard
             parent.Controls.Add(dots);
         }
 
-        static void AddNoticeRow(Control parent, int index, string message, string time)
+        static void ConfigureFixedWidthGrid(DataGridView grid, params int[] widths)
         {
-            int y = 44 + index * 37;
-            var icon = ModernUi.Label("▰", 11f, FontStyle.Bold, ModernUi.Blue);
-            icon.Location = new Point(24, y);
-            icon.Size = new Size(20, 24);
-            icon.TextAlign = ContentAlignment.MiddleCenter;
-            parent.Controls.Add(icon);
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.MultiSelect = false;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+            grid.ScrollBars = ScrollBars.Both;
+            grid.RowHeadersVisible = false;
+            grid.AllowUserToResizeColumns = true;
+            grid.AllowUserToResizeRows = false;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 36;
+            grid.RowTemplate.Height = 34;
+            ApplyColumnWidths();
+            grid.DataBindingComplete += (_, _) => ApplyColumnWidths();
 
-            var text = ModernUi.Label(message, 9f, FontStyle.Regular, ModernUi.Text);
-            text.Location = new Point(58, y);
-            text.Size = new Size(parent.Width - 250, 24);
-            parent.Controls.Add(text);
+            void ApplyColumnWidths()
+            {
+                for (int i = 0; i < grid.Columns.Count && i < widths.Length; i++)
+                {
+                    grid.Columns[i].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    grid.Columns[i].MinimumWidth = Math.Min(widths[i], 50);
+                    grid.Columns[i].Width = widths[i];
+                }
 
-            var date = ModernUi.Label(time, 8.7f, FontStyle.Regular, Color.FromArgb(148, 163, 184));
-            date.Location = new Point(parent.Width - 150, y);
-            date.Size = new Size(130, 24);
-            date.TextAlign = ContentAlignment.MiddleRight;
-            parent.Controls.Add(date);
+                grid.ClearSelection();
+            }
+        }
+
+        void AddNoticeRow(Control parent, int index, (string Title, string Detail, DateTime Time, string Tag, string PageKey, string Icon, Color Accent) item)
+        {
+            int y = 43 + index * 39;
+            var row = new Panel
+            {
+                BackColor = Color.White,
+                Location = new Point(12, y),
+                Size = new Size(parent.Width - 24, 36),
+                Cursor = Cursors.Hand
+            };
+            parent.Controls.Add(row);
+
+            var icon = new CircleLabel
+            {
+                Text = item.Icon,
+                CircleColor = Color.FromArgb(239, 246, 255),
+                ForeColor = item.Accent,
+                Font = ModernUi.Font(9f, FontStyle.Bold),
+                Location = new Point(6, 6),
+                Size = new Size(24, 24),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            row.Controls.Add(icon);
+
+            int rightW = 118;
+            var title = ModernUi.Label(item.Title, 8.6f, FontStyle.Bold, ModernUi.Navy);
+            title.Location = new Point(42, 1);
+            title.Size = new Size(row.Width - 48 - rightW, 17);
+            title.AutoEllipsis = true;
+            row.Controls.Add(title);
+
+            var detail = ModernUi.Label(item.Detail, 8f, FontStyle.Regular, ModernUi.Text);
+            detail.Location = new Point(42, 18);
+            detail.Size = new Size(row.Width - 48 - rightW, 16);
+            detail.AutoEllipsis = true;
+            row.Controls.Add(detail);
+
+            var time = ModernUi.Label(DateTimeText(item.Time), 7.8f, FontStyle.Regular, ModernUi.Muted);
+            time.Location = new Point(row.Width - rightW, 0);
+            time.Size = new Size(rightW - 4, 16);
+            time.TextAlign = ContentAlignment.MiddleRight;
+            time.AutoEllipsis = true;
+            row.Controls.Add(time);
+
+            var badge = ModernUi.Badge(item.Tag, item.Accent);
+            int badgeW = Math.Min(92, Math.Max(58, TextRenderer.MeasureText(item.Tag, badge.Font).Width + 20));
+            badge.Location = new Point(row.Width - badgeW - 4, 18);
+            badge.Size = new Size(badgeW, 18);
+            row.Controls.Add(badge);
+
+            BindTileClick(row, (_, _) =>
+            {
+                if (!string.IsNullOrWhiteSpace(item.PageKey) && CanAccessPage(item.PageKey))
+                {
+                    Navigate(item.PageKey);
+                    return;
+                }
+
+                MessageBox.Show(this,
+                    $"{item.Title}\n\n{item.Detail}\n{DateTimeText(item.Time)}",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            });
 
             if (index < 4)
             {
                 var line = new Panel
                 {
                     BackColor = Color.FromArgb(232, 238, 246),
-                    Location = new Point(12, y + 30),
+                    Location = new Point(12, y + 37),
                     Size = new Size(parent.Width - 24, 1)
                 };
                 parent.Controls.Add(line);
@@ -1802,61 +2138,57 @@ allInvoices.Location = new Point(14, invoicePanel.Height - 42);
         }
     }
 
-    private RoundedPanel CreateDebtCard(int unpaidCount, decimal debtAmount, int width, bool hasDebt)
+    private RoundedPanel CreateDebtCard(int unpaidCount, decimal debtAmount, int width, bool hasDebt, int height = 126)
     {
         var card = ModernUi.CardPanel();
-        card.Size = new Size(width, 126);
+        card.Size = new Size(width, height);
 
         Color accentColor = hasDebt ? ModernUi.Red : Color.FromArgb(249, 115, 22);
         var titleLabel = ModernUi.Label("NỢ CHƯA THU", 8.5f, FontStyle.Bold, accentColor);
-        titleLabel.Location = new Point(14, 12);
-        titleLabel.Size = new Size(width - 28, 22);
-        titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+        titleLabel.Location = new Point(16, 12);
+        titleLabel.Size = new Size(width - 32, 22);
+        titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+        titleLabel.AutoEllipsis = true;
         card.Controls.Add(titleLabel);
 
+        int iconSize = width < 190 ? 44 : 50;
+        int iconLeft = 18;
+        int iconTop = 48;
         var circle = new CircleLabel
         {
             Text = "!",
             CircleColor = accentColor,
             ForeColor = Color.White,
-            Font = ModernUi.Font(22f, FontStyle.Bold),
-            Size = new Size(58, 58),
-            Location = new Point(18, 44)
+            Font = ModernUi.Font(iconSize >= 50 ? 18f : 16f, FontStyle.Bold),
+            Size = new Size(iconSize, iconSize),
+            Location = new Point(iconLeft, iconTop),
+            TextAlign = ContentAlignment.MiddleCenter
         };
         card.Controls.Add(circle);
 
-        // Add warning icon/badge if there's debt
-        if (hasDebt)
-        {
-            var badge = new CircleLabel
-            {
-                Text = "⚠",
-                CircleColor = ModernUi.Red,
-                ForeColor = Color.White,
-                Font = ModernUi.Font(12f, FontStyle.Bold),
-                Size = new Size(28, 28),
-                Location = new Point(62, 42)
-            };
-            card.Controls.Add(badge);
-        }
-
-        var valueLabel = ModernUi.Label(unpaidCount.ToString("N0"), 13f, FontStyle.Bold, ModernUi.Navy);
-        valueLabel.Location = new Point(86, 40);
-        valueLabel.Size = new Size(width - 98, 30);
-        valueLabel.TextAlign = ContentAlignment.MiddleCenter;
+        int textLeft = iconLeft + iconSize + 14;
+        int textWidth = Math.Max(84, width - textLeft - 16);
+        string debtText = $"{Money(debtAmount)} VNĐ";
+        float valueFontSize = debtText.Length > 15 ? 11.5f : debtText.Length > 12 ? 12.5f : 15f;
+        var valueLabel = ModernUi.Label(debtText, valueFontSize, FontStyle.Bold, accentColor);
+        valueLabel.Location = new Point(textLeft, 44);
+        valueLabel.Size = new Size(textWidth, 30);
+        valueLabel.TextAlign = ContentAlignment.MiddleLeft;
+        valueLabel.AutoEllipsis = true;
         card.Controls.Add(valueLabel);
 
-        var detailLabel = ModernUi.Label($"{Money(debtAmount)} VNĐ\r\n{unpaidCount} Hóa đơn", 8.4f, FontStyle.Regular, ModernUi.Text);
-        detailLabel.Location = new Point(86, 70);
-        detailLabel.Size = new Size(width - 98, 40);
-        detailLabel.TextAlign = ContentAlignment.MiddleCenter;
-        card.Controls.Add(detailLabel);
+        var unitLabel = ModernUi.Label("Công nợ", 8.6f, FontStyle.Regular, ModernUi.Muted);
+        unitLabel.Location = new Point(textLeft, 72);
+        unitLabel.Size = new Size(textWidth, 18);
+        unitLabel.TextAlign = ContentAlignment.MiddleLeft;
+        card.Controls.Add(unitLabel);
 
-        Color badgeColor = hasDebt ? ModernUi.Red : Color.FromArgb(249, 115, 22);
-        var actionLabel = ModernUi.Badge("Cần xử lý", badgeColor);
-        actionLabel.Location = new Point(14, 92);
-        actionLabel.Size = new Size(width - 28, 24);
-        card.Controls.Add(actionLabel);
+        var detailLabel = ModernUi.Label($"{unpaidCount:N0} hóa đơn chưa thanh toán", 8.4f, FontStyle.Regular, ModernUi.Text);
+        detailLabel.Location = new Point(textLeft, height - 32);
+        detailLabel.Size = new Size(textWidth, 20);
+        detailLabel.TextAlign = ContentAlignment.MiddleLeft;
+        detailLabel.AutoEllipsis = true;
+        card.Controls.Add(detailLabel);
 
         return card;
     }

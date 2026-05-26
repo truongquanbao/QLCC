@@ -954,7 +954,7 @@ END";
             "permissions" => HasPermission(PermissionManageRoles),
             "apartments" => HasPermission("ManageApartments"),
             "residents" => HasPermission("ManageResidents"),
-            "invoices" => HasPermission("ManageInvoices"),
+            "invoices" => HasAnyPermission("ManageInvoices", "ManageFeeTypes"),
             "complaints" => HasPermission("ManageComplaints"),
             "vehicles" => HasPermission("ManageVehicles"),
             "visitors" => HasPermission("ManageVisitors"),

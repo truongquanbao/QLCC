@@ -350,6 +350,66 @@ public class VisitorDAL
         }
     }
 
+    public static bool UpdateVisitorByManager(
+    int visitorID,
+    int residentID,
+    string visitorName,
+    string phone,
+    string email,
+    string idNumber,
+    string visitorType,
+    string purpose,
+    DateTime arrivalTime,
+    DateTime? expectedDepartureTime,
+    int guestCount,
+    string note = null)
+    {
+        try
+        {
+            DateTime safeExpectedDepartureTime = expectedDepartureTime ?? arrivalTime.AddHours(2);
+            int safeGuestCount = Math.Max(1, Math.Min(7, guestCount));
+
+            const string query = @"
+            UPDATE Visitors
+            SET ResidentID = @ResidentID,
+                VisitorName = @VisitorName,
+                Phone = @Phone,
+                Email = @Email,
+                IDNumber = @IDNumber,
+                Purpose = @Purpose,
+                ArrivalTime = @ArrivalTime,
+                Note = @Note,
+                UpdatedAt = GETDATE()
+            WHERE VisitorID = @VisitorID
+              AND Status IN ('Pending', 'Approved')
+        ";
+
+            using (var connection = DatabaseHelper.CreateConnection())
+            {
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@VisitorID", visitorID);
+                    command.Parameters.AddWithValue("@ResidentID", residentID);
+                    command.Parameters.AddWithValue("@VisitorName", visitorName);
+                    command.Parameters.AddWithValue("@Phone", phone ?? string.Empty);
+                    command.Parameters.AddWithValue("@Email", email ?? string.Empty);
+                    command.Parameters.AddWithValue("@IDNumber", idNumber);
+                    command.Parameters.AddWithValue("@Purpose", purpose);
+                    command.Parameters.AddWithValue("@ArrivalTime", arrivalTime);
+                    command.Parameters.AddWithValue("@Note", BuildVisitorNote(visitorType, note, safeExpectedDepartureTime, safeGuestCount));
+
+                    connection.Open();
+                    return command.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error updating visitor by manager: {VisitorID}", visitorID);
+            return false;
+        }
+    }
+
     /// <summary>
     /// Approve visitor
     /// </summary>

@@ -643,7 +643,7 @@ public partial class FrmMainDashboard
 
         page.Controls.Add(list);
 
-        var detail = ModernUi.Section("Chi tiết hóa đơn", rightW, 430);
+        var detail = ModernUi.Section("Chi tiết hóa đơn", rightW, 520);
         detail.Location = new Point(list.Right + gap, y);
         page.Controls.Add(detail);
 

@@ -438,6 +438,96 @@ namespace ApartmentManager.BLL
             }
         }
 
+        public static (bool Success, string Message) UpdateVisitorByManager(
+    int visitorID,
+    int residentID,
+    string visitorName,
+    string phone,
+    string email,
+    string idNumber,
+    string visitorType,
+    string purpose,
+    DateTime arrivalTime,
+    DateTime? expectedDepartureTime,
+    int guestCount,
+    string note = "")
+        {
+            try
+            {
+                if (visitorID <= 0)
+                    return (false, "Phiếu khách không hợp lệ.");
+
+                var visitor = VisitorDAL.GetVisitorByID(visitorID);
+                if (visitor == null)
+                    return (false, "Không tìm thấy phiếu khách.");
+
+                string currentStatus = visitor.Status?.ToString() ?? "";
+                DateTime? checkedOutAt = visitor.CheckOutTime;
+                if (currentStatus == "Rejected" || currentStatus == "CheckedOut" ||
+                    (checkedOutAt.HasValue && checkedOutAt.Value > DateTime.MinValue))
+                    return (false, "Phiếu khách này không còn được phép cập nhật.");
+
+                var resident = ResidentDAL.GetResidentByID(residentID);
+                if (resident == null)
+                    return (false, "Không tìm thấy hồ sơ cư dân.");
+
+                if (string.IsNullOrWhiteSpace(visitorName))
+                    return (false, "Vui lòng nhập tên khách.");
+
+                if (!ValidationHelper.IsValidLength(visitorName, MIN_NAME_LENGTH, MAX_NAME_LENGTH))
+                    return (false, $"Tên khách phải từ {MIN_NAME_LENGTH} đến {MAX_NAME_LENGTH} ký tự.");
+
+                if (!string.IsNullOrWhiteSpace(phone) && !ValidationHelper.IsValidPhone(phone))
+                    return (false, "Số điện thoại không hợp lệ.");
+
+                if (!string.IsNullOrWhiteSpace(email) && !ValidationHelper.IsValidEmail(email))
+                    return (false, "Email không hợp lệ.");
+
+                string safeIdNumber = (idNumber ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(safeIdNumber))
+                    return (false, "Vui lòng nhập CCCD / giấy tờ của khách.");
+
+                if (!safeIdNumber.All(char.IsDigit) || (safeIdNumber.Length != 9 && safeIdNumber.Length != 12))
+                    return (false, "CCCD / giấy tờ không hợp lệ. Vui lòng nhập 9 hoặc 12 chữ số.");
+
+                var validTypes = new[] { "Guest", "Delivery", "Service", "Family", "Other" };
+                if (!validTypes.Contains(visitorType))
+                    return (false, "Loại khách không hợp lệ.");
+
+                if (string.IsNullOrWhiteSpace(purpose))
+                    return (false, "Vui lòng nhập mục đích đến.");
+
+                if (!ValidationHelper.IsValidLength(purpose, MIN_PURPOSE_LENGTH, MAX_PURPOSE_LENGTH))
+                    return (false, $"Mục đích phải từ {MIN_PURPOSE_LENGTH} đến {MAX_PURPOSE_LENGTH} ký tự.");
+
+                if (guestCount < 1 || guestCount > MAX_GUEST_COUNT)
+                    return (false, $"Số lượng khách phải từ 1 đến {MAX_GUEST_COUNT} người.");
+
+                bool updated = VisitorDAL.UpdateVisitorByManager(
+                    visitorID,
+                    residentID,
+                    visitorName.Trim(),
+                    phone?.Trim() ?? "",
+                    email?.Trim() ?? "",
+                    safeIdNumber,
+                    visitorType,
+                    purpose.Trim(),
+                    arrivalTime,
+                    expectedDepartureTime,
+                    guestCount,
+                    note?.Trim() ?? "");
+
+                return updated
+                    ? (true, "Đã cập nhật thông tin khách ra vào.")
+                    : (false, "Không thể cập nhật phiếu khách. Phiếu có thể đã đổi trạng thái hoặc không còn tồn tại.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error updating visitor by manager");
+                return (false, $"Lỗi: {ex.Message}");
+            }
+        }
+
         /// <summary>
         /// Delete a visitor record
         /// </summary>

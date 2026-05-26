@@ -874,7 +874,7 @@ public partial class FrmMainDashboard
         int contentW = parent.Width - pad * 2;
 
         var title = ModernUi.Label("Thông tin căn hộ - chủ hộ", 10f, FontStyle.Bold, ModernUi.Blue);
-        title.Location = new Point(pad, 42);
+        title.Location = new Point(pad, 36);
         title.Size = new Size(contentW, 24);
         parent.Controls.Add(title);
 
@@ -886,22 +886,22 @@ public partial class FrmMainDashboard
                 FontStyle.Regular,
                 ModernUi.Muted);
 
-            empty.Location = new Point(pad, 82);
+            empty.Location = new Point(pad, 66);
             empty.Size = new Size(contentW, 28);
             parent.Controls.Add(empty);
 
             var detailTitleEmpty = ModernUi.Label("Chi tiết các khoản phí", 10f, FontStyle.Bold, ModernUi.Blue);
-            detailTitleEmpty.Location = new Point(pad, 190);
+            detailTitleEmpty.Location = new Point(pad, 128);
             detailTitleEmpty.Size = new Size(contentW, 24);
             parent.Controls.Add(detailTitleEmpty);
 
             var emptyGrid = CreateGrid(
-                new[] { "STT", "Khoản phí", "Đơn giá", "Số lượng", "Thành tiền" },
+                new[] { "STT", "Khoản phí", "Đơn giá", "SL/DT", "Thành tiền" },
                 new[] { EmptyRow(5, "Không có dữ liệu") });
 
-            emptyGrid.Location = new Point(pad, 222);
-            emptyGrid.Size = new Size(contentW, 120);
-            emptyGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            emptyGrid.Location = new Point(pad, 158);
+            emptyGrid.Size = new Size(contentW, Math.Max(120, parent.Height - 258));
+            ConfigureFeeGrid(emptyGrid);
             parent.Controls.Add(emptyGrid);
 
             var totalEmpty = ModernUi.Label("TỔNG CỘNG: 0 VNĐ", 10.4f, FontStyle.Bold, ModernUi.Red);
@@ -918,8 +918,8 @@ public partial class FrmMainDashboard
             CircleColor = ModernUi.Blue,
             ForeColor = Color.White,
             Font = ModernUi.Font(14f, FontStyle.Bold),
-            Location = new Point(pad, 76),
-            Size = new Size(58, 58),
+            Location = new Point(pad, 62),
+            Size = new Size(52, 52),
             TextAlign = ContentAlignment.MiddleCenter
         };
         parent.Controls.Add(avatar);
@@ -930,7 +930,7 @@ public partial class FrmMainDashboard
             FontStyle.Bold,
             ModernUi.Navy);
 
-        name.Location = new Point(avatar.Right + 14, 78);
+        name.Location = new Point(avatar.Right + 14, 62);
         name.Size = new Size(contentW - avatar.Width - 20, 26);
         name.AutoEllipsis = true;
         parent.Controls.Add(name);
@@ -941,7 +941,7 @@ public partial class FrmMainDashboard
             FontStyle.Regular,
             ModernUi.Text);
 
-        apartmentLine.Location = new Point(avatar.Right + 14, 106);
+        apartmentLine.Location = new Point(avatar.Right + 14, 88);
         apartmentLine.Size = new Size(contentW - avatar.Width - 20, 22);
         apartmentLine.AutoEllipsis = true;
         parent.Controls.Add(apartmentLine);
@@ -952,36 +952,36 @@ public partial class FrmMainDashboard
             FontStyle.Bold,
             StatusColor(invoice.PaymentStatus));
 
-        status.Location = new Point(avatar.Right + 14, 130);
+        status.Location = new Point(avatar.Right + 14, 112);
         status.Size = new Size(contentW - avatar.Width - 20, 22);
         parent.Controls.Add(status);
 
         int leftX = pad;
         int rightX = pad + Math.Max(170, contentW / 2);
-        int fieldY = 168;
+        int fieldY = 144;
         int fieldW = Math.Max(130, contentW / 2 - 26);
 
         AddInfoPair(parent, "Mã hóa đơn", InvoiceCode(invoice), leftX, fieldY, fieldW);
         AddInfoPair(parent, "Căn hộ", Display(invoice.ApartmentCode), rightX, fieldY, fieldW);
 
-        fieldY += 50;
+        fieldY += 44;
         AddInfoPair(parent, "Chủ hộ", Display(resident?.FullName), leftX, fieldY, fieldW);
         AddInfoPair(parent, "Số điện thoại", Display(resident?.Phone), rightX, fieldY, fieldW);
 
-        fieldY += 50;
+        fieldY += 44;
         AddInfoPair(parent, "Ngày lập", DateTimeText(invoice.CreatedAt), leftX, fieldY, fieldW);
         AddInfoPair(parent, "Hạn thanh toán", DateText(invoice.DueDate), rightX, fieldY, fieldW);
 
         var line = new Panel
         {
             BackColor = ModernUi.Border,
-            Location = new Point(pad, 318),
+            Location = new Point(pad, 282),
             Size = new Size(contentW, 1)
         };
         parent.Controls.Add(line);
 
         var detailTitle = ModernUi.Label("Chi tiết các khoản phí", 10f, FontStyle.Bold, ModernUi.Blue);
-        detailTitle.Location = new Point(pad, 334);
+        detailTitle.Location = new Point(pad, 296);
         detailTitle.Size = new Size(contentW, 24);
         parent.Controls.Add(detailTitle);
 
@@ -996,14 +996,9 @@ public partial class FrmMainDashboard
             new object[] { 3, "Phí gửi xe / khác", Money(invoice.TotalAmount * 0.25m), "1", Money(invoice.TotalAmount * 0.25m) }
             });
 
-        detailGrid.Location = new Point(pad, 364);
-        detailGrid.Size = new Size(contentW, 90);
-        detailGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        detailGrid.ScrollBars = ScrollBars.Vertical;
-        detailGrid.RowTemplate.Height = 24;
-        detailGrid.ColumnHeadersHeight = 28;
-        detailGrid.DefaultCellStyle.Font = ModernUi.Font(7.8f);
-        detailGrid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(7.8f, FontStyle.Bold);
+        detailGrid.Location = new Point(pad, 326);
+        detailGrid.Size = new Size(contentW, Math.Max(118, parent.Height - 400));
+        ConfigureFeeGrid(detailGrid);
         parent.Controls.Add(detailGrid);
 
         // Khu tổng kết đặt cố định ngay dưới bảng phí,
@@ -1053,6 +1048,39 @@ public partial class FrmMainDashboard
             text.Size = new Size(width, 24);
             text.AutoEllipsis = true;
             target.Controls.Add(text);
+        }
+
+        static void ConfigureFeeGrid(DataGridView grid)
+        {
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            grid.ScrollBars = ScrollBars.Both;
+            grid.RowHeadersVisible = false;
+            grid.ReadOnly = true;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeRows = false;
+            grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.RowTemplate.Height = 26;
+            grid.ColumnHeadersHeight = 30;
+            grid.DefaultCellStyle.Font = ModernUi.Font(7.9f);
+            grid.ColumnHeadersDefaultCellStyle.Font = ModernUi.Font(7.9f, FontStyle.Bold);
+
+            int[] widths = { 50, 130, 110, 80, 120 };
+            ApplyColumnWidths();
+            grid.DataBindingComplete += (_, _) => ApplyColumnWidths();
+
+            void ApplyColumnWidths()
+            {
+                for (int i = 0; i < grid.Columns.Count && i < widths.Length; i++)
+                {
+                    grid.Columns[i].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    grid.Columns[i].MinimumWidth = Math.Min(widths[i], 50);
+                    grid.Columns[i].Width = widths[i];
+                }
+
+                grid.ClearSelection();
+            }
         }
 
         static string Initials(string text)

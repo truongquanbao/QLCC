@@ -436,11 +436,6 @@ public partial class FrmMainDashboard
         string? currentGroup = null;
         foreach (var item in MenuItemsForRole())
         {
-            if (item.Key == "permissions")
-            {
-                continue;
-            }
-
             // Add group header if group changed
             if (item.Group != currentGroup && !string.IsNullOrEmpty(item.Group))
             {
@@ -548,6 +543,30 @@ public partial class FrmMainDashboard
                 ("Hỗ trợ", "visitors", "Khách của tôi", "♙"),
                 ("Cài đặt", "password", "Đổi mật khẩu", "□")
             };
+            return items.Where(item => CanAccessPage(item.Key));
+        }
+
+        if (IsManager)
+        {
+            items = new[]
+            {
+                (null, "dashboard", "Dashboard", "◉"),
+
+                ("Quản lý", "apartments", "Tòa nhà / căn hộ", "▦"),
+                ("Quản lý", "residents", "Cư dân", "●"),
+                ("Quản lý", "invoices", "Hóa đơn / phí", "▤"),
+
+                ("Vận hành", "complaints", "Phản ánh", "■"),
+                ("Vận hành", "vehicles", "Phương tiện", "▣"),
+                ("Vận hành", "visitors", "Khách ra vào", "♙"),
+                ("Vận hành", "assets", "Tài sản", "◇"),
+
+                ("Hệ thống", "reports", "Báo cáo", "▥"),
+
+                ("Cài đặt", "profile", "Hồ sơ cá nhân", "●"),
+                ("Cài đặt", "password", "Đổi mật khẩu", "□")
+            };
+
             return items.Where(item => CanAccessPage(item.Key));
         }
 

@@ -2863,25 +2863,6 @@ public partial class FrmMainDashboard
         string lastBackupText = lastBackupAt.HasValue ? DateTimeText(lastBackupAt.Value) : BackupDisplayText(lastBackupRaw);
         string selectedLogoPath = ConfigValue(systemConfigs, "SystemLogoPath", "");
 
-        var featureSpecs = new[]
-        {
-            ("⚙", "Thông tin chung", "Cấu hình thông tin chung của hệ thống như tên, logo, địa chỉ...", ModernUi.Purple),
-            ("👥", "Quản lý người dùng", "Cấu hình chính sách người dùng, mật khẩu, đăng nhập...", ModernUi.Blue),
-            ("▣", "Phân quyền hệ thống", "Quản lý vai trò, quyền hạn và phân quyền chức năng...", ModernUi.Green),
-            ("▥", "Cấu hình tòa nhà", "Cấu hình thông tin tòa nhà, block, tầng, căn hộ...", ModernUi.Orange),
-            ("$", "Cấu hình phí", "Cấu hình các loại phí, đơn giá, chu kỳ thu, chính sách phí...", ModernUi.Red),
-            ("●", "Cấu hình thông báo", "Cấu hình gửi email, SMS, thông báo ứng dụng...", Color.FromArgb(241, 166, 0)),
-            ("☁", "Sao lưu & phục hồi", "Quản lý sao lưu dữ liệu và phục hồi hệ thống...", ModernUi.Teal),
-            ("▤", "Nhật ký cấu hình", "Xem lịch sử thay đổi cấu hình hệ thống...", ModernUi.Purple)
-        };
-        var featureCards = featureSpecs
-            .Select(spec => CreateSettingsFeatureCard(spec.Item1, spec.Item2, spec.Item3, spec.Item4))
-            .ToList();
-        foreach (var card in featureCards)
-        {
-            page.Controls.Add(card.Card);
-        }
-
         var systemInfoCard = ModernUi.Section("Thông tin hệ thống", 620, 456);
         page.Controls.Add(systemInfoCard);
         var systemDivider = new Panel { BackColor = ModernUi.Border };
@@ -2970,8 +2951,32 @@ public partial class FrmMainDashboard
         var backupStatusDetail = ModernUi.Label(lastBackupAt.HasValue ? lastBackupText : "Chưa có bản sao lưu", 8.7f, FontStyle.Regular, ModernUi.Text);
         backupStatusDetail.AutoEllipsis = true;
         backupStatusCard.Controls.Add(backupStatusDetail);
-        var configureBackupButton = ModernUi.OutlineButton("⚙  Cấu hình", 138, 36);
-        backupCard.Controls.Add(configureBackupButton);
+        var saveBackupButton = ModernUi.Button("▣  Lưu cấu hình", ModernUi.Blue, 148, 36);
+        backupCard.Controls.Add(saveBackupButton);
+        var runBackupButton = ModernUi.OutlineButton("▤  Sao lưu ngay", 148, 36);
+        backupCard.Controls.Add(runBackupButton);
+
+        var configLogCard = ModernUi.Section("Nhật ký cấu hình", 620, 306);
+        page.Controls.Add(configLogCard);
+        var configLogDivider = new Panel { BackColor = ModernUi.Border };
+        configLogCard.Controls.Add(configLogDivider);
+        var refreshConfigLogButton = ModernUi.OutlineButton("Làm mới", 104, 32);
+        configLogCard.Controls.Add(refreshConfigLogButton);
+        var configLogGrid = ModernUi.Grid();
+        configLogGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        configLogGrid.ScrollBars = ScrollBars.Both;
+        configLogGrid.ReadOnly = true;
+        configLogGrid.AllowUserToResizeColumns = true;
+        configLogGrid.AllowUserToResizeRows = false;
+        configLogGrid.RowHeadersVisible = false;
+        configLogGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        configLogGrid.MultiSelect = false;
+        configLogGrid.RowTemplate.Height = 34;
+        configLogGrid.ColumnHeadersHeight = 36;
+        configLogGrid.CellFormatting += (_, e) => ApplyGridCellStyle(e);
+        configLogCard.Controls.Add(configLogGrid);
+        var configLogFooter = ModernUi.Label("", 8.7f, FontStyle.Regular, ModernUi.Muted);
+        configLogCard.Controls.Add(configLogFooter);
 
         LoadLogoPreview(selectedLogoPath, false);
 
@@ -3003,6 +3008,12 @@ public partial class FrmMainDashboard
 
         saveSystemButton.Click += (_, _) =>
         {
+            if (string.IsNullOrWhiteSpace(systemNameInput.Text))
+            {
+                MessageBox.Show(this, "Vui lòng nhập tên hệ thống.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             UpsertSystemConfig("AppName", systemNameInput.Text.Trim(), "Tên hệ thống");
             UpsertSystemConfig("SystemAddress", systemAddressInput.Text.Trim(), "Địa chỉ hệ thống");
             UpsertSystemConfig("SupportEmail", supportEmailInput.Text.Trim(), "Email liên hệ");
@@ -3013,33 +3024,148 @@ public partial class FrmMainDashboard
                 UpsertSystemConfig("SystemLogoPath", selectedLogoPath, "Đường dẫn logo hệ thống");
             }
 
+            AuditLogDAL.LogAction(_session?.UserID, "Update_SystemInfo", "SystemConfig", description: "Cập nhật thông tin hệ thống");
+            RefreshConfigLog();
             MessageBox.Show(this, "Đã lưu thông tin hệ thống.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
 
         saveGeneralButton.Click += (_, _) =>
         {
+            if (!int.TryParse(maxRowsInput.Text.Trim(), out int maxRows) || maxRows <= 0)
+            {
+                MessageBox.Show(this, "Số dòng hiển thị tối đa phải là số nguyên dương.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(autoLogoutInput.Text.Trim(), out int timeoutMinutes) || timeoutMinutes <= 0)
+            {
+                MessageBox.Show(this, "Thời gian tự động đăng xuất phải là số phút hợp lệ.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             UpsertSystemConfig("Language", Display(languageCombo.SelectedItem?.ToString()), "Ngôn ngữ hệ thống");
             UpsertSystemConfig("TimeZone", Display(timeZoneCombo.SelectedItem?.ToString()), "Múi giờ hệ thống");
             UpsertSystemConfig("DateTimeFormat", Display(dateFormatCombo.SelectedItem?.ToString()), "Định dạng ngày");
             UpsertSystemConfig("NumberFormat", Display(numberFormatCombo.SelectedItem?.ToString()), "Định dạng số");
-            UpsertSystemConfig("MaxTableRows", maxRowsInput.Text.Trim(), "Số dòng hiển thị tối đa trên bảng");
-            UpsertSystemConfig("SessionTimeoutMinutes", autoLogoutInput.Text.Trim(), "Tự động đăng xuất sau");
+            UpsertSystemConfig("MaxTableRows", maxRows.ToString(CultureInfo.InvariantCulture), "Số dòng hiển thị tối đa trên bảng");
+            UpsertSystemConfig("SessionTimeoutMinutes", timeoutMinutes.ToString(CultureInfo.InvariantCulture), "Tự động đăng xuất sau");
             UpsertSystemConfig("AllowMultiDeviceLogin", multiDeviceToggle.Checked ? "true" : "false", "Cho phép đăng nhập đồng thời nhiều thiết bị");
             UpsertSystemConfig("BrowserNotifications", browserNotificationToggle.Checked ? "true" : "false", "Hiển thị thông báo trên trình duyệt");
             UpsertSystemConfig("EmailNewComplaint", emailComplaintToggle.Checked ? "true" : "false", "Gửi email khi có phản ánh mới");
             UpsertSystemConfig("MaintenanceMode", maintenanceModeToggle.Checked ? "true" : "false", "Bật chế độ bảo trì hệ thống");
 
+            AuditLogDAL.LogAction(_session?.UserID, "Update_GeneralConfig", "SystemConfig", description: "Cập nhật cấu hình chung");
+            RefreshConfigLog();
             MessageBox.Show(this, "Đã lưu cấu hình chung.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
 
-        configureBackupButton.Click += (_, _) =>
+        saveBackupButton.Click += (_, _) =>
         {
+            if (!TimeSpan.TryParseExact(backupTimeInput.Text.Trim(), @"hh\:mm", CultureInfo.InvariantCulture, out _))
+            {
+                MessageBox.Show(this, "Thời gian sao lưu phải có định dạng HH:mm, ví dụ 02:00.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(backupRetentionInput.Text.Trim(), out int retentionCount) || retentionCount <= 0)
+            {
+                MessageBox.Show(this, "Số bản sao lưu lưu trữ tối đa phải là số nguyên dương.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             UpsertSystemConfig("AutoBackupFrequency", Display(backupFrequencyCombo.SelectedItem?.ToString()), "Tần suất sao lưu tự động");
             UpsertSystemConfig("AutoBackupTime", backupTimeInput.Text.Trim(), "Thời gian sao lưu tự động");
-            UpsertSystemConfig("BackupRetentionCount", backupRetentionInput.Text.Trim(), "Số bản sao lưu lưu trữ tối đa");
+            UpsertSystemConfig("BackupRetentionCount", retentionCount.ToString(CultureInfo.InvariantCulture), "Số bản sao lưu lưu trữ tối đa");
 
+            AuditLogDAL.LogAction(_session?.UserID, "Update_BackupConfig", "SystemConfig", description: "Cập nhật cấu hình sao lưu tự động");
+            RefreshConfigLog();
             MessageBox.Show(this, "Đã lưu cấu hình sao lưu tự động.", "Cấu hình hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
+
+        runBackupButton.Click += (_, _) =>
+        {
+            RunDatabaseBackup();
+            RefreshBackupStatus();
+            RefreshConfigLog();
+        };
+
+        refreshConfigLogButton.Click += (_, _) => RefreshConfigLog();
+
+        void RefreshBackupStatus()
+        {
+            var latestConfigs = GetSystemConfigs();
+            string raw = ConfigValue(latestConfigs, "LastBackupAt", "");
+            DateTime? parsed = ParseDashboardDate(raw);
+            string text = parsed.HasValue ? DateTimeText(parsed.Value) : BackupDisplayText(raw);
+            bool hasBackup = parsed.HasValue || !string.IsNullOrWhiteSpace(raw);
+
+            backupStatusCard.BackColor = hasBackup ? Color.FromArgb(235, 250, 240) : Color.FromArgb(248, 250, 252);
+            backupStatusCard.BorderColor = hasBackup ? Color.FromArgb(151, 220, 172) : Color.FromArgb(203, 213, 225);
+            backupStatusIcon.CircleColor = hasBackup ? ModernUi.Green : ModernUi.Muted;
+            backupStatusIcon.Text = hasBackup ? "✓" : "!";
+            backupStatusTitle.ForeColor = hasBackup ? ModernUi.Green : ModernUi.Muted;
+            backupStatusTitle.Text = hasBackup ? "Lần sao lưu gần nhất" : "Chưa có dữ liệu";
+            backupStatusDetail.Text = hasBackup ? text : "Chưa có bản sao lưu";
+        }
+
+        void RefreshConfigLog()
+        {
+            var logs = LoadSystemLogRows()
+                .Where(log => string.Equals(log.Module, "SystemConfig", StringComparison.OrdinalIgnoreCase))
+                .Take(50)
+                .ToList();
+
+            SetGridData(
+                configLogGrid,
+                new[] { "Thời gian", "Người thao tác", "Hành động", "Nội dung thay đổi" },
+                BuildConfigLogRows(logs));
+
+            ConfigureConfigLogGrid();
+            configLogFooter.Text = logs.Count == 0
+                ? "Chưa có nhật ký cấu hình."
+                : $"Hiển thị {logs.Count:N0} bản ghi gần nhất";
+        }
+
+        object[][] BuildConfigLogRows(IReadOnlyCollection<SystemLogView> logs)
+        {
+            var rows = logs.Select(log => new object[]
+            {
+                DateTimeText(log.Timestamp),
+                Display(log.Username, "system"),
+                Display(log.Action),
+                Display(log.Description)
+            }).ToArray();
+
+            return rows.Length > 0
+                ? rows
+                : new[] { new object[] { "-", "-", "-", "Chưa có nhật ký cấu hình." } };
+        }
+
+        void ConfigureConfigLogGrid()
+        {
+            if (configLogGrid.Columns.Count == 0)
+            {
+                return;
+            }
+
+            int[] widths = { 142, 132, 154, 360 };
+            for (int i = 0; i < configLogGrid.Columns.Count; i++)
+            {
+                configLogGrid.Columns[i].Width = i < widths.Length ? widths[i] : 120;
+                configLogGrid.Columns[i].SortMode = DataGridViewColumnSortMode.NotSortable;
+                configLogGrid.Columns[i].DefaultCellStyle.Alignment = i == 3
+                    ? DataGridViewContentAlignment.MiddleLeft
+                    : DataGridViewContentAlignment.MiddleCenter;
+            }
+
+            if (configLogGrid.Columns.Count > 3)
+            {
+                configLogGrid.Columns[3].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                configLogGrid.Columns[3].MinimumWidth = 260;
+            }
+
+            configLogGrid.ClearSelection();
+        }
 
         void LoadLogoPreview(string path, bool showWarning)
         {
@@ -3084,18 +3210,6 @@ public partial class FrmMainDashboard
             int gap = 16;
             int y = 84;
 
-            int featureColumns = 4;
-            int featureHeight = 98;
-            int featureWidth = Math.Max(220, (width - gap * (featureColumns - 1)) / featureColumns);
-            for (int i = 0; i < featureCards.Count; i++)
-            {
-                int row = i / featureColumns;
-                int column = i % featureColumns;
-                featureCards[i].Card.SetBounds(left + column * (featureWidth + gap), y + row * (featureHeight + 14), featureWidth, featureHeight);
-            }
-
-            y += ((featureCards.Count + featureColumns - 1) / featureColumns) * (featureHeight + 14) - 14 + 16;
-
             bool twoColumns = width >= 980;
             int largeHeight = 456;
             int largeWidth = twoColumns ? (width - gap) / 2 : width;
@@ -3106,11 +3220,14 @@ public partial class FrmMainDashboard
             LayoutGeneralCard(generalCard.Width, generalCard.Height);
 
             y = twoColumns ? y + largeHeight + gap : generalCard.Bottom + gap;
-            int backupHeight = width >= 1180 ? 136 : 218;
-            backupCard.SetBounds(left, y, width, backupHeight);
+            int bottomHeight = 340;
+            backupCard.SetBounds(left, y, largeWidth, bottomHeight);
+            configLogCard.SetBounds(twoColumns ? backupCard.Right + gap : left, twoColumns ? y : backupCard.Bottom + gap, largeWidth, bottomHeight);
             LayoutBackupCard(backupCard.Width, backupCard.Height);
+            LayoutConfigLogCard(configLogCard.Width, configLogCard.Height);
 
-            page.AutoScrollMinSize = new Size(0, backupCard.Bottom + 34);
+            int bottom = twoColumns ? Math.Max(backupCard.Bottom, configLogCard.Bottom) : configLogCard.Bottom;
+            page.AutoScrollMinSize = new Size(0, bottom + 34);
         }
 
         void LayoutSystemInfoCard(int cardWidth, int cardHeight)
@@ -3175,91 +3292,47 @@ public partial class FrmMainDashboard
         {
             backupDivider.SetBounds(18, 42, Math.Max(80, cardWidth - 36), 1);
             int pad = 18;
-            int top = 58;
-            int fieldWidth = cardWidth >= 1180 ? Math.Max(210, (cardWidth - 520 - pad * 2 - 32) / 3) : Math.Max(220, (cardWidth - pad * 2 - 16) / 2);
-            int x = pad;
-            int y = top;
+            int labelWidth = Math.Min(190, Math.Max(130, cardWidth / 3));
+            int inputX = pad + labelWidth + 18;
+            int inputWidth = Math.Max(180, cardWidth - inputX - pad);
+            int y = 58;
             for (int i = 0; i < backupFields.Count; i++)
             {
                 var field = backupFields[i];
-                field.Label.SetBounds(x, y, fieldWidth, 20);
-                field.Input.SetBounds(x, y + 24, fieldWidth, field.Height);
+                field.Label.SetBounds(pad, y + 6, labelWidth, 24);
+                field.Input.SetBounds(inputX, y, inputWidth, field.Height);
                 if (field.Input is RoundedPanel host && host.Controls.Count > 0)
                 {
                     LayoutSettingsHostInput(host, host.Controls[0], field.Height);
                 }
-
-                x += fieldWidth + 16;
-                if (cardWidth < 1180 && i == 1)
-                {
-                    x = pad;
-                    y += 74;
-                }
+                y += 44;
             }
 
-            int statusWidth = cardWidth >= 1180 ? 272 : Math.Max(290, cardWidth - pad * 2 - 156);
-            int statusX = cardWidth >= 1180 ? Math.Max(x + 10, cardWidth - pad - statusWidth - 156) : pad;
-            int statusY = cardWidth >= 1180 ? top + 3 : y + 74;
-            backupStatusCard.SetBounds(statusX, statusY, statusWidth, 64);
+            int statusY = y + 8;
+            backupStatusCard.SetBounds(pad, statusY, Math.Max(260, cardWidth - pad * 2), 70);
             backupStatusIcon.SetBounds(16, 18, 28, 28);
-            backupStatusTitle.SetBounds(58, 12, statusWidth - 74, 22);
-            backupStatusDetail.SetBounds(58, 34, statusWidth - 74, 20);
-            configureBackupButton.SetBounds(cardWidth - pad - configureBackupButton.Width, statusY + 14, configureBackupButton.Width, 36);
+            backupStatusTitle.SetBounds(58, 12, Math.Max(80, backupStatusCard.Width - 74), 22);
+            backupStatusDetail.SetBounds(58, 36, Math.Max(80, backupStatusCard.Width - 74), 20);
+
+            int buttonY = cardHeight - 54;
+            int runX = cardWidth - pad - runBackupButton.Width;
+            runBackupButton.SetBounds(runX, buttonY, runBackupButton.Width, 36);
+            saveBackupButton.SetBounds(Math.Max(pad, runX - saveBackupButton.Width - 10), buttonY, saveBackupButton.Width, 36);
+        }
+
+        void LayoutConfigLogCard(int cardWidth, int cardHeight)
+        {
+            configLogDivider.SetBounds(18, 42, Math.Max(80, cardWidth - 36), 1);
+            refreshConfigLogButton.SetBounds(cardWidth - 18 - refreshConfigLogButton.Width, 12, refreshConfigLogButton.Width, 32);
+            configLogGrid.SetBounds(18, 56, Math.Max(260, cardWidth - 36), Math.Max(160, cardHeight - 96));
+            configLogFooter.SetBounds(18, cardHeight - 34, Math.Max(160, cardWidth - 36), 22);
+            ConfigureConfigLogGrid();
         }
 
         page.Resize += (_, _) => LayoutSettingsPage();
+        RefreshBackupStatus();
+        RefreshConfigLog();
         LayoutSettingsPage();
-
-        static (RoundedPanel Card, CircleLabel Icon, Label Title, Label Description) CreateSettingsFeatureCard(string iconText, string title, string description, Color accent)
-        {
-            var card = ModernUi.CardPanel(12);
-            card.Cursor = Cursors.Hand;
-            card.Padding = Padding.Empty;
-
-            var icon = new CircleLabel
-            {
-                Text = iconText,
-                CircleColor = Color.FromArgb(235, 244, 255),
-                ForeColor = accent,
-                Font = ModernUi.Font(18f, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Cursor = Cursors.Hand
-            };
-            card.Controls.Add(icon);
-
-            var titleLabel = ModernUi.Label(title, 10f, FontStyle.Bold, ModernUi.Text);
-            titleLabel.AutoEllipsis = true;
-            titleLabel.Cursor = Cursors.Hand;
-            card.Controls.Add(titleLabel);
-
-            var descLabel = ModernUi.Label(description, 8.6f, FontStyle.Regular, ModernUi.Muted);
-            descLabel.AutoEllipsis = true;
-            descLabel.Cursor = Cursors.Hand;
-            card.Controls.Add(descLabel);
-
-            void LayoutCard()
-            {
-                int iconSize = card.Width < 250 ? 48 : 56;
-                int iconTop = Math.Max(18, (card.Height - iconSize) / 2);
-                int textLeft = 20 + iconSize + 18;
-                icon.SetBounds(20, iconTop, iconSize, iconSize);
-                titleLabel.SetBounds(textLeft, 21, Math.Max(110, card.Width - textLeft - 18), 24);
-                descLabel.SetBounds(textLeft, 49, Math.Max(110, card.Width - textLeft - 18), 38);
-            }
-
-            Color normal = card.BackColor;
-            card.MouseEnter += (_, _) => card.BackColor = Color.FromArgb(252, 254, 255);
-            card.MouseLeave += (_, _) => card.BackColor = normal;
-            foreach (Control child in card.Controls)
-            {
-                child.MouseEnter += (_, _) => card.BackColor = Color.FromArgb(252, 254, 255);
-                child.MouseLeave += (_, _) => card.BackColor = normal;
-            }
-
-            card.Resize += (_, _) => LayoutCard();
-            LayoutCard();
-            return (card, icon, titleLabel, descLabel);
-        }
 
         static TextBox AddSettingsTextField(Control parent, List<(Label Label, RoundedPanel Host, TextBox Input, int Height)> fields, string label, string value, bool multiline = false)
         {

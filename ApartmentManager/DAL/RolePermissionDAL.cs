@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Data.SqlClient;
@@ -359,14 +359,14 @@ public class RolePermissionDAL
     /// </summary>
     public static void EnsureRbacDefaults()
     {
-        const string policyVersion = "2026-05-22-rbac-v1";
+        const string policyVersion = "2026-05-26-rbac-manager-v2";
         try
         {
             var roles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Super Admin"] = "Toàn quyền hệ thống",
                 ["Admin"] = "Quản lý hệ thống",
-                ["Manager"] = "Xem báo cáo và giám sát vận hành",
+                ["Manager"] = "Quản lý vận hành chung cư",
                 ["Kế toán"] = "Quản lý hóa đơn, phí và xuất dữ liệu tài chính",
                 ["Lễ tân"] = "Quản lý khách ra vào",
                 ["Kỹ thuật"] = "Xử lý phản ánh và tài sản",
@@ -413,7 +413,26 @@ public class RolePermissionDAL
                     "ViewReports", "ReportGeneration", "ExportData", "ViewLogs",
                     "SystemConfiguration", "ResetData"
                 },
-                ["Manager"] = new[] { "ViewDashboard", "ViewReports", "ManageNotifications" },
+
+                ["Manager"] = new[]
+                {
+                    "ViewDashboard",
+
+                    "ManageApartments",
+                    "ManageResidents",
+                    "ManageInvoices",
+                    "ManageFeeTypes",
+                    "ManageComplaints",
+                    "ManageNotifications",
+                    "ManageVehicles",
+                    "ManageVisitors",
+                    "ManageAssets",
+
+                    "ViewReports",
+                    "ReportGeneration",
+                    "ExportData"
+                },
+
                 ["Kế toán"] = new[] { "ViewDashboard", "ManageInvoices", "ManageFeeTypes", "ViewReports", "ReportGeneration", "ExportData" },
                 ["Lễ tân"] = new[] { "ViewDashboard", "ManageVisitors", "ManageNotifications" },
                 ["Kỹ thuật"] = new[] { "ViewDashboard", "ManageComplaints", "ManageAssets", "ManageNotifications" },
