@@ -16,5 +16,18 @@
   "enabledPlugins": {
     "ponytail@ponytail": true,
     "agent-skills@addy-agent-skills": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pip install -q --break-system-packages graphifyy >/dev/null 2>&1 && graphify install >/dev/null 2>&1 || true",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
   }
 }
